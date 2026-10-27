@@ -107,3 +107,8 @@ A tabela `site_visit_stats` está nos schemas (`npm run db:migrate`) e também �
 
 `tests/server/analytics.test.js`: coleta, agregação, bots/DNT, origem, rate limit, autenticação da rota (sem variável,
 sem chave, chave errada, chave certa), formato do relatório e limites de `days`.
+
+**Conferido contra PostgreSQL 17 (27/10/2026).** Banco descartável local (`DATABASE_DRIVER=postgres`, `DATABASE_SSL=disable`),
+`npm run db:migrate` e o servidor real: quatro páginas e uma primeira página de visita com `referrer` e outro aparelho. O
+`ON CONFLICT` acumulou os contadores na mesma linha (`/comprar` com 2 visitas), `total` ficou com 5 visitas, 2 visitantes e 1
+sessão, e o relatório com a chave certa respondeu 200 no formato do painel.

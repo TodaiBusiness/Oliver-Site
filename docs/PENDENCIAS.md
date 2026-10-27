@@ -29,7 +29,7 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
   cidade, origem, campanha, aparelho, página; sem IP, sem cookie) na tabela `site_visit_stats` e responde
   `GET /api/analytics/report?days=N` com `X-Analytics-Key` = `ANALYTICS_READ_KEY`, no formato do painel (`window`,
   `totals`, `daily`, `rankings`). `/privacidade` atualizada. Verificado com testes automáticos (`tests/server/analytics.test.js`),
-  `npm run build` e requisições reais ao servidor local (ver `docs/VISITANTES.md`). Falta só ligar no painel:
+  `npm run build` e requisições reais ao servidor local, com SQLite e com PostgreSQL 17 (ver `docs/VISITANTES.md`). Falta só ligar no painel:
   `ANALYTICS_READ_KEY` no site e `SiteAnalytics__BaseUrl`/`SiteAnalytics__ReadKey` na API (Hostinger).
 
 - **P-010** · aberta em 2026-10-21 · resolvida em 2026-10-21 · Achados baixos da varredura no site → `RouteSeo`
