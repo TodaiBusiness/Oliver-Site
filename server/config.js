@@ -149,6 +149,13 @@ export const config = Object.freeze({
     publicUrl: readEnv('SITE_PUBLIC_URL'),
   }),
 
+  /* Chave que a API de licenciamento manda em `X-Analytics-Key` para ler o
+     relatório de visitas. Sem ela (ou com menos de 32 caracteres) a rota de
+     relatório fica desligada. Nunca chega ao navegador. */
+  analytics: Object.freeze({
+    readKey: readEnv('ANALYTICS_READ_KEY'),
+  }),
+
   /* Oliver Licensing — a API central. Os orçamentos pedidos aqui não ficam no
      banco do site: são gravados lá, onde o Panel Desktop os lê. A chave é de
      serviço (não é sessão de administrador) e nunca chega ao navegador: quem

@@ -159,3 +159,15 @@ CREATE TABLE IF NOT EXISTS attachments (
 );
 
 CREATE INDEX IF NOT EXISTS ix_attachments_message ON attachments (message_id);
+
+-- Visitas do site, agregadas por dia e por recorte (país, cidade, origem,
+-- campanha, aparelho, página). Sem IP e sem identificador de pessoa.
+CREATE TABLE IF NOT EXISTS site_visit_stats (
+  stat_day TEXT    NOT NULL,
+  dim      TEXT    NOT NULL,
+  label    TEXT    NOT NULL,
+  visits   INTEGER NOT NULL DEFAULT 0,
+  visitors INTEGER NOT NULL DEFAULT 0,
+  sessions INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (stat_day, dim, label)
+);

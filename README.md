@@ -170,7 +170,12 @@ progresso). Nada é enviado a servidor nenhum.
 
 ## Analytics
 
-Nenhuma ferramenta instalada e **nenhum dado sai do navegador**.
+**Visitas:** o próprio servidor conta, de forma agregada e sem IP nem cookie, quem
+abre o site (país, cidade, origem, campanha, aparelho e página) e entrega o
+relatório ao Panel Desktop em `GET /api/analytics/report`. Ver
+[`docs/VISITANTES.md`](docs/VISITANTES.md).
+
+**Eventos de interação:** nenhuma ferramenta de terceiros instalada.
 `src/utils/analytics.js` dispara os eventos (`whatsapp_clicked`,
 `funnel_started`, `funnel_step_completed`, `hero_cta_click`,
 `project_viewed`, `solution_selected`) para `window.dataLayer`. Basta colar a
@@ -496,7 +501,8 @@ o mesmo comando com outra `ADMIN_INITIAL_PASSWORD`.
 ### Tabelas
 
 `users` · `projects` · `client_projects` · `project_requests` · `messages` ·
-`sessions` · `login_attempts` · `audit_logs`
+`sessions` · `login_attempts` · `audit_logs` · `attachments` · `site_visit_stats`
+(contagens de visitas por dia)
 
 Com chaves estrangeiras, `ON DELETE CASCADE`, `UNIQUE` em e-mail e slug,
 `CHECK` no papel do usuário e índices nos campos realmente filtrados.
@@ -507,6 +513,8 @@ Com chaves estrangeiras, `ON DELETE CASCADE`, `UNIQUE` em e-mail e slug,
 |---|---|---|
 | GET | `/api/projects` | público |
 | POST | `/api/quote-requests` | público (sem conta) |
+| POST | `/api/analytics/collect` | público (só a própria origem; conta a visita) |
+| GET | `/api/analytics/report?days=N` | chave `X-Analytics-Key` (`ANALYTICS_READ_KEY`) |
 | POST | `/api/auth/register` `/api/auth/login` | público |
 | POST | `/api/auth/logout` · GET `/api/auth/me` | autenticado |
 | GET | `/api/me/summary` `/api/me/projects` `/api/me/requests` | cliente |
@@ -580,6 +588,8 @@ rodando contra um SQLite **em memória** com o schema real:
 - **Orçamentos** (12): encaminhamento à API de licenciamento, montagem da URL,
   validação sem gastar chamada, mass assignment, limite por visitante, API
   central fora do ar e erro que não pode vazar para o navegador.
+- **Visitas** (16): coleta agregada, bots e DNT, origem, rate limit, chave do relatório,
+  formato e limite de `days`.
 - **Fluxo** (4): jornada completa cadastro → solicitação → conversa → status,
   CRUD de projeto refletindo no site, slug duplicado, resumo do admin.
 - **Banco e rotas** (20): tabelas, índices, `UNIQUE`, `CHECK`, FK, cascata,

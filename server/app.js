@@ -6,7 +6,7 @@
    é cosmético — quem barra é este arquivo.
    ========================================================================= */
 
-import { AUDIT_ACTIONS, ROLES, SECURITY } from './config.js';
+import { AUDIT_ACTIONS, ROLES, SECURITY, config } from './config.js';
 import { createContext } from './context.js';
 import { createRouter } from './http/router.js';
 import {
@@ -34,6 +34,7 @@ import { attachmentsService } from './services/attachments.js';
 import { quoteRequestsService } from './services/quoteRequests.js';
 import { checkoutService } from './services/checkout.js';
 import { accountService } from './services/account.js';
+import { analyticsService, parseDays } from './services/analytics.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
 
@@ -47,6 +48,11 @@ const AUTH_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_MAX_PER_IP = 20;
 const REGISTER_MAX_PER_IP = 10;
 
+/* Coleta de visitas: uma por página aberta. Folgado para quem navega rápido,
+   curto o bastante para um script não inflar os números. */
+const COLLECT_WINDOW_MS = 60 * 1000;
+const COLLECT_MAX_PER_IP = 120;
+
 /**
  * `quoteRequests` entra por parâmetro para os testes poderem trocar o `fetch`
  * que fala com a API de licenciamento — sem isso, testar o formulário de
@@ -59,6 +65,7 @@ export function createApp(
     quoteRequests = quoteRequestsService(),
     checkout = checkoutService(),
     account = accountService(),
+    analytics = analyticsService(db, { readKey: config.analytics.readKey, allowedOrigins }),
   } = {}
 ) {
   const ctx = createContext(db);
@@ -76,6 +83,8 @@ export function createApp(
     windowMs: AUTH_WINDOW_MS,
   });
 
+  const collectLimiter = createRateLimiter({ max: COLLECT_MAX_PER_IP, windowMs: COLLECT_WINDOW_MS });
+
   const limitByIp = (limiter, headers, remoteAddress, message) => {
     if (!limiter.hit(clientAddress(headers, remoteAddress))) throw tooManyRequests(message);
   };
@@ -88,6 +97,38 @@ export function createApp(
   }));
 
   router.get('/api/health', async () => ({ status: 200, body: { ok: true } }));
+
+  /* Visitas do site (agregado, sem IP nem cookie — docs/VISITANTES.md). Não há
+     CORS: só a própria origem do site pode chamar; sem `Origin` válido a
+     requisição é recusada. Bot, DNT e Sec-GPC respondem 202 sem registrar. */
+  router.post('/api/analytics/collect', async ({ body, headers, remoteAddress }) => {
+    if (allowedOrigins.length && !allowedOrigins.includes(headers.origin)) {
+      throw forbidden('Origem não autorizada.');
+    }
+    if (!collectLimiter.hit(clientAddress(headers, remoteAddress))) {
+      throw tooManyRequests('Muitas requisições.');
+    }
+    const input = pick(body, ['path', 'referrer', 'entry', 'utmCampaign', 'utmSource']);
+    try {
+      await analytics.collect({ headers, remoteAddress, body: input });
+    } catch (error) {
+      /* Medir visita nunca pode derrubar o site. */
+      console.error('[analytics] coleta falhou:', error?.message);
+    }
+    return { status: 202, body: { ok: true } };
+  });
+
+  /* Relatório para a API de licenciamento / Panel Desktop. Sem
+     ANALYTICS_READ_KEY (ou curta demais) a rota responde 503 e nunca abre. */
+  router.get('/api/analytics/report', async ({ query, headers }) => {
+    if (!analytics.enabled) {
+      throw new AppError(503, 'ANALYTICS_DESLIGADO', 'O relatório de visitas não está configurado.');
+    }
+    if (!analytics.authorize(headers['x-analytics-key'])) throw unauthorized('Chave inválida.');
+    const days = parseDays(query.days);
+    if (days === null) throw badRequest('O parâmetro days deve ser um inteiro de 1 a 400.');
+    return { status: 200, body: await analytics.report(days) };
+  });
 
   /* Orçamento pedido por visitante, sem conta. Não grava no banco daqui: vai
      para a API Oliver Licensing, onde o Panel Desktop lê. `pick` mantém a

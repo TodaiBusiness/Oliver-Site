@@ -29,6 +29,8 @@ DROP TABLE IF EXISTS attachments;
 
 DROP TABLE IF EXISTS audit_logs;
 
+DROP TABLE IF EXISTS site_visit_stats;
+
 DROP TABLE IF EXISTS login_attempts;
 
 DROP TABLE IF EXISTS client_projects;

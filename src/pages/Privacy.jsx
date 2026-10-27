@@ -18,7 +18,7 @@ export default function Privacy() {
           Documento
         </span>
         <h1 className="legal__title">Política de privacidade</h1>
-        <p className="legal__updated">Versão de 19/10/2026</p>
+        <p className="legal__updated">Versão de 27/10/2026</p>
 
         <p>
           Esta página explica quais dados pessoais a {LEGAL_NAME} coleta no
@@ -40,6 +40,16 @@ export default function Privacy() {
           <li>
             <strong>Pedido de orçamento e conta no site:</strong> o que você
             digita nos formulários e as mensagens trocadas.
+          </li>
+          <li>
+            <strong>Visitas ao site:</strong> contamos quantas pessoas abrem
+            cada página, só em números somados por dia: país e cidade
+            aproximados, o site de onde você veio, a campanha do link (quando
+            houver), o tipo de aparelho (celular, tablet ou computador) e a
+            página aberta. Não guardamos o seu endereço IP, não usamos cookie
+            nem identificador seu para isso e não identificamos você. Quem
+            ativa o sinal "Do Not Track" ou "Global Privacy Control" no
+            navegador não é contado.
           </li>
           <li>
             <strong>Pagamento:</strong> quem processa é o Mercado Pago. Não
@@ -75,14 +85,16 @@ export default function Privacy() {
         <p>
           O site usa apenas o cookie de sessão necessário para manter você
           conectado na área do cliente. Ele não é usado para propaganda nem
-          para rastrear sua navegação em outros sites.
+          para rastrear sua navegação em outros sites. A contagem de visitas
+          não usa cookie.
         </p>
 
         <h2>6. Por quanto tempo guardamos</h2>
         <p>
           Enquanto o contrato estiver ativo e depois dele pelo tempo necessário
           para cumprir obrigações legais e para a defesa em eventual disputa.
-          Passado esse prazo, os dados são apagados ou anonimizados.
+          Passado esse prazo, os dados são apagados ou anonimizados. Os números
+          somados de visitas são mantidos por até 400 dias.
         </p>
 
         <h2>7. Segurança</h2>

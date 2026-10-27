@@ -49,3 +49,10 @@ subdomínios; `src/utils/checkoutUrl.js`).
   Trocá-lo não derruba sessões; para isso, apague as sessões no banco.
 - A imagem Docker usa `https://oliverimports.com.br` como endereço do site (canônico e imagens de compartilhamento) e
   escuta na porta 8080, a mesma do healthcheck.
+
+## Visitas do site
+
+Detalhes em `docs/VISITANTES.md`. Em resumo: `POST /api/analytics/collect` aceita só a origem do próprio site (sem
+`Origin` autorizado, 403), tem teto de 120 pedidos por minuto por IP, ignora bots e quem manda `DNT`/`Sec-GPC`, e
+nunca guarda IP nem cookie. `GET /api/analytics/report` exige `X-Analytics-Key` igual a `ANALYTICS_READ_KEY`
+(mínimo de 32 caracteres, comparação em tempo constante); sem a variável a rota responde 503 e nunca fica aberta.

@@ -77,6 +77,13 @@ services:
       - key: SITE_SERVICE_API_KEY
         sync: false
 
+      # Chave de leitura do relatório de visitas (GET /api/analytics/report,
+      # cabeçalho X-Analytics-Key). A MESMA string de SiteAnalytics__ReadKey na
+      # API de licenciamento; mínimo de 32 caracteres. Sem ela o relatório fica
+      # desligado (503) e a coleta de visitas continua.
+      - key: ANALYTICS_READ_KEY
+        sync: false
+
       # URL pública do site, com https e sem barra final. A compra a usa para
       # dizer ao Mercado Pago para onde levar o cliente depois de pagar
       # (/obrigado). Sem ela, POST /api/checkout responde 503.

@@ -43,6 +43,7 @@ async function main() {
     'login_attempts',
     'audit_logs',
     'attachments',
+    'site_visit_stats',
   ];
 
   for (const table of tables) {

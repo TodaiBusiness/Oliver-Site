@@ -3,6 +3,7 @@ import { AuthProvider } from './app/AuthContext.jsx';
 import ProtectedRoute from './app/ProtectedRoute.jsx';
 import MessageNotifier from './components/MessageNotifier.jsx';
 import RouteSeo from './app/RouteSeo.jsx';
+import PageTracker from './app/PageTracker.jsx';
 
 import Home from './pages/Home.jsx';
 import Login from './pages/Login.jsx';
@@ -34,6 +35,7 @@ export default function App() {
         {/* Fora das rotas: o aviso aparece em qualquer página. */}
         <MessageNotifier />
         <RouteSeo />
+        <PageTracker />
 
         <Routes>
           {/* ---- Site público ---- */}

@@ -24,6 +24,14 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
 
 ## Resolvidas
 
+- **P-011** · aberta em 2026-10-27 · resolvida em 2026-10-27 · O site não registrava visitas nem entregava o relatório
+  que o Panel Desktop espera (atende à P-074 do painel) → o servidor conta cada página aberta de forma agregada (país,
+  cidade, origem, campanha, aparelho, página; sem IP, sem cookie) na tabela `site_visit_stats` e responde
+  `GET /api/analytics/report?days=N` com `X-Analytics-Key` = `ANALYTICS_READ_KEY`, no formato do painel (`window`,
+  `totals`, `daily`, `rankings`). `/privacidade` atualizada. Verificado com testes automáticos (`tests/server/analytics.test.js`),
+  `npm run build` e requisições reais ao servidor local (ver `docs/VISITANTES.md`). Falta só ligar no painel:
+  `ANALYTICS_READ_KEY` no site e `SiteAnalytics__BaseUrl`/`SiteAnalytics__ReadKey` na API (Hostinger).
+
 - **P-010** · aberta em 2026-10-21 · resolvida em 2026-10-21 · Achados baixos da varredura no site → `RouteSeo`
   atualiza `canonical` e `og:url` na navegação interna e o caminho não diferencia maiúsculas (`/Comprar` mostra o
   título de `/comprar`); `server/http/origins.js` tira a barra final de `ALLOWED_ORIGINS` no `server.js` e na função
