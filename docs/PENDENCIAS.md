@@ -5,6 +5,15 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
 
 ## Abertas
 
+### Fase Hostinger
+
+- **P-012** · 2026-10-27 · **Publicar o site na Hostinger.** Hoje ele roda no Render (`oliver-imports-site.onrender.com`); o dono vai
+  hospedá-lo na Hostinger (VPS KVM 1 e plano de sites, decisão de 27/10/2026), junto da API de licenças e do painel. Antes: o dono fazer o merge
+  do ramo `claude/site-visitantes` (registro de visitas, P-011) na `main`. Na hospedagem: gerar a `ANALYTICS_READ_KEY` (mínimo 32 caracteres),
+  preencher as variáveis de `docs/VISITANTES.md` e conferir que o painel mostra as visitas (P-074 do Panel-Desktop).
+
+### Depende do dono
+
 - **P-001** · 2026-10-19 · **O site não vende o produto.** A home é um portfólio de agência. Faltam:
   - preço e planos;
   - checkout;
