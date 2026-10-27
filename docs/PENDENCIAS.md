@@ -33,6 +33,13 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
 
 ## Resolvidas
 
+- **P-013** · aberta em 2026-10-27 · resolvida em 2026-10-27 · Revisão do registro de visitas: a rota de coleta aceitava o
+  teto global de corpo (upload) e cada chamada faz 6–7 escritas; faltava documentar o efeito de várias instâncias nos
+  visitantes únicos e o `utmCampaign` livre → `POST /api/analytics/collect` tem teto próprio de 2 KB (413) no
+  `server.js`, na função do Netlify e na própria rota, sem afetar o upload; `docs/VISITANTES.md` explica o sal/conjunto/limitador
+  por instância (únicos inflados no Netlify, não na VPS) e o limite do `utmCampaign`. Teste novo em `tests/server/analytics.test.js`;
+  `npm test` e `npm run build` verdes.
+
 - **P-011** · aberta em 2026-10-27 · resolvida em 2026-10-27 · O site não registrava visitas nem entregava o relatório
   que o Panel Desktop espera (atende à P-074 do painel) → o servidor conta cada página aberta de forma agregada (país,
   cidade, origem, campanha, aparelho, página; sem IP, sem cookie) na tabela `site_visit_stats` e responde

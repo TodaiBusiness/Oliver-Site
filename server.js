@@ -24,7 +24,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 import { LIMITS, assertProductionConfig } from './server/config.js';
 import { getDb } from './server/db/index.js';
-import { createApp } from './server/app.js';
+import { bodyLimitFor, createApp } from './server/app.js';
 import { normalizeApiPath } from './server/http/path.js';
 import { parseAllowedOrigins } from './server/http/origins.js';
 import { applySeo } from './shared/seo.js';
@@ -129,7 +129,10 @@ const server = createServer(async (request, response) => {
 
     /* ------------------------------------------------------------------ API */
     if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-      const { body: bruto, tooLarge } = await lerCorpo(request, MAX_BODY_BYTES);
+      const { body: bruto, tooLarge } = await lerCorpo(
+        request,
+        bodyLimitFor(normalizeApiPath(url.pathname)) ?? MAX_BODY_BYTES
+      );
 
       if (tooLarge) {
         response.writeHead(413, {

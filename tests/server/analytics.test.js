@@ -41,6 +41,18 @@ const relatorio = (app, { key = KEY, days } = {}) =>
 
 /* ---- coleta e agregação ---- */
 
+test('corpo grande demais na coleta é recusado com 413; o normal passa', async () => {
+  const { app, close } = await setup();
+  try {
+    const grande = await visita(app, { extra: { referrer: 'x'.repeat(5000) } });
+    assert.equal(grande.status, 413);
+    const normal = await visita(app);
+    assert.equal(normal.status, 202);
+  } finally {
+    await close();
+  }
+});
+
 test('uma visita vira contadores agregados por recorte', async () => {
   const { app, close } = await setup();
   try {

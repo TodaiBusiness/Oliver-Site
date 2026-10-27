@@ -50,6 +50,17 @@ receber tráfego pelo proxy (na VPS, porta fechada para fora, só o Caddy/CDN).
 - Retenção de **400 dias**; registros mais antigos são apagados na primeira coleta de cada dia.
 - No máximo 300 rótulos distintos por recorte e por dia; o excesso soma em "Outros".
 - Campos de entrada truncados (`path` 80, rótulos 60, domínio 80 caracteres).
+- `utmCampaign` é texto livre de até 60 caracteres, vindo da URL de quem visita, e aparece como está no painel; vale o
+  limite de 300 rótulos distintos por dia (o excesso soma em "Outros").
+- O corpo da coleta tem teto próprio de **2 KB** (413 acima disso), bem abaixo do teto global do servidor, que é pensado
+  para upload. Cada coleta faz 6–7 escritas no banco.
+
+### Visitantes únicos e várias instâncias
+
+O sal diário, o conjunto de visitantes já vistos no dia e o limitador de pedidos ficam **na memória de cada instância**.
+No servidor Node único (VPS/Render) isso não importa. Em deploy com várias instâncias ou funções sem estado (Netlify
+Functions), o mesmo visitante pode cair em instâncias diferentes e ser contado de novo, então **visitantes únicos saem
+inflados** (visitas e páginas não), e o teto por IP vale por instância.
 
 ## Rotas
 
@@ -58,7 +69,7 @@ receber tráfego pelo proxy (na VPS, porta fechada para fora, só o Caddy/CDN).
 Corpo: `{ path, entry, referrer?, utmCampaign?, utmSource? }`. Responde 202 sempre que passa nas proteções (também quando
 ignora por bot/DNT, e quando a gravação falha — medir não derruba o site). Proteções: só aceita `Origin` presente em
 `ALLOWED_ORIGINS` (403 caso contrário; não há cabeçalhos CORS, então outro site não consegue chamar do navegador); teto de
-120 pedidos por minuto por IP (429). O rastreador do front é `src/app/PageTracker.jsx`.
+120 pedidos por minuto por IP (429); corpo acima de 2 KB (413). O rastreador do front é `src/app/PageTracker.jsx`.
 
 ### `GET /api/analytics/report?days=N`
 
@@ -106,7 +117,7 @@ A tabela `site_visit_stats` está nos schemas (`npm run db:migrate`) e também �
 ## Testes
 
 `tests/server/analytics.test.js`: coleta, agregação, bots/DNT, origem, rate limit, autenticação da rota (sem variável,
-sem chave, chave errada, chave certa), formato do relatório e limites de `days`.
+sem chave, chave errada, chave certa), teto de corpo da coleta (413), formato do relatório e limites de `days`.
 
 **Conferido contra PostgreSQL 17 (27/10/2026).** Banco descartável local (`DATABASE_DRIVER=postgres`, `DATABASE_SSL=disable`),
 `npm run db:migrate` e o servidor real: quatro páginas e uma primeira página de visita com `referrer` e outro aparelho. O

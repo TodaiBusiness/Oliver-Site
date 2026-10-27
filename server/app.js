@@ -53,6 +53,15 @@ const REGISTER_MAX_PER_IP = 10;
 const COLLECT_WINDOW_MS = 60 * 1000;
 const COLLECT_MAX_PER_IP = 120;
 
+/* Cada coleta faz 6–7 escritas; o corpo legítimo tem poucas dezenas de bytes.
+   Teto próprio, bem abaixo do global (pensado para upload). */
+export const COLLECT_MAX_BODY_BYTES = 2048;
+
+/** Teto de corpo por caminho; `null` = vale o teto global do servidor. */
+export function bodyLimitFor(path) {
+  return path === '/api/analytics/collect' ? COLLECT_MAX_BODY_BYTES : null;
+}
+
 /**
  * `quoteRequests` entra por parâmetro para os testes poderem trocar o `fetch`
  * que fala com a API de licenciamento — sem isso, testar o formulário de
@@ -107,6 +116,9 @@ export function createApp(
     }
     if (!collectLimiter.hit(clientAddress(headers, remoteAddress))) {
       throw tooManyRequests('Muitas requisições.');
+    }
+    if (Buffer.byteLength(JSON.stringify(body ?? {})) > COLLECT_MAX_BODY_BYTES) {
+      throw new AppError(413, 'CORPO_GRANDE_DEMAIS', 'O corpo da requisição passa do tamanho permitido.');
     }
     const input = pick(body, ['path', 'referrer', 'entry', 'utmCampaign', 'utmSource']);
     try {

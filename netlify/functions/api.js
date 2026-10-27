@@ -11,7 +11,7 @@
 
 import { assertProductionConfig } from '../../server/config.js';
 import { getDb } from '../../server/db/index.js';
-import { createApp } from '../../server/app.js';
+import { bodyLimitFor, createApp } from '../../server/app.js';
 import { parseAllowedOrigins } from '../../server/http/origins.js';
 import { normalizeApiPath } from '../../server/http/path.js';
 
@@ -47,6 +47,13 @@ export default async function handler(request) {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       try {
         const raw = await request.text();
+        const limite = bodyLimitFor(normalizeApiPath(url.pathname));
+        if (limite !== null && Buffer.byteLength(raw) > limite) {
+          return json(413, {
+            error: 'CORPO_GRANDE_DEMAIS',
+            message: 'O corpo da requisição passa do tamanho permitido.',
+          });
+        }
         body = raw ? JSON.parse(raw) : {};
       } catch {
         return json(400, {
