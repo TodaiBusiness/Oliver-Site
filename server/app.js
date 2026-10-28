@@ -23,7 +23,7 @@ import {
   unauthorized,
 } from './http/errors.js';
 import { clientAddress } from './http/clientAddress.js';
-import { createRateLimiter } from './http/rateLimit.js';
+import { createRateLimiter, createWindowCounter } from './http/rateLimit.js';
 import { parsePagination, pick, toId } from './http/validation.js';
 import { authService } from './services/auth.js';
 import { projectsService } from './services/projects.js';
@@ -48,13 +48,17 @@ const AUTH_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_MAX_PER_IP = 20;
 const REGISTER_MAX_PER_IP = 10;
 
-/* Coleta de visitas: uma por página aberta. Folgado para quem navega rápido,
-   curto o bastante para um script não inflar os números. */
+/* Coleta de visitas: uma por página aberta. 30 por minuto por IP cobre quem
+   navega rápido (uma página a cada 2 s, sustentado); o teto diário de 1500 por
+   IP limita um script a isso (antes, ~172 mil por dia). Origin e user agent são
+   forjáveis fora do navegador: isto é custo, não prova. */
 const COLLECT_WINDOW_MS = 60 * 1000;
-const COLLECT_MAX_PER_IP = 120;
+const COLLECT_MAX_PER_IP = 30;
+const COLLECT_DAY_MS = 24 * 60 * 60 * 1000;
+const COLLECT_MAX_PER_IP_DAY = 1500;
 
-/* Cada coleta faz 6–7 escritas; o corpo legítimo tem poucas dezenas de bytes.
-   Teto próprio, bem abaixo do global (pensado para upload). */
+/* O corpo legítimo tem poucas dezenas de bytes (a coleta grava numa única
+   instrução). Teto próprio, bem abaixo do global (pensado para upload). */
 export const COLLECT_MAX_BODY_BYTES = 2048;
 
 /** Teto de corpo por caminho; `null` = vale o teto global do servidor. */
@@ -93,6 +97,8 @@ export function createApp(
   });
 
   const collectLimiter = createRateLimiter({ max: COLLECT_MAX_PER_IP, windowMs: COLLECT_WINDOW_MS });
+  /* Janela diária por IP: só um contador em memória, sem lista de instantes. */
+  const collectDaily = createWindowCounter({ max: COLLECT_MAX_PER_IP_DAY, windowMs: COLLECT_DAY_MS });
 
   const limitByIp = (limiter, headers, remoteAddress, message) => {
     if (!limiter.hit(clientAddress(headers, remoteAddress))) throw tooManyRequests(message);
@@ -114,7 +120,8 @@ export function createApp(
     if (allowedOrigins.length && !allowedOrigins.includes(headers.origin)) {
       throw forbidden('Origem não autorizada.');
     }
-    if (!collectLimiter.hit(clientAddress(headers, remoteAddress))) {
+    const collectIp = clientAddress(headers, remoteAddress);
+    if (!collectLimiter.hit(collectIp) || !collectDaily.hit(collectIp)) {
       throw tooManyRequests('Muitas requisições.');
     }
     if (Buffer.byteLength(JSON.stringify(body ?? {})) > COLLECT_MAX_BODY_BYTES) {

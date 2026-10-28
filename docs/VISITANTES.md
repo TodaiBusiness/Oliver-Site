@@ -1,6 +1,10 @@
 # Visitantes do site
 
-O site conta quem o abre e entrega o resultado ao Panel Desktop. O caminho dos dados é:
+O site conta quem o abre e entrega o resultado ao Panel Desktop.
+
+> **Os números são estimativa, não auditoria.** A coleta é aberta: `Origin` e user agent só barram navegadores e qualquer
+> script (`curl`) os forja. Há tetos que encarecem a forja (abaixo), mas quem usa muitos IPs consegue inflar visitas,
+> visitantes e sessões. Use o painel para tendência, não como prova. O caminho dos dados é:
 
 ```text
 navegador -> POST /api/analytics/collect (site)
@@ -53,7 +57,14 @@ receber tráfego pelo proxy (na VPS, porta fechada para fora, só o Caddy/CDN).
 - `utmCampaign` é texto livre de até 60 caracteres, vindo da URL de quem visita, e aparece como está no painel; vale o
   limite de 300 rótulos distintos por dia (o excesso soma em "Outros").
 - O corpo da coleta tem teto próprio de **2 KB** (413 acima disso), bem abaixo do teto global do servidor, que é pensado
-  para upload. Cada coleta faz 6–7 escritas no banco.
+  para upload.
+- **Uma escrita por coleta**: todas as linhas da coleta (até 7) vão num único `INSERT ... VALUES (...), (...) ON CONFLICT DO
+  UPDATE`, atômico em SQLite e PostgreSQL (antes eram até 8 escritas em sequência), para não pesar no PostgreSQL
+  compartilhado da VPS.
+- **Teto contra forja, por IP e por dia (memória, sal do dia, nada gravado):** no máximo **5 visitantes novos** (user agents
+  distintos do mesmo IP; do 6º em diante a visita conta, o visitante não) e **30 sessões** (`entry: true`; acima disso a página
+  conta como vista comum, sem origem, campanha nem sessão). Em IP compartilhado (escritório, operadora) isso subconta um pouco,
+  de propósito.
 
 ### Visitantes únicos e várias instâncias
 
@@ -69,7 +80,10 @@ inflados** (visitas e páginas não), e o teto por IP vale por instância.
 Corpo: `{ path, entry, referrer?, utmCampaign?, utmSource? }`. Responde 202 sempre que passa nas proteções (também quando
 ignora por bot/DNT, e quando a gravação falha — medir não derruba o site). Proteções: só aceita `Origin` presente em
 `ALLOWED_ORIGINS` (403 caso contrário; não há cabeçalhos CORS, então outro site não consegue chamar do navegador); teto de
-120 pedidos por minuto por IP (429); corpo acima de 2 KB (413). O rastreador do front é `src/app/PageTracker.jsx`.
+30 pedidos por minuto por IP e 1500 por dia por IP (429; contadores em memória, por instância); corpo acima de 2 KB (413).
+O teto de 30 por minuto cobre uma página a cada 2 s sustentada, bem acima de quem navega de verdade; o de 1500 por dia limita
+um script a esse valor por IP (antes ~172 mil por dia). `Origin` ausente/diferente barra só navegador: um script manda o
+`Origin` certo e passa pelos tetos acima. O rastreador do front é `src/app/PageTracker.jsx`.
 
 ### `GET /api/analytics/report?days=N`
 
@@ -117,9 +131,13 @@ A tabela `site_visit_stats` está nos schemas (`npm run db:migrate`) e também �
 ## Testes
 
 `tests/server/analytics.test.js`: coleta, agregação, bots/DNT, origem, rate limit, autenticação da rota (sem variável,
-sem chave, chave errada, chave certa), teto de corpo da coleta (413), formato do relatório e limites de `days`.
+sem chave, chave errada, chave certa), teto de corpo da coleta (413), teto por minuto e diário, lote numa instrução só, teto de visitantes/sessões por IP, contrato do relatório, formato do relatório e limites de `days`.
 
 **Conferido contra PostgreSQL 17 (27/10/2026).** Banco descartável local (`DATABASE_DRIVER=postgres`, `DATABASE_SSL=disable`),
 `npm run db:migrate` e o servidor real: quatro páginas e uma primeira página de visita com `referrer` e outro aparelho. O
 `ON CONFLICT` acumulou os contadores na mesma linha (`/comprar` com 2 visitas), `total` ficou com 5 visitas, 2 visitantes e 1
 sessão, e o relatório com a chave certa respondeu 200 no formato do painel.
+
+**Conferido contra PostgreSQL 17 depois do lote (27/10/2026).** Cluster descartável em outra porta (`DATABASE_SSL=disable`),
+`npm run db:migrate`, coletas direto pelo serviço: o `ON CONFLICT` acumulou na mesma linha, 8 user agents do mesmo IP somaram
+5 visitantes e o relatório saiu com as chaves `window`/`totals`/`daily`/`rankings`.

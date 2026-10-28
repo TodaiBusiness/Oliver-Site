@@ -11,6 +11,7 @@ import {
   pathFrom,
   referrerFrom,
 } from '../../server/services/analytics.js';
+import { createWindowCounter } from '../../server/http/rateLimit.js';
 import { request } from './helpers.js';
 
 const KEY = 'k'.repeat(40);
@@ -182,13 +183,105 @@ test('coleta recusa origem diferente e a ausência de Origin quando há origens 
   }
 });
 
-test('coleta tem rate limit por IP (429 depois do teto)', async () => {
+test('coleta tem rate limit por IP (30 por minuto; o 31º dá 429)', async () => {
   const { app, close } = await setup();
   try {
-    let ultimo;
-    for (let i = 0; i < 125; i += 1) ultimo = await visita(app, { ip: '9.9.9.9' });
-    assert.equal(ultimo.status, 429);
+    for (let i = 0; i < 30; i += 1) {
+      assert.equal((await visita(app, { ip: '9.9.9.9' })).status, 202, `pedido ${i + 1}`);
+    }
+    assert.equal((await visita(app, { ip: '9.9.9.9' })).status, 429);
     assert.equal((await visita(app, { ip: '8.8.8.8' })).status, 202);
+  } finally {
+    close();
+  }
+});
+
+test('contador de janela fixa: teto por chave, reinício ao fim da janela e teto de chaves', () => {
+  const clock = { t: 0 };
+  const c = createWindowCounter({ max: 3, windowMs: 1000, now: () => clock.t });
+  assert.deepEqual([c.hit('a'), c.hit('a'), c.hit('a'), c.hit('a')], [true, true, true, false]);
+  assert.equal(c.hit('b'), true);
+  clock.t = 1000;
+  assert.equal(c.hit('a'), true);
+  const pequeno = createWindowCounter({ max: 1, windowMs: 1000, maxKeys: 2, now: () => clock.t });
+  pequeno.hit('x');
+  pequeno.hit('y');
+  pequeno.hit('z');
+  assert.equal(pequeno.size(), 2);
+});
+
+test('uma coleta grava numa única instrução (lote), com origem e campanha', async () => {
+  const { app, db, close } = await setup();
+  try {
+    await visita(app, { ip: '2.2.2.2' }); // cria a tabela e faz a limpeza do dia
+    const original = db.execute.bind(db);
+    const escritas = [];
+    db.execute = (sql, params) => {
+      if (/INSERT INTO site_visit_stats/i.test(sql)) escritas.push(params.length);
+      return original(sql, params);
+    };
+    const res = await visita(app, {
+      entry: true,
+      ip: '3.3.3.3',
+      extra: { utmCampaign: 'black', referrer: 'https://google.com/' },
+    });
+    assert.equal(res.status, 202);
+    assert.deepEqual(escritas, [7 * 5]); // 7 linhas x 5 parâmetros, 1 instrução
+    const r = (await relatorio(app, { days: 1 })).body;
+    assert.equal(r.rankings.campaign[0].label, 'black');
+    assert.equal(r.rankings.referrer.find((x) => x.label === 'google.com').visits, 1);
+  } finally {
+    close();
+  }
+});
+
+test('o mesmo IP com user agents forjados só soma 5 visitantes por dia', async () => {
+  const { app, close } = await setup();
+  try {
+    for (let i = 0; i < 12; i += 1) {
+      await visita(app, { ip: '4.4.4.4', ua: `Mozilla/5.0 Forjado/${i}` });
+    }
+    const r = (await relatorio(app, { days: 1 })).body;
+    assert.equal(r.totals.visits, 12);
+    assert.equal(r.totals.visitors, 5);
+    /* um navegador já admitido continua sendo a mesma pessoa. */
+    await visita(app, { ip: '4.4.4.4', ua: 'Mozilla/5.0 Forjado/0' });
+    assert.equal((await relatorio(app, { days: 1 })).body.totals.visitors, 5);
+  } finally {
+    close();
+  }
+});
+
+test('o mesmo IP só gera 30 sessões/origens por dia; o excesso vira página vista comum', async () => {
+  const { analytics, app, close } = await setup();
+  try {
+    /* direto no serviço: o teto por minuto da rota não atrapalha o teste do teto diário. */
+    for (let i = 0; i < 40; i += 1) {
+      await analytics.collect({
+        headers: { 'user-agent': UA_PC, 'x-forwarded-for': '5.5.5.5' },
+        body: { path: '/', entry: true, referrer: 'https://google.com/' },
+      });
+    }
+    const r = (await relatorio(app, { days: 1 })).body;
+    assert.equal(r.totals.visits, 40);
+    assert.equal(r.totals.sessions, 30);
+    assert.equal(r.rankings.referrer[0].visits, 30);
+  } finally {
+    close();
+  }
+});
+
+test('o relatório mantém o contrato (window, totals, daily e rankings)', async () => {
+  const { app, close } = await setup();
+  try {
+    await visita(app);
+    const r = (await relatorio(app, { days: 3 })).body;
+    assert.deepEqual(Object.keys(r), ['window', 'totals', 'daily', 'rankings']);
+    assert.deepEqual(Object.keys(r.window), ['days', 'since', 'until']);
+    assert.deepEqual(Object.keys(r.totals), ['visits', 'visitors', 'sessions']);
+    assert.deepEqual(Object.keys(r.daily[0]), ['date', 'visits', 'visitors']);
+    assert.deepEqual(Object.keys(r.rankings), ['country', 'city', 'referrer', 'campaign', 'device', 'path']);
+    assert.equal(r.daily.length, 3);
   } finally {
     close();
   }

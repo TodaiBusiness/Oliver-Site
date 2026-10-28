@@ -13,6 +13,12 @@
 
    País e cidade vêm de cabeçalhos que o proxy/CDN põe (Cloudflare, CloudFront,
    Vercel). Sem eles o valor é "Desconhecido".
+
+   OS NÚMEROS SÃO ESTIMATIVA, NÃO AUDITORIA: a coleta é aberta e `Origin`/user
+   agent são forjáveis por script. O que existe é custo e teto (limite por IP
+   por minuto e por dia na rota; no máximo VISITORS_PER_IP_DAY visitantes e
+   ENTRIES_PER_IP_DAY sessões por IP no dia), nunca prova de que o acesso foi
+   humano. Quem usa muitos IPs ainda consegue inflar.
    ========================================================================= */
 
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
@@ -35,6 +41,10 @@ export const ANALYTICS_LIMITS = Object.freeze({
   LABELS_PER_DAY: 300,
   /** Teto da memória de "já contei este visitante hoje". */
   SEEN_MAX: 200_000,
+  /** Navegadores (user agents) distintos que um mesmo IP pode somar como visitantes novos por dia. */
+  VISITORS_PER_IP_DAY: 5,
+  /** Cargas completas (entry) por IP e por dia que ainda contam como sessão/origem/campanha. */
+  ENTRIES_PER_IP_DAY: 30,
   RANKING_SIZE: 20,
   MIN_KEY_LENGTH: 32,
 });
@@ -173,6 +183,10 @@ export function analyticsService(
   let currentDay = null;
   let salt = null;
   let seen = new Set();
+  /* Por IP (hash com o sal do dia): navegadores e entradas já contados hoje. */
+  let ipVisitors = new Map();
+  let ipEntries = new Map();
+  let admitted = new Set();
   let labelsByDim = new Map();
   let lastPurgeDay = null;
 
@@ -181,16 +195,24 @@ export function analyticsService(
     currentDay = day;
     salt = randomBytes(16);
     seen = new Set();
+    ipVisitors = new Map();
+    ipEntries = new Map();
+    admitted = new Set();
     labelsByDim = new Map();
   }
 
-  function visitorHash(headers, remoteAddress) {
-    return createHash('sha256')
-      .update(salt)
-      .update(clientAddress(headers, remoteAddress))
-      .update('|')
-      .update(String(headers['user-agent'] ?? ''))
-      .digest('hex');
+  const saltedHash = (...parts) => {
+    const h = createHash('sha256').update(salt);
+    for (const part of parts) h.update(part).update('|');
+    return h.digest('hex');
+  };
+
+  /** Soma 1 ao contador da chave; zera o mapa se passar do teto de memória. */
+  function bump(map, key) {
+    if (map.size >= ANALYTICS_LIMITS.SEEN_MAX && !map.has(key)) map.clear();
+    const value = (map.get(key) ?? 0) + 1;
+    map.set(key, value);
+    return value;
   }
 
   /** Limita a variedade de rótulos por recorte e por dia. */
@@ -234,8 +256,21 @@ export function analyticsService(
     rollDay(day);
     await purgeOld(day, ms);
 
-    const entry = body?.entry === true;
-    const hash = visitorHash(headers, remoteAddress);
+    const address = clientAddress(headers, remoteAddress);
+    const ipKey = saltedHash(address);
+    const hash = saltedHash(address, ua);
+
+    /* Cada navegador diferente do mesmo IP só vira visitante novo até o teto
+       do dia; e cada IP só gera um número limitado de sessões/origens. */
+    let countsAsVisitor = admitted.has(hash);
+    if (!countsAsVisitor && (ipVisitors.get(ipKey) ?? 0) < ANALYTICS_LIMITS.VISITORS_PER_IP_DAY) {
+      bump(ipVisitors, ipKey);
+      if (admitted.size >= ANALYTICS_LIMITS.SEEN_MAX) admitted.clear();
+      admitted.add(hash);
+      countsAsVisitor = true;
+    }
+    const entry =
+      body?.entry === true && bump(ipEntries, ipKey) <= ANALYTICS_LIMITS.ENTRIES_PER_IP_DAY;
 
     const rows = [
       [TOTAL, ''],
@@ -250,24 +285,30 @@ export function analyticsService(
       if (campaign) rows.push(['campaign', campaign]);
     }
 
+    /* Uma única instrução (atômica nos dois bancos) com todas as linhas da
+       coleta; cada `dim` aparece uma vez, então não há conflito interno. */
+    const values = [];
+    const params = [];
     for (const [dim, raw] of rows) {
       const label = dim === TOTAL ? '' : capLabel(dim, raw);
       const key = `${hash}|${dim}|${label}`;
-      const newVisitor = !seen.has(key);
+      const newVisitor = countsAsVisitor && !seen.has(key);
       if (newVisitor) {
         if (seen.size >= ANALYTICS_LIMITS.SEEN_MAX) seen = new Set();
         seen.add(key);
       }
-      await db.execute(
-        `INSERT INTO site_visit_stats (stat_day, dim, label, visits, visitors, sessions)
-         VALUES (?, ?, ?, 1, ?, ?)
-         ON CONFLICT (stat_day, dim, label) DO UPDATE SET
-           visits = site_visit_stats.visits + 1,
-           visitors = site_visit_stats.visitors + excluded.visitors,
-           sessions = site_visit_stats.sessions + excluded.sessions`,
-        [day, dim, label, newVisitor ? 1 : 0, entry ? 1 : 0]
-      );
+      values.push('(?, ?, ?, 1, ?, ?)');
+      params.push(day, dim, label, newVisitor ? 1 : 0, entry ? 1 : 0);
     }
+    await db.execute(
+      `INSERT INTO site_visit_stats (stat_day, dim, label, visits, visitors, sessions)
+       VALUES ${values.join(', ')}
+       ON CONFLICT (stat_day, dim, label) DO UPDATE SET
+         visits = site_visit_stats.visits + 1,
+         visitors = site_visit_stats.visitors + excluded.visitors,
+         sessions = site_visit_stats.sessions + excluded.sessions`,
+      params
+    );
     return { recorded: true };
   }
 

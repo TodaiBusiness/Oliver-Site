@@ -52,7 +52,9 @@ subdomínios; `src/utils/checkoutUrl.js`).
 
 ## Visitas do site
 
-Detalhes em `docs/VISITANTES.md`. Em resumo: `POST /api/analytics/collect` aceita só a origem do próprio site (sem
-`Origin` autorizado, 403), tem teto de 120 pedidos por minuto por IP, ignora bots e quem manda `DNT`/`Sec-GPC`, e
-nunca guarda IP nem cookie. `GET /api/analytics/report` exige `X-Analytics-Key` igual a `ANALYTICS_READ_KEY`
+Detalhes em `docs/VISITANTES.md`. Em resumo: `POST /api/analytics/collect` confere `Origin` e user agent, mas isso **só
+trava navegadores** (outro site no navegador); `curl` e scripts forjam os dois cabeçalhos, então a coleta é aberta na prática
+e os números são **estimativa sujeita a forja**, não auditoria. A defesa real é custo: teto de 30 pedidos por minuto e de
+1500 por dia por IP (429), no máximo 5 visitantes novos e 30 sessões por IP por dia, uma única escrita no banco por coleta,
+bots/`DNT`/`Sec-GPC` ignorados, e nunca IP nem cookie guardados. Quem usa muitos IPs ainda consegue inflar. `GET /api/analytics/report` exige `X-Analytics-Key` igual a `ANALYTICS_READ_KEY`
 (mínimo de 32 caracteres, comparação em tempo constante); sem a variável a rota responde 503 e nunca fica aberta.

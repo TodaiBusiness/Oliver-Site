@@ -49,3 +49,32 @@ export function createRateLimiter({ max, windowMs, maxKeys = 10_000 }) {
 
   return { hit, size: () => recent.size };
 }
+
+/**
+ * Contador de janela fixa (barato: um número por chave, em vez de uma lista de
+ * instantes). Serve para tetos longos, como "por dia", onde guardar cada pedido
+ * pesaria. Mesmo aviso do limitador acima: estado por processo, em memória, e
+ * com teto de chaves (a mais antiga sai primeiro).
+ */
+export function createWindowCounter({ max, windowMs, maxKeys = 10_000, now = () => Date.now() }) {
+  /** chave -> { start, count } */
+  const counters = new Map();
+
+  function hit(key) {
+    const t = now();
+    const current = counters.get(key);
+    if (current && t - current.start < windowMs) {
+      if (current.count >= max) return false;
+      current.count += 1;
+      return true;
+    }
+    if (!current) {
+      while (counters.size >= maxKeys) counters.delete(counters.keys().next().value);
+    }
+    counters.delete(key);
+    counters.set(key, { start: t, count: 1 });
+    return true;
+  }
+
+  return { hit, size: () => counters.size };
+}

@@ -33,6 +33,14 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
 
 ## Resolvidas
 
+- **P-014** · aberta em 2026-10-27 · resolvida em 2026-10-27 · Auditoria (Médio): dava para inflar as visitas e sobrecarregar o
+  banco pela coleta (`Origin`/user agent forjáveis por `curl`, 120 por minuto por IP ≈ 172 mil por dia, cada user agent novo
+  = visitante novo, `entry:true` inflava sessões, até 8 escritas por coleta no PostgreSQL da VPS) → teto de 30 por minuto e
+  1500 por dia por IP (`createWindowCounter`, em memória), no máximo 5 visitantes novos e 30 sessões por IP por dia, coleta
+  em uma única instrução com upsert em lote (SQLite e PostgreSQL), sem IP gravado; `SEGURANCA.md` corrigido (a origem só trava
+  navegadores) e `VISITANTES.md` diz que os números são estimativa sujeita a forja. A função do Netlify usa o mesmo `createApp`,
+  então herda tudo. Contrato do relatório inalterado (teste novo). Verificado com `npm test`, `npm run build` e PostgreSQL 17 descartável.
+
 - **P-013** · aberta em 2026-10-27 · resolvida em 2026-10-27 · Revisão do registro de visitas: a rota de coleta aceitava o
   teto global de corpo (upload) e cada chamada faz 6–7 escritas; faltava documentar o efeito de várias instâncias nos
   visitantes únicos e o `utmCampaign` livre → `POST /api/analytics/collect` tem teto próprio de 2 KB (413) no
