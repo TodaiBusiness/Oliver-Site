@@ -3,7 +3,7 @@
   <!-- Escala em torno do centro (20,20) para sobrar respiro nas bordas. -->
   <g fill="none" stroke="#22c55e" stroke-width="3.6" stroke-linecap="round"
      transform="translate(20 20) scale(0.84) translate(-20 -20)">
-    <path d="M22 5.13 A15 15 0 1 1 18 5.13"/>
-    <path d="M20 12.4 V27.6"/>
+    <path d="M9 9.5 H31"/>
+    <path d="M20 9.5 V31"/>
   </g>
 </svg>

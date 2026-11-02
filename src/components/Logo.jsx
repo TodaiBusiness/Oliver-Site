@@ -1,8 +1,7 @@
 import { COMPANY_NAME } from '../data/company.js';
 
 /**
- * Marca da TODAI: monograma "OI" — o anel do O com uma abertura no
- * topo, e a haste do I no centro.
+ * Marca da TODAI: monograma "T" — a barra no topo e a haste no centro.
  *
  * Desenhado em vetor (não é imagem), então fica nítido em qualquer tamanho e
  * herda a cor de quem o contém. Para trocar para dourado, mude `--brand-mark`
@@ -22,10 +21,10 @@ export function LogoMark({ size = 34, className = '' }) {
       aria-hidden="true"
       focusable="false"
     >
-      {/* Anel com abertura no topo (arco de ~346°) */}
-      <path d="M22 5.13 A15 15 0 1 1 18 5.13" />
-      {/* Haste central do "I" */}
-      <path d="M20 12.4 V27.6" />
+      {/* Barra do "T" */}
+      <path d="M9 9.5 H31" />
+      {/* Haste central do "T" */}
+      <path d="M20 9.5 V31" />
     </svg>
   );
 }
