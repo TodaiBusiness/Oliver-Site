@@ -37,7 +37,7 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
 
 ## Resolvidas
 
-- **P-013** · aberta em 2026-11-02 · resolvida em 2026-11-02 · **Domínio, marca e logo TODAI.** Decisões do dono: domínio
+- **P-015** · aberta em 2026-11-02 · resolvida em 2026-11-02 · **Domínio, marca e logo TODAI.** Decisões do dono: domínio
   `todai.com.br`, e-mail `vendas@todai.com.br`, "tudo TODAI" no que o cliente vê e monograma "T" no lugar de "OI". → `b6ec457`
   (domínio, `Dockerfile`, `.env.example`, origens padrão fora do Render e o fluxo `publicar-imagem-site`), `6c260f3` e `6487277` (marca e
   nome do produto em títulos, SEO, telas, Termos, Privacidade e na imagem de compartilhamento, regenerada por `scripts/generate-og.mjs`),
