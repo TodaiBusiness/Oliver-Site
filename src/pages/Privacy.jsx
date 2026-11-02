@@ -4,7 +4,7 @@ import { EMAIL, LEGAL_NAME } from '../data/company.js';
 import { PLAN } from '../../shared/plan.js';
 
 /**
- * Política de privacidade (LGPD) do site e do Oliver Inventory.
+ * Política de privacidade (LGPD) do site e do TODAI.
  * Lista só o que o sistema coleta de verdade. Se um dado novo passar a ser
  * coletado, esta página muda na mesma tarefa. Versão aprovada pelo dono em
  * 19/10/2026, sem revisão jurídica (decisão dele).

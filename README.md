@@ -1,6 +1,6 @@
 # TODAI — Site
 
-Site da **TODAI**: vende o **Oliver Inventory** (estoque, caixa e PDV
+Site da **TODAI**: vende o sistema **TODAI** (estoque, caixa e PDV
 para Windows) e, abaixo, apresenta os serviços sob medida. Feito em **React + Vite**, sem dependências pesadas: animações em
 CSS, ícones em SVG inline, nenhuma biblioteca de UI.
 

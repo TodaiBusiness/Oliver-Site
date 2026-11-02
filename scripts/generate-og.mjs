@@ -98,6 +98,22 @@ const GLYPHS = {
     [0, 0.78, 0, 0.22],
     [0, 0.22, 0.14, 0],
   ],
+  D: [
+    [0, 0, 0.44, 0],
+    [0.44, 0, 0.6, 0.22],
+    [0.6, 0.22, 0.6, 0.78],
+    [0.6, 0.78, 0.44, 1],
+    [0.44, 1, 0, 1],
+    [0, 1, 0, 0],
+  ],
+  A: [
+    [0, 1, 0, 0.3],
+    [0, 0.3, 0.2, 0],
+    [0.2, 0, 0.42, 0],
+    [0.42, 0, 0.62, 0.3],
+    [0.62, 0.3, 0.62, 1],
+    [0, 0.58, 0.62, 0.58],
+  ],
   L: [
     [0, 0, 0, 1],
     [0, 1, 0.56, 1],
@@ -158,6 +174,8 @@ const GLYPHS = {
 /** Largura de avanço de cada glifo (evita espaço sobrando em letras finas). */
 const WIDTHS = {
   O: 0.62,
+  D: 0.6,
+  A: 0.62,
   L: 0.56,
   I: 0.12,
   V: 0.62,
@@ -237,8 +255,7 @@ stroke(MX + 54, MY + 48, MX + 30, MY + 68, 8, GREEN);
 stroke(MX + 62, MY + 68, MX + 74, MY + 68, 8, GREEN);
 
 // wordmark
-const end = drawText('OLIVER', 96, 306, 84, 10, WHITE);
-drawText('IMPORTS', end + 20, 306, 84, 10, GREEN);
+drawText('TODAI', 96, 306, 84, 10, WHITE);
 
 // barra de destaque
 stroke(96, 446, 236, 446, 6, GREEN);

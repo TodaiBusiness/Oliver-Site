@@ -1,5 +1,5 @@
 /* =========================================================================
-   O produto à venda: Oliver Inventory (estoque + PDV para Windows).
+   O produto à venda: TODAI (estoque + PDV para Windows).
    -------------------------------------------------------------------------
    Tudo que o site afirma sobre o sistema vem daqui e só pode citar o que o
    sistema faz de verdade hoje (ver `Sistema-Gerenciamento-Estoque/docs/

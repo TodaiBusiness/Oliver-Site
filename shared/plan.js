@@ -9,7 +9,7 @@
    ========================================================================= */
 
 export const PLAN = Object.freeze({
-  name: 'Oliver Inventory',
+  name: 'TODAI',
   /** Mensalidade com o computador incluído. */
   basePrice: 110,
   includedDevices: 1,

@@ -1,4 +1,4 @@
-# Loja do Oliver Inventory no site
+# Loja do TODAI no site
 
 O site deixou de ser só portfólio: a home vende o sistema e existem páginas para
 comprar, receber e entender o produto. Este documento descreve o que existe, de

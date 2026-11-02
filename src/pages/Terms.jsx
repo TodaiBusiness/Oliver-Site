@@ -5,7 +5,7 @@ import { createWhatsAppLink, whatsappDisplay, whatsappLinkProps } from '../utils
 import { PLAN, formatBRL } from '../../shared/plan.js';
 
 /**
- * Termos de uso do Oliver Inventory.
+ * Termos de uso do TODAI.
  * Só descreve o que o sistema e o contrato fazem hoje. Versão aprovada pelo dono
  * em 19/10/2026, sem revisão jurídica (decisão dele). Quando CNPJ e endereço
  * existirem, entram na seção 1 a partir de `src/data/company.js`.
