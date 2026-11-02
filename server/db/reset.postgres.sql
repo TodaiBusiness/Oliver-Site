@@ -1,5 +1,5 @@
 -- ===========================================================================
--- Oliver Imports — RESET do banco PostgreSQL (Neon)
+-- TODAI — RESET do banco PostgreSQL (Neon)
 -- ---------------------------------------------------------------------------
 -- Cole este arquivo inteiro no SQL Editor do Neon e execute. Ele APAGA todos
 -- os dados das 9 tabelas do site — não existe desfazer.

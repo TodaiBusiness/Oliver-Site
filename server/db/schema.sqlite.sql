@@ -1,5 +1,5 @@
 -- ===========================================================================
--- Oliver Imports — schema SQLite (desenvolvimento e testes)
+-- TODAI — schema SQLite (desenvolvimento e testes)
 -- ---------------------------------------------------------------------------
 -- Mesmos nomes de tabela e coluna do PostgreSQL, para o SQL dos repositórios
 -- ser exatamente o mesmo nos dois bancos. As diferenças ficam só aqui.

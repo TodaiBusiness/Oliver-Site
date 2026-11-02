@@ -29,7 +29,7 @@ async function main() {
   const usandoPostgres = config.driver === 'postgres';
 
   linha('');
-  linha('  Oliver Imports — preparando o ambiente');
+  linha('  TODAI — preparando o ambiente');
   linha('  ─────────────────────────────────────────');
   linha(`  Banco: ${usandoPostgres ? 'PostgreSQL (Neon)' : 'SQLite (desenvolvimento)'}`);
 
@@ -70,7 +70,7 @@ async function main() {
   } else {
     await ctx.users.create({
       name: 'Administrador',
-      company: 'Oliver Imports',
+      company: 'TODAI',
       email,
       phone: null,
       passwordHash,

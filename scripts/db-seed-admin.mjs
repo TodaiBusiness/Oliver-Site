@@ -60,7 +60,7 @@ async function main() {
   } else {
     const id = await ctx.users.create({
       name: 'Administrador',
-      company: 'Oliver Imports',
+      company: 'TODAI',
       email: identifier,
       phone: null,
       passwordHash,

@@ -1,7 +1,7 @@
 import { COMPANY_NAME } from '../data/company.js';
 
 /**
- * Marca da Oliver Imports: monograma "OI" — o anel do O com uma abertura no
+ * Marca da TODAI: monograma "OI" — o anel do O com uma abertura no
  * topo, e a haste do I no centro.
  *
  * Desenhado em vetor (não é imagem), então fica nítido em qualquer tamanho e

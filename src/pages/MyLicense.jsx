@@ -38,7 +38,7 @@ const STATES = {
 
 const BILLING = {
   card: 'Cartão, cobrança mensal automática pelo Mercado Pago',
-  manual: 'Pagamento combinado diretamente com a Oliver',
+  manual: 'Pagamento combinado diretamente com a TODAI',
   none: 'Sem assinatura',
 };
 

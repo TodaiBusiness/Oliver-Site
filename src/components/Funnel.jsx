@@ -133,7 +133,7 @@ export default function Funnel() {
                 {...whatsappLinkProps}
               >
                 <Icon name="whatsapp" size={17} />
-                Conversar com a Oliver Imports
+                Conversar com a TODAI
               </a>
 
               <button type="button" className="btn btn--soft btn--xs funnel__back" onClick={restart}>

@@ -28,7 +28,7 @@ test('monta a mensagem com necessidade e estágio', () => {
 
   assert.equal(
     msg,
-    'Olá! Vim pelo site da Oliver Imports.\n' +
+    'Olá! Vim pelo site da TODAI.\n' +
       'Estou interessado em desenvolver um Sistema / ERP.\n' +
       'Atualmente estou na fase de criação do projeto.\n' +
       'Gostaria de conversar sobre como podemos desenvolver essa solução.'
@@ -46,7 +46,7 @@ test('não repete a frase quando estágio e necessidade dizem o mesmo', () => {
 
 test('funciona mesmo sem nenhuma escolha', () => {
   const msg = buildFunnelMessage({});
-  assert.ok(msg.startsWith('Olá! Vim pelo site da Oliver Imports.'));
+  assert.ok(msg.startsWith('Olá! Vim pelo site da TODAI.'));
   assert.ok(msg.includes('Gostaria de conversar'));
 });
 

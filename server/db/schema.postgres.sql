@@ -1,5 +1,5 @@
 -- ===========================================================================
--- Oliver Imports — schema PostgreSQL 14+ (Neon)
+-- TODAI — schema PostgreSQL 14+ (Neon)
 -- ---------------------------------------------------------------------------
 -- Convenções (as mesmas do SQLite, para o SQL dos repositórios não mudar):
 --  · Datas em BIGINT (epoch em milissegundos). Sem fuso horário, sem conversão

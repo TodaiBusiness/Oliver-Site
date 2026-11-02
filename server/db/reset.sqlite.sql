@@ -1,5 +1,5 @@
 -- ===========================================================================
--- Oliver Imports — RESET do banco SQLite (desenvolvimento e testes)
+-- TODAI — RESET do banco SQLite (desenvolvimento e testes)
 -- ---------------------------------------------------------------------------
 -- Cole este arquivo inteiro no cliente SQLite que você usa contra
 -- `server/data/oliver.db` (ex.: `sqlite3 server/data/oliver.db` e depois

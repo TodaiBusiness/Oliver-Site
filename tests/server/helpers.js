@@ -72,7 +72,7 @@ export async function createAdmin(ctx, app, password = 'AdminForte123') {
 
   const id = await ctx.users.create({
     name: 'Admin Teste',
-    company: 'Oliver Imports',
+    company: 'TODAI',
     email,
     phone: null,
     passwordHash: await hashPassword(password),

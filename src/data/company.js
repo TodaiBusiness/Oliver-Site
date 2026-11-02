@@ -15,14 +15,14 @@ export const WHATSAPP_NUMBER = '5512988232512';
 /**
  * E-mail de contato.
  * Pode vir de variável de ambiente (`VITE_COMPANY_EMAIL` no .env) para não
- * ficar fixo no código quando você tiver o endereço oficial da Oliver Imports.
+ * ficar fixo no código quando você tiver o endereço oficial da TODAI.
  * Enquanto não houver, cai no endereço informado anteriormente.
  */
 export const EMAIL =
-  import.meta.env?.VITE_COMPANY_EMAIL || 'olivertech0ficial12@gmail.com';
+  import.meta.env?.VITE_COMPANY_EMAIL || 'vendas@todai.com.br';
 
 /** Nome da empresa exibido no site inteiro (header, footer, títulos, SEO). */
-export const COMPANY_NAME = 'Oliver Imports';
+export const COMPANY_NAME = 'TODAI';
 
 /**
  * Razão social que aparece nos Termos de uso e na Política de privacidade

@@ -8,7 +8,7 @@
 
 import { PLAN } from './plan.js';
 
-const COMPANY = 'Oliver Imports';
+const COMPANY = 'TODAI';
 const PRICE = `R$ ${PLAN.basePrice} por mês com ${PLAN.includedDevices} computador e R$ ${PLAN.extraDevicePrice} por computador a mais`;
 
 /** Rotas públicas: aparecem no Google. */

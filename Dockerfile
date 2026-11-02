@@ -1,4 +1,4 @@
-# Imagem do site Oliver Imports (React + servidor Node). Usada pelo
+# Imagem do site TODAI (React + servidor Node). Usada pelo
 # docker-compose da VPS (Panel-Desktop/deploy/hostinger). Em duas etapas:
 # a primeira compila o React com o Vite, a segunda só leva o que roda.
 

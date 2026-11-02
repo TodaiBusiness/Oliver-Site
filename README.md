@@ -1,6 +1,6 @@
-# Oliver Imports — Site
+# TODAI — Site
 
-Site da **Oliver Imports**: vende o **Oliver Inventory** (estoque, caixa e PDV
+Site da **TODAI**: vende o **Oliver Inventory** (estoque, caixa e PDV
 para Windows) e, abaixo, apresenta os serviços sob medida. Feito em **React + Vite**, sem dependências pesadas: animações em
 CSS, ícones em SVG inline, nenhuma biblioteca de UI.
 
@@ -61,7 +61,7 @@ SQL (o console do Neon, para o Postgres) e rode `npm run db:migrate` (e
 
 ```js
 export const WHATSAPP_NUMBER = '5512988232512';   // ← seu WhatsApp
-export const COMPANY_NAME = 'Oliver Imports';     // ← nome da empresa
+export const COMPANY_NAME = 'TODAI';     // ← nome da empresa
 ```
 
 - **WhatsApp** — formato internacional, só números (`55` + DDD + número).
@@ -73,13 +73,13 @@ export const COMPANY_NAME = 'Oliver Imports';     // ← nome da empresa
   VITE_COMPANY_EMAIL=contato@seudominio.com.br
   ```
 
-  Sem isso, cai no endereço antigo (`olivertech0ficial12@gmail.com`).
+  Sem isso, cai em `vendas@todai.com.br`.
 
 ### Ainda falta preencher
 
 | Onde | O quê |
 |---|---|
-| `.env` | `VITE_COMPANY_EMAIL` com o e-mail oficial da Oliver Imports |
+| `.env` | `VITE_COMPANY_EMAIL` com o e-mail oficial da TODAI |
 | `.env` / Render | `VITE_SITE_URL` com o endereço público (canonical e Open Graph) |
 | `src/data/projects.js` | Prints reais dos sistemas e o campo `link` de cada projeto |
 
@@ -229,7 +229,7 @@ postgresql://neondb_owner:SENHA@ep-xxxx-pooler.sa-east-1.aws.neon.tech/oliver_si
 ```bash
 git init
 git add .
-git commit -m "Site Oliver Imports"
+git commit -m "Site TODAI"
 git branch -M main
 git remote add origin https://github.com/SEU-USUARIO/SEU-REPO.git
 git push -u origin main
@@ -288,13 +288,13 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 JavaScript do navegador, à vista de qualquer visitante.
 
 **Sobre `ALLOWED_ORIGINS`** (as origens que podem gravar dados — defesa de
-CSRF): no primeiro deploy você ainda não sabe a URL, e por isso o servidor cai
-sozinho no `RENDER_EXTERNAL_URL`, que o Render injeta com o endereço
-`.onrender.com`. Preencher só passa a ser necessário ao ligar um domínio
-próprio — e aí liste **apex e www**, separados por vírgula e sem barra final,
-porque para o navegador são origens diferentes. Fora do Render, com
-`NODE_ENV=production` e nada configurado, o servidor se recusa a subir: vazio
-significaria nenhuma conferência de origem, e isso não pode passar despercebido.
+CSRF): em produção (`NODE_ENV=production`) fora do Render, como na VPS, o servidor já
+aceita `https://todai.com.br` e `https://www.todai.com.br` sozinho
+(`server/http/origins.js`); `ALLOWED_ORIGINS` só acrescenta outras origens
+(separadas por vírgula, sem barra final; apex e www são origens diferentes para
+o navegador). No Render, o servidor também aceita o `RENDER_EXTERNAL_URL`, que o
+Render injeta com o endereço `.onrender.com`, e nesse caso o padrão da TODAI não
+entra: liste o domínio próprio em `ALLOWED_ORIGINS`.
 
 **Sobre `VITE_SITE_URL`**: é lida no *build*, não no start. Depois de trocar o
 valor (ou de ligar o domínio), dispare um *Manual Deploy → Clear build cache &
@@ -323,7 +323,7 @@ tocar no banco e nunca é gravada em texto puro.
 
 ### 6. Conferir no ar
 
-- `https://oliver-imports-site.onrender.com/api/health` → deve responder `{"ok":true}`
+- `https://todai.com.br/api/health` → deve responder `{"ok":true}`
 - `/login` → entrar com o admin
 - Criar um projeto em `/admin/projetos` e ver se ele aparece na home
 
@@ -379,8 +379,8 @@ reescrever.
 `api/index.js` exportando um handler `(req, res)` que chame `app.handle(...)`
 de `server/app.js`, um `vercel.json` mandando `/api/(.*)` para essa função e o
 resto para o `dist/`, e trocar o driver para `postgres` — `sqlite` deixa de ser
-opção. O `RENDER_EXTERNAL_URL` também some, então `ALLOWED_ORIGINS` passa a ser
-obrigatória com a URL da Vercel dentro.
+opção. O `RENDER_EXTERNAL_URL` também some e, fora de produção com o domínio TODAI,
+`ALLOWED_ORIGINS` passa a ser obrigatória com a URL da Vercel dentro.
 
 Dois modelos prontos ficam na raiz, os dois cobertos pelo `.gitignore`:
 `.env` para rodar na sua máquina e `.env.deploy` para importar no painel do

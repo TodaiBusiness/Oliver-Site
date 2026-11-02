@@ -30,7 +30,7 @@ export default function ChatMessage({ mensagem, minha, agrupada }) {
               {minha ? 'Você' : mensagem.author_name}
             </span>
             {daEquipe && !minha ? (
-              <span className="msg__tag">Oliver Imports</span>
+              <span className="msg__tag">TODAI</span>
             ) : null}
           </span>
         ) : null}

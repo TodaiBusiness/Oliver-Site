@@ -41,5 +41,5 @@ test('home mantém a barra no canonical e rota privada ganha noindex', () => {
 
 test('HTML sem as metas de redes sociais só troca o título', () => {
   const html = applySeo('<html><head><title>x</title></head></html>', '/termos');
-  assert.ok(html.includes('<title>Termos de uso | Oliver Imports</title>'));
+  assert.ok(html.includes('<title>Termos de uso | TODAI</title>'));
 });
