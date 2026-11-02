@@ -11,6 +11,10 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
   hospedá-lo na Hostinger (VPS KVM 1 e plano de sites, decisão de 27/10/2026), junto da API de licenças e do painel. O ramo
   `claude/site-visitantes` (registro de visitas, P-011) já está na `main` desde 30/10/2026 (`1ad94ba`). Na hospedagem: gerar a `ANALYTICS_READ_KEY` (mínimo 32 caracteres),
   preencher as variáveis de `docs/VISITANTES.md` e conferir que o painel mostra as visitas (P-074 do Panel-Desktop).
+  **02/11/2026:** domínio decidido pelo dono: **`todai.com.br`** (site; `www` redireciona). O fluxo `publicar-imagem-site` está em
+  `.github/workflows/` e, fora do Render, o servidor aceita `https://todai.com.br` e `https://www.todai.com.br` sem variável. Falta o dono
+  definir `VITE_SITE_URL`, `VITE_COMPANY_EMAIL` e `VITE_INSTALLER_URL` nas variáveis do repositório e subir a VPS (passo a passo de hoje em
+  `Documentos\Claude-HTML\Panel-Desktop\hostinger-hoje-todai.html`).
 
 ### Depende do dono
 
@@ -33,6 +37,13 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
 
 ## Resolvidas
 
+- **P-013** · aberta em 2026-11-02 · resolvida em 2026-11-02 · **Domínio, marca e logo TODAI.** Decisões do dono: domínio
+  `todai.com.br`, e-mail `vendas@todai.com.br`, "tudo TODAI" no que o cliente vê e monograma "T" no lugar de "OI". → `b6ec457`
+  (domínio, `Dockerfile`, `.env.example`, origens padrão fora do Render e o fluxo `publicar-imagem-site`), `6c260f3` e `6487277` (marca e
+  nome do produto em títulos, SEO, telas, Termos, Privacidade e na imagem de compartilhamento, regenerada por `scripts/generate-og.mjs`),
+  `55b24d8` (logo e favicon com o "T"). Conferido: `npm test` 217/217 e `npm run build` em cada etapa; o logo foi aberto como imagem.
+  Ficam de propósito: chaves de `localStorage` (`oliver-*`, trocar apagaria o tema e o acesso salvos), nomes de banco e tabela e o
+  usuário de exemplo do assistente de configuração.
 - **P-014** · aberta em 2026-10-27 · resolvida em 2026-10-27 · Auditoria (Médio): dava para inflar as visitas e sobrecarregar o
   banco pela coleta (`Origin`/user agent forjáveis por `curl`, 120 por minuto por IP ≈ 172 mil por dia, cada user agent novo
   = visitante novo, `entry:true` inflava sessões, até 8 escritas por coleta no PostgreSQL da VPS) → teto de 30 por minuto e
