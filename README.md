@@ -4,6 +4,10 @@ Site da **TODAI**: vende o sistema **TODAI** (estoque, caixa e PDV
 para Windows) e, abaixo, apresenta os serviços sob medida. Feito em **React + Vite**, sem dependências pesadas: animações em
 CSS, ícones em SVG inline, nenhuma biblioteca de UI.
 
+> **Versão 1.0 do sistema TODAI (02/11/2026).** O site fecha a versão 1.0 junto da API de licenças e do painel
+> (`TodaiBusiness/Panel-Desktop`) e do PDV 1.18.0 (`TodaiBusiness/Sistema-Gerenciamento-Estoque`). Produção em `https://todai.com.br`, numa
+> VPS KVM 1 da Hostinger (imagem `ghcr.io/todaibusiness/oliver-site` pelo fluxo `publicar-imagem-site`). Validação: `npm test` 217/217 e `npm run build`.
+
 ---
 
 ## Comandos
