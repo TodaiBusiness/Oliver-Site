@@ -29,7 +29,7 @@ async function main() {
     throw new Error(
       'Defina ADMIN_EMAIL e ADMIN_INITIAL_PASSWORD no ambiente antes de rodar.\n' +
         '  Exemplo (PowerShell):\n' +
-        '    $env:ADMIN_EMAIL="admin@oliverimports.com.br"\n' +
+        '    $env:ADMIN_EMAIL="admin@todai.com.br"\n' +
         '    $env:ADMIN_INITIAL_PASSWORD="uma-senha-forte"\n' +
         '    npm run db:seed-admin'
     );

@@ -16,7 +16,7 @@ const LICENSING = {
   serviceKey: 'chave-de-servico-de-teste',
   timeoutMs: 5000,
 };
-const SITE = 'https://oliverimports.com.br';
+const SITE = 'https://todai.com.br';
 
 const PEDIDO = {
   companyName: 'Sorveteria Gigi',
@@ -197,7 +197,7 @@ test('pedido inválido não gasta a cota do visitante', async () => {
 test('sem a integração configurada, avisa em vez de levar o cliente a pagar sem volta', async () => {
   const semApi = await createAppWithLicensing({ licensing: { baseUrl: undefined, serviceKey: undefined, timeoutMs: 1000 } });
   const semSite = await createAppWithLicensing({ publicUrl: '' });
-  const semHttps = await createAppWithLicensing({ publicUrl: 'http://oliverimports.com.br' });
+  const semHttps = await createAppWithLicensing({ publicUrl: 'http://todai.com.br' });
   try {
     for (const { app, calls } of [semApi, semSite, semHttps]) {
       const response = await post(app, PEDIDO);

@@ -60,7 +60,7 @@ test('render.yaml não diz mais que SESSION_SECRET assina sessões', () => {
 
 test('Dockerfile usa o domínio oficial como padrão e a porta 8080', () => {
   const docker = ler('Dockerfile');
-  assert.match(docker, /ARG VITE_SITE_URL="https:\/\/oliverimports\.com\.br"/);
+  assert.match(docker, /ARG VITE_SITE_URL="https:\/\/todai.com.br"/);
   assert.match(docker, /process\.env\.PORT\|\|8080/);
   assert.match(docker, /EXPOSE 8080/);
 });

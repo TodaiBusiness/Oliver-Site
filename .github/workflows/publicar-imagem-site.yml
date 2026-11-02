@@ -1,0 +1,59 @@
+# Publica a imagem do site no GHCR. Origem: modelo em Panel-Desktop/deploy/hostinger/ci.
+#
+# Constrói a imagem do site e publica no GHCR com a tag do commit (12 primeiros caracteres), igual à
+# API. Os valores PÚBLICOS que o Vite grava no JavaScript entram como "variáveis do repositório"
+# (Settings > Secrets and variables > Actions > Variables):
+#   VITE_SITE_URL        ex.: https://todai.com.br (vazia, vale esse mesmo padrão: uma variável vazia anularia o padrão do Dockerfile em silêncio)
+#   VITE_COMPANY_EMAIL   ex.: vendas@todai.com.br
+#   VITE_INSTALLER_URL   endereço do instalador do PDV
+# Mudou um deles? É preciso um commit novo (ou "Run workflow") para gerar imagem nova.
+name: publicar-imagem-site
+
+on:
+  push:
+    branches: [main]   # branch de produção
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  imagem:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag curta do commit
+        id: tag
+        # O dono da imagem segue o dono atual do repositório (a organização foi renomeada para TodaiBusiness;
+        # o GHCR exige minúsculas). OLIVER_REGISTRY no .env da VPS precisa apontar para o mesmo lugar.
+        run: |
+          echo "curta=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          echo "dono=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construir e publicar
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ steps.tag.outputs.dono }}/oliver-site:${{ steps.tag.outputs.curta }}
+          build-args: |
+            VITE_SITE_URL=${{ vars.VITE_SITE_URL || 'https://todai.com.br' }}
+            VITE_COMPANY_EMAIL=${{ vars.VITE_COMPANY_EMAIL }}
+            VITE_INSTALLER_URL=${{ vars.VITE_INSTALLER_URL }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

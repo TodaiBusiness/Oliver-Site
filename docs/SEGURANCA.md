@@ -47,7 +47,7 @@ subdomínios; `src/utils/checkoutUrl.js`).
 - `SITE_PUBLIC_URL` é obrigatória para a compra (sem ela `/comprar` responde 503); está no `render.yaml`.
 - `SESSION_SECRET` não é exigida: as sessões são tokens aleatórios com hash no banco, e o segredo não assina nada.
   Trocá-lo não derruba sessões; para isso, apague as sessões no banco.
-- A imagem Docker usa `https://oliverimports.com.br` como endereço do site (canônico e imagens de compartilhamento) e
+- A imagem Docker usa `https://todai.com.br` como endereço do site (canônico e imagens de compartilhamento) e
   escuta na porta 8080, a mesma do healthcheck.
 
 ## Visitas do site

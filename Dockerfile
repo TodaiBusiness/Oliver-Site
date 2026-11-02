@@ -12,7 +12,7 @@ COPY . .
 
 # Valores PÚBLICOS: o Vite os grava no JavaScript que vai para o navegador.
 # Por isso entram na hora do build e mudá-los exige reconstruir a imagem.
-ARG VITE_SITE_URL="https://oliverimports.com.br"
+ARG VITE_SITE_URL="https://todai.com.br"
 ARG VITE_COMPANY_EMAIL=""
 ARG VITE_INSTALLER_URL=""
 ENV VITE_SITE_URL=$VITE_SITE_URL \

@@ -5,10 +5,9 @@ const API_PORT = process.env.API_PORT ?? 8788;
 
 /* Endereço público do site, usado em canonical e Open Graph. Fica aqui, e não
    escrito à mão no index.html, porque ele muda: primeiro é o .onrender.com,
-   depois vira o domínio próprio. O padrão aponta para o serviço declarado no
-   render.yaml, então um deploy sem VITE_SITE_URL ainda gera meta tags válidas
+   depois virou o domínio próprio. O padrão é o domínio de produção, então um deploy sem VITE_SITE_URL ainda gera meta tags válidas
    em vez de uma URL de exemplo — que o Google indexaria como canonical. */
-const SITE_URL = (process.env.VITE_SITE_URL || 'https://oliver-imports-site.onrender.com')
+const SITE_URL = (process.env.VITE_SITE_URL || 'https://todai.com.br')
   .trim()
   .replace(/\/+$/, '');
 

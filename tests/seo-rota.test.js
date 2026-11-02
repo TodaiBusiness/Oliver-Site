@@ -37,7 +37,8 @@ test('ALLOWED_ORIGINS: tira barra final, espaços e duplicatas; produção sem o
   assert.deepEqual(parseAllowedOrigins({ ALLOWED_ORIGINS: ' https://a.com/ , https://a.com,https://b.com// ' }), ['https://a.com', 'https://b.com']);
   assert.deepEqual(parseAllowedOrigins({ ALLOWED_ORIGINS: 'https://a.com', RENDER_EXTERNAL_URL: 'https://r.onrender.com/' }), ['https://a.com', 'https://r.onrender.com']);
   assert.deepEqual(parseAllowedOrigins({}), []);
-  assert.throws(() => parseAllowedOrigins({ NODE_ENV: 'production' }, { exigir: true }), /ALLOWED_ORIGINS/);
+  assert.deepEqual(parseAllowedOrigins({ NODE_ENV: 'production' }, { exigir: true }), ['https://todai.com.br', 'https://www.todai.com.br']);
+  assert.deepEqual(parseAllowedOrigins({ NODE_ENV: 'production', RENDER_EXTERNAL_URL: 'https://r.onrender.com' }), ['https://r.onrender.com']);
 });
 
 test('limitador: janelas vencidas são varridas e o teto de chaves vale', async (t) => {
