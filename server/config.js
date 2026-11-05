@@ -6,6 +6,8 @@
    navegador. Ver `.env.example`.
    ========================================================================= */
 
+import { existsSync } from 'node:fs';
+
 /** Papéis de usuário (checklist: "enums" no lugar de string solta). */
 export const ROLES = Object.freeze({
   CLIENT: 'CLIENT',
@@ -118,11 +120,25 @@ export function parseTimeoutMs(value) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TIMEOUT_MS;
 }
 
+/** Banco SQLite padrão do desenvolvimento. */
+export const SQLITE_FILE_PADRAO = 'server/data/todai.db';
+/** Nome usado antes da troca de marca para TODAI. */
+export const SQLITE_FILE_LEGADO = 'server/data/oliver.db';
+
+/* Sem SQLITE_FILE, usa o todai.db. Quem já tinha um banco local do tempo da
+   marca Oliver continua com ele: se só o oliver.db existe, ele é usado (nada é
+   renomeado sozinho, para não mexer num arquivo que outro processo pode ter
+   aberto). Para passar a usar o nome novo, renomeie o arquivo com o servidor parado. */
+export function sqliteFilePadrao(existe = existsSync) {
+  if (!existe(SQLITE_FILE_PADRAO) && existe(SQLITE_FILE_LEGADO)) return SQLITE_FILE_LEGADO;
+  return SQLITE_FILE_PADRAO;
+}
+
 export const config = Object.freeze({
   /** 'postgres' em produção (Neon), 'sqlite' para desenvolvimento e testes. */
   driver: readEnv('DATABASE_DRIVER', 'sqlite'),
 
-  sqliteFile: readEnv('SQLITE_FILE', 'server/data/oliver.db'),
+  sqliteFile: readEnv('SQLITE_FILE') || sqliteFilePadrao(),
 
   postgres: Object.freeze({
     /** URI completa do Neon (a "pooled connection string"). */
@@ -156,7 +172,7 @@ export const config = Object.freeze({
     readKey: readEnv('ANALYTICS_READ_KEY'),
   }),
 
-  /* Oliver Licensing — a API central. Os orçamentos pedidos aqui não ficam no
+  /* API de licenças TODAI — a API central. Os orçamentos pedidos aqui não ficam no
      banco do site: são gravados lá, onde o Panel Desktop os lê. A chave é de
      serviço (não é sessão de administrador) e nunca chega ao navegador: quem
      chama é este servidor. */

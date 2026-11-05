@@ -2,7 +2,7 @@
 -- TODAI — RESET do banco SQLite (desenvolvimento e testes)
 -- ---------------------------------------------------------------------------
 -- Cole este arquivo inteiro no cliente SQLite que você usa contra
--- `server/data/oliver.db` (ex.: `sqlite3 server/data/oliver.db` e depois
+-- `server/data/todai.db` (ex.: `sqlite3 server/data/todai.db` e depois
 -- `.read server/db/reset.sqlite.sql`) e execute. Ele APAGA todos os dados
 -- das 9 tabelas do site — não existe desfazer.
 --
@@ -50,12 +50,12 @@ DROP TABLE IF EXISTS users;
 -- RESET DO BANCO INTEIRO (não só das tabelas)
 -- ---------------------------------------------------------------------------
 -- SQLite não tem comando `DROP DATABASE` — "o banco" aqui É o arquivo
--- `server/data/oliver.db`, e não existe SQL nenhum que o apague; SQL roda
+-- `server/data/todai.db`, e não existe SQL nenhum que o apague; SQL roda
 -- DENTRO de uma conexão já aberta com o arquivo. O equivalente real de
 -- apagar o banco inteiro é apagar o arquivo, fora do SQL:
 --
---   PowerShell:  Remove-Item server/data/oliver.db
---   Bash:        rm server/data/oliver.db
+--   PowerShell:  Remove-Item server/data/todai.db
+--   Bash:        rm server/data/todai.db
 --
 -- Isso é mais completo que os DROP TABLE de cima: leva junto qualquer coisa
 -- que exista no arquivo além das 9 tabelas do site. Depois de apagar,

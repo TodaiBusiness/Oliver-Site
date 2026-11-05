@@ -11,14 +11,14 @@ const LABELS = {
   ENTREGUE: 'Entregue',
 };
 
-/** Cor por família de status — verde só para o que é progresso real. */
+/** Cor por família de status — azul (acento) só para o que é progresso real. */
 const TONES = {
   NOVO: 'info',
   EM_ANALISE: 'info',
   ORCAMENTO: 'warn',
-  EM_DESENVOLVIMENTO: 'green',
-  CONCLUIDO: 'green',
-  ENTREGUE: 'green',
+  EM_DESENVOLVIMENTO: 'accent',
+  CONCLUIDO: 'accent',
+  ENTREGUE: 'accent',
   CANCELADO: 'muted',
   RASCUNHO: 'muted',
 };

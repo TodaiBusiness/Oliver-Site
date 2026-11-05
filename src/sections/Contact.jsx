@@ -45,7 +45,7 @@ export default function Contact() {
                   }
                   {...whatsappLinkProps}
                 >
-                  <span className="channel__icon channel__icon--green">
+                  <span className="channel__icon channel__icon--accent">
                     <Icon name="whatsapp" size={18} />
                   </span>
                   <span className="channel__body">
@@ -84,7 +84,7 @@ export default function Contact() {
 
         {/* Caminho formal, para quem prefere deixar o pedido registrado em vez
             de abrir conversa. O funil acima leva ao WhatsApp; este pedido entra
-            no painel da Oliver com histórico e resposta. */}
+            no painel da TODAI com histórico e resposta. */}
         <Reveal delay={120} className="contact__quote">
           <h3 className="contact__quote-title">Prefere pedir um orçamento?</h3>
           <p className="contact__quote-text">

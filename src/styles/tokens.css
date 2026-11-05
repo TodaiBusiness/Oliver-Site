@@ -1,6 +1,6 @@
 /* =========================================================
    Design tokens — TODAI
-   Base preta, verde como acento estratégico.
+   Preto e branco, com azul (bebê, normal e escuro) como acento.
    ========================================================= */
 
 :root {
@@ -12,49 +12,54 @@
      rgba(var(--ink), 0.04) em vez de rgba(255, 255, 255, 0.04) é o que deixa
      o mesmo CSS funcionar nos dois temas. */
   --ink: 255, 255, 255;
-  --bg-rgb: 5, 8, 7;
+  --bg-rgb: 2, 5, 12;
   --shadow-rgb: 0, 0, 0;
   /* Multiplicador da opacidade das sombras: no claro elas ficam bem mais leves. */
   --shadow-k: 1;
 
-  /* ---- Cores base ---- */
-  --bg: #050807;
-  --bg-elev: #0a0e0c;
-  --bg-elev-2: #0c110f;
-  --bg-elev-3: #0b100e;
+  /* ---- Cores base ----
+     Preto com fundo de azul-escuro nas camadas elevadas (cartões, painéis). */
+  --bg: #02050c;
+  --bg-elev: #06101f;
+  --bg-elev-2: #081427;
+  --bg-elev-3: #071222;
   --surface: rgba(var(--ink), 0.024);
   --surface-hover: rgba(var(--ink), 0.045);
   --border: rgba(var(--ink), 0.08);
   --border-strong: rgba(var(--ink), 0.16);
 
-  /* Texto sobre o botão verde, e cores de estado (erro, aviso, informação). */
-  --on-accent: #04120a;
+  /* Texto sobre o botão azul, e cores de estado. Vermelho (erro) e âmbar
+     (aviso) ficam só para estado, nunca para marca; informação é neutra
+     (branco/cinza), para não competir com o azul de ação. */
+  --on-accent: #ffffff;
   --danger-fg: #fca5a5;
   --danger-line: #f87171;
   --warn-fg: #fde68a;
-  --info-fg: #bae6fd;
+  --info-fg: #dfe7f2;
 
-  /* ---- Verde (acento) ---- */
-  --green-300: #86efac;
-  --green-400: #4ade80;
-  --green-500: #22c55e;
-  --green-600: #16a34a;
-  --green-soft: rgba(34, 197, 94, 0.12);
-  --green-line: rgba(34, 197, 94, 0.32);
-  --green-glow: rgba(34, 197, 94, 0.28);
+  /* ---- Azul (acento) ----
+     300 azul bebê claro · 400 azul bebê · 500 azul normal · 600 azul escuro.
+     Branco sobre o 500 passa no contraste AA (5,2:1). */
+  --accent-300: #cfe3ff;
+  --accent-400: #8ec5ff;
+  --accent-500: #2563eb;
+  --accent-600: #1d4ed8;
+  --accent-soft: rgba(59, 130, 246, 0.12);
+  --accent-line: rgba(59, 130, 246, 0.32);
+  --accent-glow: rgba(59, 130, 246, 0.28);
 
-  /* Neutros para ícone/caixa decorativa. O verde fica para ação e estado —
-     usar verde em tudo tira o destaque justamente de onde importa. */
+  /* Neutros para ícone/caixa decorativa. O azul fica para ação e estado —
+     usar azul em tudo tira o destaque justamente de onde importa. */
   --icon-bg: rgba(var(--ink), 0.05);
   --icon-border: rgba(var(--ink), 0.1);
-  --icon-fg: #b9c4bf;
+  --icon-fg: #b8c4d6;
 
   /* ---- Texto ---- */
   --white: #ffffff;
-  --text: #e6eae8;
-  --muted: #98a29d;
+  --text: #e6ebf3;
+  --muted: #98a4b6;
   /* Clareado para passar no contraste AA (4.5:1) sobre o fundo preto. */
-  --muted-dim: #7b8580;
+  --muted-dim: #7c889b;
 
   /* ---- Layout ----
      Ritmo vertical enxuto: as seções respiram sem abrir buracos na página. */
@@ -103,67 +108,73 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     color-scheme: light;
-    --ink: 14, 24, 19;
-    --bg-rgb: 247, 249, 247;
-    --shadow-rgb: 16, 28, 22;
+    --ink: 10, 18, 34;
+    --bg-rgb: 245, 248, 253;
+    --shadow-rgb: 10, 24, 52;
     --shadow-k: 0.22;
 
-    --bg: #f7f9f7;
+    --bg: #f5f8fd;
     --bg-elev: #ffffff;
     --bg-elev-2: #ffffff;
-    --bg-elev-3: #f1f4f2;
+    --bg-elev-3: #edf2fa;
 
-    /* Verde mais escuro para texto e ícones: o #4ade80 some sobre o branco. */
-    --green-300: #15803d;
-    --green-400: #15803d;
-    --green-soft: rgba(22, 163, 74, 0.1);
-    --green-line: rgba(22, 163, 74, 0.35);
-    --green-glow: rgba(22, 163, 74, 0.18);
+    /* Azul mais escuro para texto, ícones e botão: o azul bebê some sobre o
+       branco. Branco sobre o #1d4ed8 dá 6,7:1. */
+    --accent-300: #1d4ed8;
+    --accent-400: #1d4ed8;
+    --accent-500: #1d4ed8;
+    --accent-600: #1e3a8a;
+    --accent-soft: rgba(29, 78, 216, 0.1);
+    --accent-line: rgba(29, 78, 216, 0.35);
+    --accent-glow: rgba(29, 78, 216, 0.18);
 
-    --icon-fg: #4b5852;
+    --icon-fg: #4b566b;
 
     /* "--white" é a cor dos títulos: branco no escuro, quase preto no claro. */
-    --white: #0b1310;
-    --text: #1c2420;
-    --muted: #56625c;
-    --muted-dim: #66726c;
+    --white: #0a1222;
+    --text: #1a2232;
+    --muted: #526079;
+    --muted-dim: #5f6b82;
 
     --danger-fg: #b91c1c;
     --danger-line: #dc2626;
     --warn-fg: #92400e;
-    --info-fg: #075985;
+    --info-fg: #1a2232;
   }
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --ink: 14, 24, 19;
-  --bg-rgb: 247, 249, 247;
-  --shadow-rgb: 16, 28, 22;
+  --ink: 10, 18, 34;
+  --bg-rgb: 245, 248, 253;
+  --shadow-rgb: 10, 24, 52;
   --shadow-k: 0.22;
 
-  --bg: #f7f9f7;
+  --bg: #f5f8fd;
   --bg-elev: #ffffff;
   --bg-elev-2: #ffffff;
-  --bg-elev-3: #f1f4f2;
+  --bg-elev-3: #edf2fa;
 
-  /* Verde mais escuro para texto e ícones: o #4ade80 some sobre o branco. */
-  --green-300: #15803d;
-  --green-400: #15803d;
-  --green-soft: rgba(22, 163, 74, 0.1);
-  --green-line: rgba(22, 163, 74, 0.35);
-  --green-glow: rgba(22, 163, 74, 0.18);
+  /* Azul mais escuro para texto, ícones e botão: o azul bebê some sobre o
+     branco. Branco sobre o #1d4ed8 dá 6,7:1. */
+  --accent-300: #1d4ed8;
+  --accent-400: #1d4ed8;
+  --accent-500: #1d4ed8;
+  --accent-600: #1e3a8a;
+  --accent-soft: rgba(29, 78, 216, 0.1);
+  --accent-line: rgba(29, 78, 216, 0.35);
+  --accent-glow: rgba(29, 78, 216, 0.18);
 
-  --icon-fg: #4b5852;
+  --icon-fg: #4b566b;
 
   /* "--white" é a cor dos títulos: branco no escuro, quase preto no claro. */
-  --white: #0b1310;
-  --text: #1c2420;
-  --muted: #56625c;
-  --muted-dim: #66726c;
+  --white: #0a1222;
+  --text: #1a2232;
+  --muted: #526079;
+  --muted-dim: #5f6b82;
 
   --danger-fg: #b91c1c;
   --danger-line: #dc2626;
   --warn-fg: #92400e;
-  --info-fg: #075985;
+  --info-fg: #1a2232;
 }

@@ -7,7 +7,7 @@ import { EVENTS, track } from '../utils/analytics.js';
 /**
  * Pedido de orçamento formal. Diferente do funil ao lado, que só abre o
  * WhatsApp com a mensagem pronta: aqui o pedido é registrado de verdade e
- * aparece no painel da Oliver, com histórico e resposta.
+ * aparece no painel da TODAI, com histórico e resposta.
  *
  * Não exige conta — quem pede orçamento ainda não é cliente.
  */

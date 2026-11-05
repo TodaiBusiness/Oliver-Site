@@ -5,12 +5,12 @@
       <stop offset="1" stop-color="#060908"/>
     </linearGradient>
     <linearGradient id="erpBar" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0" stop-color="#22c55e" stop-opacity="0.25"/>
-      <stop offset="1" stop-color="#4ade80" stop-opacity="0.95"/>
+      <stop offset="0" stop-color="#3b82f6" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#8ec5ff" stop-opacity="0.95"/>
     </linearGradient>
     <radialGradient id="erpGlow" cx="0.78" cy="0.12" r="0.7">
-      <stop offset="0" stop-color="#22c55e" stop-opacity="0.20"/>
-      <stop offset="1" stop-color="#22c55e" stop-opacity="0"/>
+      <stop offset="0" stop-color="#3b82f6" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#3b82f6" stop-opacity="0"/>
     </radialGradient>
   </defs>
 
@@ -19,7 +19,7 @@
 
   <!-- barra lateral -->
   <rect x="40" y="40" width="132" height="480" rx="16" fill="#ffffff" fill-opacity="0.03" stroke="#ffffff" stroke-opacity="0.07"/>
-  <rect x="62" y="66" width="26" height="26" rx="8" fill="#22c55e" fill-opacity="0.9"/>
+  <rect x="62" y="66" width="26" height="26" rx="8" fill="#3b82f6" fill-opacity="0.9"/>
   <rect x="98" y="74" width="46" height="10" rx="5" fill="#ffffff" fill-opacity="0.35"/>
   <g fill="#ffffff" fill-opacity="0.12">
     <rect x="62" y="130" width="88" height="10" rx="5"/>
@@ -27,31 +27,31 @@
     <rect x="62" y="202" width="80" height="10" rx="5"/>
     <rect x="62" y="238" width="58" height="10" rx="5"/>
   </g>
-  <rect x="52" y="120" width="4" height="30" rx="2" fill="#22c55e"/>
+  <rect x="52" y="120" width="4" height="30" rx="2" fill="#3b82f6"/>
 
   <!-- topo -->
   <rect x="196" y="40" width="564" height="56" rx="14" fill="#ffffff" fill-opacity="0.03" stroke="#ffffff" stroke-opacity="0.07"/>
   <rect x="218" y="60" width="150" height="14" rx="7" fill="#ffffff" fill-opacity="0.3"/>
-  <rect x="640" y="56" width="98" height="24" rx="12" fill="#22c55e" fill-opacity="0.16" stroke="#22c55e" stroke-opacity="0.4"/>
+  <rect x="640" y="56" width="98" height="24" rx="12" fill="#3b82f6" fill-opacity="0.16" stroke="#3b82f6" stroke-opacity="0.4"/>
 
   <!-- cartoes de resumo -->
   <g>
     <rect x="196" y="120" width="178" height="104" rx="14" fill="#ffffff" fill-opacity="0.03" stroke="#ffffff" stroke-opacity="0.07"/>
     <rect x="218" y="144" width="54" height="8" rx="4" fill="#ffffff" fill-opacity="0.2"/>
     <rect x="218" y="166" width="96" height="18" rx="6" fill="#ffffff" fill-opacity="0.55"/>
-    <rect x="218" y="196" width="40" height="8" rx="4" fill="#22c55e" fill-opacity="0.7"/>
+    <rect x="218" y="196" width="40" height="8" rx="4" fill="#3b82f6" fill-opacity="0.7"/>
   </g>
   <g>
     <rect x="389" y="120" width="178" height="104" rx="14" fill="#ffffff" fill-opacity="0.03" stroke="#ffffff" stroke-opacity="0.07"/>
     <rect x="411" y="144" width="66" height="8" rx="4" fill="#ffffff" fill-opacity="0.2"/>
     <rect x="411" y="166" width="80" height="18" rx="6" fill="#ffffff" fill-opacity="0.55"/>
-    <rect x="411" y="196" width="52" height="8" rx="4" fill="#22c55e" fill-opacity="0.7"/>
+    <rect x="411" y="196" width="52" height="8" rx="4" fill="#3b82f6" fill-opacity="0.7"/>
   </g>
   <g>
-    <rect x="582" y="120" width="178" height="104" rx="14" fill="#22c55e" fill-opacity="0.08" stroke="#22c55e" stroke-opacity="0.32"/>
-    <rect x="604" y="144" width="48" height="8" rx="4" fill="#4ade80" fill-opacity="0.5"/>
-    <rect x="604" y="166" width="88" height="18" rx="6" fill="#4ade80" fill-opacity="0.9"/>
-    <rect x="604" y="196" width="36" height="8" rx="4" fill="#4ade80" fill-opacity="0.5"/>
+    <rect x="582" y="120" width="178" height="104" rx="14" fill="#3b82f6" fill-opacity="0.08" stroke="#3b82f6" stroke-opacity="0.32"/>
+    <rect x="604" y="144" width="48" height="8" rx="4" fill="#8ec5ff" fill-opacity="0.5"/>
+    <rect x="604" y="166" width="88" height="18" rx="6" fill="#8ec5ff" fill-opacity="0.9"/>
+    <rect x="604" y="196" width="36" height="8" rx="4" fill="#8ec5ff" fill-opacity="0.5"/>
   </g>
 
   <!-- grafico -->
@@ -78,7 +78,7 @@
       <rect x="604" y="396" width="134" height="34" rx="8"/>
       <rect x="604" y="442" width="134" height="34" rx="8"/>
     </g>
-    <g fill="#22c55e">
+    <g fill="#3b82f6">
       <circle cx="620" cy="321" r="4"/>
       <circle cx="620" cy="367" r="4" fill-opacity="0.5"/>
       <circle cx="620" cy="413" r="4" fill-opacity="0.5"/>

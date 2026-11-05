@@ -28,7 +28,7 @@ jobs:
       - name: Tag curta do commit
         id: tag
         # O dono da imagem segue o dono atual do repositório (a organização foi renomeada para TodaiBusiness;
-        # o GHCR exige minúsculas). OLIVER_REGISTRY no .env da VPS precisa apontar para o mesmo lugar.
+        # o GHCR exige minúsculas). O registro no .env da VPS (OLIVER_REGISTRY) precisa apontar para o mesmo lugar.
         run: |
           echo "curta=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
           echo "dono=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
@@ -47,7 +47,12 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/${{ steps.tag.outputs.dono }}/oliver-site:${{ steps.tag.outputs.curta }}
+          # Nome novo (todai-site) e o antigo (oliver-site), a mesma imagem nos dois: o docker-compose da
+          # VPS ainda baixa "oliver-site" até o Panel-Desktop passar a usar "todai-site". Quando isso
+          # chegar à VPS, a segunda linha pode sair.
+          tags: |
+            ghcr.io/${{ steps.tag.outputs.dono }}/todai-site:${{ steps.tag.outputs.curta }}
+            ghcr.io/${{ steps.tag.outputs.dono }}/oliver-site:${{ steps.tag.outputs.curta }}
           build-args: |
             VITE_SITE_URL=${{ vars.VITE_SITE_URL || 'https://todai.com.br' }}
             VITE_COMPANY_EMAIL=${{ vars.VITE_COMPANY_EMAIL }}

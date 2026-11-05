@@ -1,4 +1,4 @@
-# Pendências do Oliver-Site
+# Pendências do site TODAI (repositório Oliver-Site)
 
 Registro único de tudo o que ficou para depois neste projeto. Uma pendência resolvida não é apagada: ela vai para
 `Resolvidas`, com a data e o que foi feito. Os identificadores nunca são reaproveitados.
@@ -16,7 +16,17 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
   definir `VITE_SITE_URL`, `VITE_COMPANY_EMAIL` e `VITE_INSTALLER_URL` nas variáveis do repositório e subir a VPS (passo a passo de hoje em
   `Documentos\Claude-HTML\Panel-Desktop\hostinger-hoje-todai.html`).
 
+- **P-017** · 2026-11-05 · **Tirar a tag dupla `oliver-site` do fluxo de imagem.** Desde a P-016 o
+  `publicar-imagem-site` publica a mesma imagem como `todai-site` e `oliver-site`, porque o `docker-compose` da VPS
+  (`Panel-Desktop/deploy/hostinger`) ainda baixa `oliver-site`. Quando o Panel-Desktop passar a usar `todai-site` e isso
+  estiver na VPS, apagar a segunda linha de `tags:` e, depois, o pacote `oliver-site` do GHCR.
+
 ### Depende do dono
+
+- **P-018** · 2026-11-05 · **Nome do repositório no GitHub.** O repositório ainda se chama `Oliver-Site`
+  (`TodaiBusiness/Oliver-Site`); o código e a documentação já são TODAI. Renomear é no GitHub (**Settings → General →
+  Repository name**) e só o dono pode decidir e fazer: o GitHub redireciona o endereço antigo, mas o guia da Hostinger, o
+  `git clone` da VPS e os clones locais precisam do nome novo depois.
 
 - **P-001** · 2026-10-19 · **O site não vende o produto.** A home é um portfólio de agência. Faltam:
   - preço e planos;
@@ -36,6 +46,23 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
   (`/minha-licenca`, P-009). Falta a prova da compra de ponta a ponta com o Mercado Pago (P-005 e `docs/COMPRA_AUTOMATICA.md`).
 
 ## Resolvidas
+
+- **P-016** · aberta em 2026-11-05 · resolvida em 2026-11-05 · **Oliver vira TODAI também por dentro, e a paleta passa a ser
+  azul.** Pedido do dono: trocar Oliver, OliverImports e OliverImportsBusiness por Todai em todo o sistema, inclusive nos nomes
+  técnicos, sem perder dados, e trocar o verde por azul (bebê, normal e escuro), preto e branco. → Nomes: pacote `todai-site`;
+  chave do tema `todai-theme`, com a `oliver-theme` passada para a nova uma única vez (`public/theme-init.js` e
+  `readTheme`, que também a apaga em `saveTheme`); chaves de sessão `todai:funil` e `todai-acesso` (vivem só na aba, não
+  precisam de migração); banco local `server/data/todai.db`, mas, sem `SQLITE_FILE`, quem só tem o `oliver.db` continua com
+  ele (`sqliteFilePadrao`, nada é renomeado sozinho); imagem `todai-site` publicada também como `oliver-site` (P-017);
+  exemplos `todai_site`, usuário de exemplo `Todai`/`TodaiAdmin2026` do `npm run setup`, textos "API de licenças TODAI".
+  Ficam de propósito: o nome do serviço no `render.yaml` (`oliver-imports-site`, senão o Render cria outro serviço) e os
+  endereços reais do Render e do Neon citados no histórico. Cores: tokens `--green-*` viram `--accent-*` com a paleta azul
+  (ver "Visual e temas" em `docs/LOJA_E_COMPRA.md`), brilhos fixos do CSS, SVGs dos projetos, favicon, `theme-color` e a
+  `og-image.png` regenerada com o monograma "T" no lugar do chevron antigo. Conferido: `npm test` 228/228 (11 novos em
+  `tests/marca-todai.test.js`: tema antigo migrado, valor inválido ignorado, `theme-init.js` rodado numa VM e a escolha do
+  arquivo SQLite), `npm run build` (o único "oliver" no JavaScript é a chave antiga do tema), e no navegador com `node
+  server.js`: a escolha `oliver-theme=light` virou `todai-theme=light`, o servidor abriu o `oliver.db` existente sem criar
+  outro (`/api/projects` 200) e a home, o preço, os projetos e o rodapé ficaram azuis nos dois temas.
 
 - **P-015** · aberta em 2026-11-02 · resolvida em 2026-11-02 · **Domínio, marca e logo TODAI.** Decisões do dono: domínio
   `todai.com.br`, e-mail `vendas@todai.com.br`, "tudo TODAI" no que o cliente vê e monograma "T" no lugar de "OI". → `b6ec457`

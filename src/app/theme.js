@@ -8,13 +8,24 @@
    primeira pintura; este módulo cuida das trocas depois disso.
    ========================================================================= */
 
-export const THEME_KEY = 'oliver-theme';
+export const THEME_KEY = 'todai-theme';
+/** Chave do tempo da marca Oliver; lida só quando a nova ainda não existe. */
+export const LEGACY_THEME_KEY = 'oliver-theme';
 export const THEMES = ['system', 'light', 'dark'];
 
-export function readTheme() {
+const isTheme = (value) => value === 'light' || value === 'dark';
+
+export function readTheme(storage = globalThis.localStorage) {
   try {
-    const value = localStorage.getItem(THEME_KEY);
-    return value === 'light' || value === 'dark' ? value : 'system';
+    const value = storage.getItem(THEME_KEY);
+    if (value !== null) return isTheme(value) ? value : 'system';
+    /* public/theme-init.js já passa a chave antiga para a nova antes da
+       primeira pintura; aqui é só a rede de segurança se ele não rodou. */
+    const legacy = storage.getItem(LEGACY_THEME_KEY);
+    if (!isTheme(legacy)) return 'system';
+    storage.setItem(THEME_KEY, legacy);
+    storage.removeItem(LEGACY_THEME_KEY);
+    return legacy;
   } catch {
     return 'system';
   }
@@ -30,6 +41,9 @@ export function applyTheme(choice, root = document.documentElement) {
 
 export function saveTheme(choice) {
   try {
+    /* A chave antiga sai junto: senão "Tema do sistema" voltaria a ler a
+       escolha antiga na próxima visita. */
+    localStorage.removeItem(LEGACY_THEME_KEY);
     if (choice === 'system') localStorage.removeItem(THEME_KEY);
     else localStorage.setItem(THEME_KEY, choice);
   } catch {

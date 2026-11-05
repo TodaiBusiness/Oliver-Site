@@ -47,7 +47,7 @@ DROP TABLE IF EXISTS users CASCADE;
 -- ===========================================================================
 -- RESET DO BANCO INTEIRO (não só das tabelas)
 -- ---------------------------------------------------------------------------
--- Um `DROP DATABASE oliver_site;` de verdade não roda aqui: o Postgres
+-- Um `DROP DATABASE todai_site;` de verdade não roda aqui: o Postgres
 -- recusa apagar o banco ao qual a própria sessão está conectada, e o SQL
 -- Editor do Neon sempre está conectado ao banco selecionado — não tem como
 -- rodar esse comando de dentro dele. Precisaria de outra conexão (psql

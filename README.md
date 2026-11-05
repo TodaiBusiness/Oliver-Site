@@ -6,7 +6,7 @@ CSS, ícones em SVG inline, nenhuma biblioteca de UI.
 
 > **Versão 1.0 do sistema TODAI (02/11/2026).** O site fecha a versão 1.0 junto da API de licenças e do painel
 > (`TodaiBusiness/Panel-Desktop`) e do PDV 1.18.0 (`TodaiBusiness/Sistema-Gerenciamento-Estoque`). Produção em `https://todai.com.br`, numa
-> VPS KVM 1 da Hostinger (imagem `ghcr.io/todaibusiness/oliver-site` pelo fluxo `publicar-imagem-site`). Validação: `npm test` 217/217 e `npm run build`.
+> VPS KVM 1 da Hostinger (imagem `ghcr.io/todaibusiness/todai-site` pelo fluxo `publicar-imagem-site`, publicada também como `oliver-site` enquanto o `docker-compose` da VPS usar o nome antigo). Validação: `npm test` 228/228 e `npm run build`.
 
 ---
 
@@ -41,13 +41,13 @@ responde é o próprio `server.js`, na mesma origem, e o front não muda.
 ### Primeiro acesso ao admin
 
 ```powershell
-$env:ADMIN_EMAIL="Oliverimports"
+$env:ADMIN_EMAIL="Todai"
 $env:ADMIN_INITIAL_PASSWORD="sua-senha-forte"
 npm run db:seed-admin
 ```
 
 Depois entre em `/login` com esse identificador. Para **zerar o banco local**
-e começar do zero: apague `server/data/oliver.db` e rode `npm run db:migrate`
+e começar do zero: apague `server/data/todai.db` (ou o `server/data/oliver.db` de antes da troca de marca, que continua sendo usado enquanto o novo não existir) e rode `npm run db:migrate`
 e `npm run db:seed-admin` de novo.
 
 Para zerar **sem apagar o arquivo** — ou para zerar o Postgres do Neon, onde
@@ -214,15 +214,15 @@ O Render não hospeda banco (o Postgres dele é pago depois de 30 dias). O banco
 fica no **Neon**, o mesmo provedor já usado pela API de licenciamento.
 
 No projeto que você já tem no Neon, abra **Databases → New Database**, escolha o
-branch `production` e dê o nome `oliver_site`. Um projeto do Neon comporta
+branch `production` e dê o nome `todai_site`. Um projeto do Neon comporta
 vários databases: o site e o licenciamento ficam separados — nenhum enxerga as
 tabelas do outro — mas dividem o mesmo endpoint e a mesma cota.
 
-Depois, em **Connect**, selecione o database `oliver_site`, marque **Pooled
+Depois, em **Connect**, selecione o database `todai_site`, marque **Pooled
 connection** e copie a URI. Ela é a `DATABASE_URL` e tem esta cara:
 
 ```
-postgresql://neondb_owner:SENHA@ep-xxxx-pooler.sa-east-1.aws.neon.tech/oliver_site?sslmode=require
+postgresql://neondb_owner:SENHA@ep-xxxx-pooler.sa-east-1.aws.neon.tech/todai_site?sslmode=require
 ```
 
 > A versão *pooled* (com `-pooler` no host) é a certa: o Render pode subir mais
@@ -277,7 +277,7 @@ Em *Environment → Environment Variables*:
 | `VITE_COMPANY_EMAIL` | seu e-mail de contato |
 | `VITE_SITE_URL` | endereço público, sem barra final (opcional no início) |
 | `ALLOWED_ORIGINS` | opcional — veja abaixo |
-| `LICENSING_API_BASE_URL` | endereço da API Oliver Licensing |
+| `LICENSING_API_BASE_URL` | endereço da API de licenças TODAI |
 | `SITE_SERVICE_API_KEY` | credencial de serviço — a mesma dos dois lados |
 | `SITE_PUBLIC_URL` | URL pública com https, sem barra final — sem ela a compra responde 503 |
 
@@ -312,10 +312,10 @@ Rode **da sua máquina**, apontando para o Neon:
 
 ```powershell
 $env:DATABASE_DRIVER="postgres"
-$env:DATABASE_URL="postgresql://...-pooler.../oliver_site?sslmode=require"
+$env:DATABASE_URL="postgresql://...-pooler.../todai_site?sslmode=require"
 npm run db:migrate
 
-$env:ADMIN_EMAIL="Oliverimports"
+$env:ADMIN_EMAIL="Todai"
 $env:ADMIN_INITIAL_PASSWORD="uma-senha-forte-sua"
 npm run db:seed-admin
 ```
@@ -447,11 +447,11 @@ lidas em `server/config.js`. Veja o `.env.example`.
 
 ```
 Navegador  →  Node no Render (site + /api)  →  PostgreSQL no Neon
-                                            └→  API Oliver Licensing (orçamentos)
+                                            └→  API de licenças TODAI (orçamentos)
 ```
 
-**Pedidos de orçamento não ficam neste banco.** São encaminhados à API Oliver
-Licensing, que é onde o Panel Desktop os lê e responde. O navegador nunca fala
+**Pedidos de orçamento não ficam neste banco.** São encaminhados à API de licenças
+TODAI, que é onde o Panel Desktop os lê e responde. O navegador nunca fala
 com ela: quem chama é o `server.js`, com uma credencial de serviço que dá acesso
 apenas a criar solicitação — não abre o painel. Sem `LICENSING_API_BASE_URL` e
 `SITE_SERVICE_API_KEY` o formulário responde "indisponível" em vez de perder o
@@ -498,7 +498,7 @@ $env:ADMIN_INITIAL_PASSWORD="sua-senha-forte"
 npm run db:seed-admin
 ```
 
-O identificador pode ser um nome de usuário (ex.: `Oliverimports`) — o script
+O identificador pode ser um nome de usuário (ex.: `Todai`) — o script
 avisa que não é e-mail, mas funciona. Para trocar a senha depois, basta rodar
 o mesmo comando com outra `ADMIN_INITIAL_PASSWORD`.
 

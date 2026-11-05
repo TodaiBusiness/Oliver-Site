@@ -46,7 +46,7 @@
   font-size: 0.65rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--green-400);
+  color: var(--accent-400);
 }
 
 .modal__title {
@@ -126,7 +126,7 @@
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--green-400);
+  color: var(--accent-400);
 }
 
 .modal__features {
@@ -150,7 +150,7 @@
 
 .modal__features svg {
   flex: none;
-  color: var(--green-400);
+  color: var(--accent-400);
 }
 
 .modal__tags {
@@ -183,7 +183,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--green-500);
+  background: var(--accent-500);
 }
 
 .modal__actions {
@@ -232,7 +232,7 @@
 }
 
 .funnel__progress-item.is-done:not(:last-child)::after {
-  background: var(--green-line);
+  background: var(--accent-line);
 }
 
 .funnel__progress-btn {
@@ -272,19 +272,19 @@
 }
 
 .funnel__progress-item.is-current .funnel__progress-number {
-  border-color: var(--green-500);
-  background: var(--green-500);
+  border-color: var(--accent-500);
+  background: var(--accent-500);
   color: var(--on-accent);
 }
 
 .funnel__progress-item.is-done .funnel__progress-btn {
-  color: var(--green-300);
+  color: var(--accent-300);
 }
 
 .funnel__progress-item.is-done .funnel__progress-number {
-  border-color: var(--green-line);
-  background: var(--green-soft);
-  color: var(--green-400);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-400);
 }
 
 .funnel__progress-label {
@@ -342,22 +342,22 @@
 
 .funnel__option:hover {
   transform: translateY(-2px);
-  border-color: var(--green-line);
+  border-color: var(--accent-line);
   background: var(--surface-hover);
 }
 
 .funnel__option:hover svg {
-  color: var(--green-400);
+  color: var(--accent-400);
 }
 
 .funnel__option.is-selected {
-  border-color: var(--green-500);
-  background: var(--green-soft);
-  color: var(--green-300);
+  border-color: var(--accent-500);
+  background: var(--accent-soft);
+  color: var(--accent-300);
 }
 
 .funnel__option.is-selected svg {
-  color: var(--green-400);
+  color: var(--accent-400);
 }
 
 .funnel__back {
@@ -390,11 +390,11 @@
 
 .funnel__chip {
   padding: 0.3rem 0.7rem;
-  border: 1px solid var(--green-line);
+  border: 1px solid var(--accent-line);
   border-radius: var(--r-pill);
-  background: var(--green-soft);
+  background: var(--accent-soft);
   font-size: var(--fs-xs);
-  color: var(--green-300);
+  color: var(--accent-300);
 }
 
 .funnel__preview-label {
@@ -408,9 +408,9 @@
 .funnel__preview {
   margin-top: 0.55rem;
   padding: 0.9rem 1rem;
-  border: 1px solid var(--green-line);
+  border: 1px solid var(--accent-line);
   border-radius: var(--r-sm);
-  background: rgba(34, 197, 94, 0.07);
+  background: rgba(59, 130, 246, 0.07);
   font-size: var(--fs-sm);
   color: var(--text);
   white-space: pre-line;
@@ -437,9 +437,9 @@
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: var(--green-500);
+  background: var(--accent-500);
   color: var(--on-accent);
-  box-shadow: 0 14px 34px -10px rgba(34, 197, 94, 0.55);
+  box-shadow: 0 14px 34px -10px rgba(59, 130, 246, 0.55);
   opacity: 0;
   transform: translateY(16px) scale(0.9);
   pointer-events: none;
@@ -454,7 +454,7 @@
 }
 
 .floating-wa:hover {
-  background: var(--green-400);
+  background: var(--accent-400);
 }
 
 .floating-wa svg {
@@ -465,7 +465,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 2px solid var(--green-500);
+  border: 2px solid var(--accent-500);
   animation: wa-pulse 2.8s ease-out infinite;
   pointer-events: none;
 }

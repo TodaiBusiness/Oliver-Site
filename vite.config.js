@@ -13,7 +13,7 @@ const SITE_URL = (process.env.VITE_SITE_URL || 'https://todai.com.br')
 
 /** Troca `__SITE_URL__` no index.html pelo endereço real, no momento do build. */
 const siteUrl = () => ({
-  name: 'oliver-site-url',
+  name: 'todai-site-url',
   transformIndexHtml: (html) => html.replaceAll('__SITE_URL__', SITE_URL),
 });
 

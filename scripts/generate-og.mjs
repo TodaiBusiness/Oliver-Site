@@ -65,7 +65,7 @@ const stroke = (x0, y0, x1, y1, thickness, color, alpha = 1) => {
   }
 };
 
-/** Brilho radial suave (o "glow" verde da marca). */
+/** Brilho radial suave (o "glow" azul da marca). */
 const glow = (cx, cy, radius, color, intensity) => {
   const r2 = radius * radius;
   const minX = Math.max(0, Math.floor(cx - radius));
@@ -214,9 +214,9 @@ const drawText = (text, x, y, height, thickness, color, tracking = 0.22) => {
 
 /* ------------------------------------------------------------ composição */
 
-const BLACK = [5, 8, 7];
+const BLACK = [2, 5, 12];
 const WHITE = [255, 255, 255];
-const GREEN = [34, 197, 94];
+const BLUE = [59, 130, 246];
 const GRID = [255, 255, 255];
 
 fill(BLACK);
@@ -229,11 +229,11 @@ for (let y = 0; y < H; y += 60) {
   for (let x = 0; x < W; x += 1) setPixel(x, y, GRID, 0.035);
 }
 
-// brilhos verdes
-glow(1010, 96, 520, GREEN, 0.24);
-glow(120, 600, 420, [22, 163, 74], 0.16);
+// brilhos azuis (azul normal e azul escuro)
+glow(1010, 96, 520, BLUE, 0.24);
+glow(120, 600, 420, [29, 78, 216], 0.2);
 
-// símbolo da marca: quadrado arredondado (chanfrado) + chevron
+// símbolo da marca: quadrado arredondado (chanfrado) + monograma "T" (o mesmo do Logo.jsx e do favicon)
 const MX = 96;
 const MY = 118;
 const MS = 96;
@@ -248,17 +248,17 @@ const box = [
   [MX, MY + MS - r, MX, MY + r],
   [MX, MY + r, MX + r, MY],
 ];
-box.forEach(([x0, y0, x1, y1]) => stroke(x0, y0, x1, y1, 3, GREEN, 0.45));
+box.forEach(([x0, y0, x1, y1]) => stroke(x0, y0, x1, y1, 3, BLUE, 0.45));
 
-stroke(MX + 30, MY + 28, MX + 54, MY + 48, 8, GREEN);
-stroke(MX + 54, MY + 48, MX + 30, MY + 68, 8, GREEN);
-stroke(MX + 62, MY + 68, MX + 74, MY + 68, 8, GREEN);
+// Mesmas proporções do viewBox 40x40 do Logo.jsx (barra em y=9,5 de x=9 a 31; haste até y=31).
+stroke(MX + 22, MY + 23, MX + 74, MY + 23, 8, BLUE);
+stroke(MX + 48, MY + 23, MX + 48, MY + 74, 8, BLUE);
 
 // wordmark
 drawText('TODAI', 96, 306, 84, 10, WHITE);
 
 // barra de destaque
-stroke(96, 446, 236, 446, 6, GREEN);
+stroke(96, 446, 236, 446, 6, BLUE);
 
 // "reticências" de continuidade
 [0, 1, 2].forEach((i) => {

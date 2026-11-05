@@ -15,7 +15,7 @@ import { createWindowCounter } from '../../server/http/rateLimit.js';
 import { request } from './helpers.js';
 
 const KEY = 'k'.repeat(40);
-const ORIGIN = 'https://oliver.exemplo';
+const ORIGIN = 'https://todai.exemplo';
 const UA_PC = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 Safari/537.36';
 const UA_CEL = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148 Safari/604.1';
 const T0 = Date.parse('2026-10-27T15:00:00Z');
@@ -132,7 +132,7 @@ test('bot, DNT e Sec-GPC não são contados', async () => {
 });
 
 test('referrer do próprio site é Direto; caminho estranho vira /outros; campos são limitados', async () => {
-  assert.equal(referrerFrom('https://www.oliver.exemplo/x', ['oliver.exemplo']), 'Direto');
+  assert.equal(referrerFrom('https://www.todai.exemplo/x', ['todai.exemplo']), 'Direto');
   assert.equal(referrerFrom('', []), 'Direto');
   assert.equal(referrerFrom('lixo', []), 'Direto');
   assert.equal(pathFrom('/Comprar/?a=1#b'), '/comprar');

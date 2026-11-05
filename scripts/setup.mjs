@@ -19,8 +19,8 @@ import { hashPassword } from '../server/security/password.js';
 import { normalizeEmail } from '../server/http/validation.js';
 
 const PADRAO_DEV = {
-  email: 'Oliverimports',
-  senha: 'OliverAdmin2026',
+  email: 'Todai',
+  senha: 'TodaiAdmin2026',
 };
 
 const linha = (texto = '') => console.log(texto);
@@ -99,7 +99,7 @@ async function main() {
     linha('  Esta é uma senha PADRÃO, só para desenvolvimento local.');
     linha('  Antes de publicar, rode de novo com a sua senha:');
     linha('');
-    linha('    $env:ADMIN_EMAIL="Oliverimports"');
+    linha('    $env:ADMIN_EMAIL="Todai"');
     linha('    $env:ADMIN_INITIAL_PASSWORD="sua-senha-forte"');
     linha('    npm run setup');
     linha('  ───────────────────────────────────────────────────────');

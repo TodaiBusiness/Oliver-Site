@@ -17,7 +17,7 @@ import { readAccessHash, shouldDiscardToken } from '../utils/accessToken.js';
    tira o token da barra de endereço assim que o lê e o guarda só nesta aba.
    ========================================================================= */
 
-const TOKEN_KEY = 'oliver-acesso';
+const TOKEN_KEY = 'todai-acesso';
 
 const STATES = {
   Active: { label: 'Em dia', tone: 'ok', text: 'O sistema está liberado para vender.' },

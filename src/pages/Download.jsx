@@ -74,7 +74,7 @@ export default function Download() {
           <a
             href={createWhatsAppLink(WHATSAPP_MESSAGES.contact)}
             {...whatsappLinkProps}
-            style={{ color: 'var(--green-400)' }}
+            style={{ color: 'var(--accent-400)' }}
           >
             Fale com a gente pelo WhatsApp
           </a>

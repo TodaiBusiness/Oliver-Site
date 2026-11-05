@@ -1,8 +1,8 @@
 /* =========================================================================
    Orçamentos pedidos pelo site.
    -------------------------------------------------------------------------
-   Estes pedidos NÃO ficam no banco do site: são encaminhados à API Oliver
-   Licensing, que é onde o Panel Desktop lê as solicitações. O navegador nunca
+   Estes pedidos NÃO ficam no banco do site: são encaminhados à API de licenças
+   TODAI, que é onde o Panel Desktop lê as solicitações. O navegador nunca
    fala com ela — quem chama é este servidor, com uma credencial de serviço que
    não sai daqui.
 

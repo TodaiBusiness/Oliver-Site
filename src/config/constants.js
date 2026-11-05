@@ -19,7 +19,7 @@ export const DESKTOP_BREAKPOINT = 901;
 export const DESKTOP_MEDIA_QUERY = `(min-width: ${DESKTOP_BREAKPOINT}px)`;
 
 /** Chave do funil no sessionStorage. */
-export const FUNNEL_STORAGE_KEY = 'oliver-imports:funil';
+export const FUNNEL_STORAGE_KEY = 'todai:funil';
 
 /** Protocolos aceitos em links vindos de dados (ver `safeUrl`). */
 export const ALLOWED_URL_PROTOCOLS = ['http:', 'https:', 'mailto:'];

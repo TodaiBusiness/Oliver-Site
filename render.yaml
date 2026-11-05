@@ -1,5 +1,5 @@
 # ===========================================================================
-# Oliver Imports — site institucional + painel (Node no Render)
+# TODAI — site institucional + painel (Node no Render)
 # ---------------------------------------------------------------------------
 # UM serviço só serve o site (dist/) e a API (/api/*). Isso é proposital: o
 # cookie de sessão é SameSite=Lax, então site e API precisam estar na mesma
@@ -66,7 +66,7 @@ services:
       - key: VITE_COMPANY_EMAIL
         sync: false
 
-      # Endereço da API Oliver Licensing. Os pedidos de orçamento feitos aqui
+      # Endereço da API de licenças TODAI. Os pedidos de orçamento feitos aqui
       # são gravados lá, não no banco deste serviço.
       - key: LICENSING_API_BASE_URL
         sync: false

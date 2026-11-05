@@ -72,14 +72,14 @@ test('RETURNING não é duplicado', () => {
 
 test('a URI do Neon é lida em campos separados', () => {
   const dados = parseConnectionString(
-    'postgresql://oliver:s3nh%40forte@ep-teste-pooler.sa-east-1.aws.neon.tech/oliver_site?sslmode=require&channel_binding=require'
+    'postgresql://todai:s3nh%40forte@ep-teste-pooler.sa-east-1.aws.neon.tech/todai_site?sslmode=require&channel_binding=require'
   );
 
   assert.deepEqual(dados, {
     host: 'ep-teste-pooler.sa-east-1.aws.neon.tech',
     port: 5432,
-    user: 'oliver',
+    user: 'todai',
     password: 's3nh@forte', // a senha vem codificada na URI e é decodificada
-    database: 'oliver_site',
+    database: 'todai_site',
   });
 });

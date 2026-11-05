@@ -5,8 +5,8 @@
       <stop offset="1" stop-color="#060908"/>
     </linearGradient>
     <radialGradient id="autoGlow" cx="0.5" cy="0.5" r="0.6">
-      <stop offset="0" stop-color="#22c55e" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#22c55e" stop-opacity="0"/>
+      <stop offset="0" stop-color="#3b82f6" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#3b82f6" stop-opacity="0"/>
     </radialGradient>
   </defs>
 
@@ -14,7 +14,7 @@
   <rect width="800" height="560" fill="url(#autoGlow)"/>
 
   <!-- conexoes -->
-  <g stroke="#22c55e" stroke-opacity="0.45" stroke-width="2" fill="none" stroke-linecap="round">
+  <g stroke="#3b82f6" stroke-opacity="0.45" stroke-width="2" fill="none" stroke-linecap="round">
     <path d="M196 160h84c18 0 30 12 30 30v90c0 18 12 30 30 30h44"/>
     <path d="M196 400h84c18 0 30-12 30-30v-90c0-18 12-30 30-30h44"/>
     <path d="M488 280h40c18 0 30-12 30-30v-60c0-18 12-30 30-30h24"/>
@@ -27,7 +27,7 @@
   <!-- nós de entrada -->
   <g>
     <rect x="56" y="122" width="140" height="76" rx="16" fill="#ffffff" fill-opacity="0.04" stroke="#ffffff" stroke-opacity="0.1"/>
-    <rect x="78" y="144" width="24" height="24" rx="7" fill="#22c55e" fill-opacity="0.85"/>
+    <rect x="78" y="144" width="24" height="24" rx="7" fill="#3b82f6" fill-opacity="0.85"/>
     <rect x="78" y="176" width="86" height="8" rx="4" fill="#ffffff" fill-opacity="0.2"/>
   </g>
   <g>
@@ -37,26 +37,26 @@
   </g>
 
   <!-- núcleo -->
-  <rect x="388" y="204" width="100" height="152" rx="24" fill="#22c55e" fill-opacity="0.1" stroke="#22c55e" stroke-opacity="0.45"/>
-  <path d="M441 244l-22 42h22l-4 32 24-44h-22l2-30z" fill="#4ade80"/>
-  <g stroke="#4ade80" stroke-opacity="0.35" stroke-width="1.5" fill="none">
+  <rect x="388" y="204" width="100" height="152" rx="24" fill="#3b82f6" fill-opacity="0.1" stroke="#3b82f6" stroke-opacity="0.45"/>
+  <path d="M441 244l-22 42h22l-4 32 24-44h-22l2-30z" fill="#8ec5ff"/>
+  <g stroke="#8ec5ff" stroke-opacity="0.35" stroke-width="1.5" fill="none">
     <rect x="404" y="220" width="68" height="120" rx="18"/>
   </g>
 
   <!-- saídas -->
   <g>
     <rect x="616" y="122" width="140" height="76" rx="16" fill="#ffffff" fill-opacity="0.04" stroke="#ffffff" stroke-opacity="0.1"/>
-    <rect x="638" y="144" width="24" height="24" rx="7" fill="#22c55e" fill-opacity="0.6"/>
+    <rect x="638" y="144" width="24" height="24" rx="7" fill="#3b82f6" fill-opacity="0.6"/>
     <rect x="638" y="176" width="74" height="8" rx="4" fill="#ffffff" fill-opacity="0.2"/>
   </g>
   <g>
     <rect x="616" y="362" width="140" height="76" rx="16" fill="#ffffff" fill-opacity="0.04" stroke="#ffffff" stroke-opacity="0.1"/>
-    <rect x="638" y="384" width="24" height="24" rx="7" fill="#22c55e" fill-opacity="0.6"/>
+    <rect x="638" y="384" width="24" height="24" rx="7" fill="#3b82f6" fill-opacity="0.6"/>
     <rect x="638" y="416" width="90" height="8" rx="4" fill="#ffffff" fill-opacity="0.2"/>
   </g>
 
   <!-- pontos de dados na trilha -->
-  <g fill="#4ade80">
+  <g fill="#8ec5ff">
     <circle cx="310" cy="190" r="5"/>
     <circle cx="310" cy="370" r="5"/>
     <circle cx="558" cy="220" r="5"/>
@@ -66,7 +66,7 @@
   <!-- rodapé: barras de progresso -->
   <g>
     <rect x="56" y="490" width="700" height="34" rx="12" fill="#ffffff" fill-opacity="0.03" stroke="#ffffff" stroke-opacity="0.06"/>
-    <rect x="72" y="502" width="380" height="10" rx="5" fill="#22c55e" fill-opacity="0.75"/>
+    <rect x="72" y="502" width="380" height="10" rx="5" fill="#3b82f6" fill-opacity="0.75"/>
     <rect x="460" y="502" width="284" height="10" rx="5" fill="#ffffff" fill-opacity="0.08"/>
   </g>
 </svg>

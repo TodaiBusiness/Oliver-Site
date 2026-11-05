@@ -2,7 +2,7 @@
    Loja: páginas de compra, obrigado, download, termos e
    privacidade, mais as seções de produto e preço da home.
    Mesma linguagem do restante do site: preto profundo e
-   verde só no que é ação ou estado.
+   azul só no que é ação ou estado.
    ========================================================= */
 
 /* ---------- Casca das páginas internas ---------- */
@@ -115,9 +115,9 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--green-soft);
-  border: 1px solid var(--green-line);
-  color: var(--green-400);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent-400);
 }
 
 /* ---------- Passos numerados ---------- */
@@ -207,9 +207,9 @@
   position: sticky;
   top: calc(var(--header-h) + 1.25rem);
   padding: 1.5rem;
-  border: 1px solid var(--green-line);
+  border: 1px solid var(--accent-line);
   border-radius: var(--r-lg);
-  background: linear-gradient(180deg, var(--green-soft), rgba(var(--ink), 0.015));
+  background: linear-gradient(180deg, var(--accent-soft), rgba(var(--ink), 0.015));
 }
 
 .buy__plan {
@@ -280,11 +280,11 @@
   width: 1.1rem;
   height: 1.1rem;
   margin-top: 0.15rem;
-  accent-color: var(--green-500);
+  accent-color: var(--accent-500);
 }
 
 .check a {
-  color: var(--green-400);
+  color: var(--accent-400);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -335,7 +335,7 @@
 }
 
 .legal a {
-  color: var(--green-400);
+  color: var(--accent-400);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -408,14 +408,14 @@
 .pricing__list svg {
   flex: none;
   margin-top: 0.2rem;
-  color: var(--green-400);
+  color: var(--accent-400);
 }
 
 .pricing__card {
   padding: 1.75rem;
-  border: 1px solid var(--green-line);
+  border: 1px solid var(--accent-line);
   border-radius: var(--r-xl);
-  background: linear-gradient(180deg, var(--green-soft), rgba(var(--ink), 0.015));
+  background: linear-gradient(180deg, var(--accent-soft), rgba(var(--ink), 0.015));
 }
 
 .pricing__devices {
@@ -452,7 +452,7 @@
 }
 
 .store-note a {
-  color: var(--green-400);
+  color: var(--accent-400);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -489,8 +489,8 @@
 }
 
 .account__status--ok {
-  border-color: var(--green-line);
-  background: var(--green-soft);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
 }
 
 .account__status--warn {

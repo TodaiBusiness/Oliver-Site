@@ -71,13 +71,23 @@ a API real, o PostgreSQL e o envio de e-mail (ver `PENDENCIAS.md` do painel, P-0
 O site tem tema escuro e tema claro. Sem escolha do visitante, segue o tema do
 sistema (Windows/celular); o botão de tema (sol, lua ou monitor) no cabeçalho de
 todas as páginas e no painel alterna sistema → claro → escuro e guarda a escolha
-no navegador (`oliver-theme`).
+no navegador (`todai-theme`; a chave antiga `oliver-theme` é passada para a nova na primeira visita).
 
 Como funciona:
 
 - `src/styles/tokens.css` define todas as cores. O bloco `:root` é o escuro; o
   claro redefine os mesmos nomes em `@media (prefers-color-scheme: light)` (sem
   escolha) e em `:root[data-theme="light"]` (escolha explícita).
+- Paleta TODAI (decisão do dono, 05/11/2026): preto e branco, com azul como acento,
+  no lugar do verde da marca Oliver. Os tokens de acento são `--accent-300` (azul
+  bebê claro), `--accent-400` (azul bebê), `--accent-500` (azul normal, fundo dos
+  botões, com texto branco) e `--accent-600` (azul escuro), mais `--accent-soft`,
+  `--accent-line` e `--accent-glow`. No escuro o fundo é preto e os cartões têm um
+  fundo azul-escuro (`--bg-elev*`); no claro o acento vira `#1d4ed8` para manter o
+  contraste. Vermelho (`--danger-*`) e âmbar (`--warn-fg`) ficam só para erro e
+  aviso; informação (`--info-fg`, `.status--info`) é neutra, para não competir com o
+  azul de ação. As imagens em `public/projects/`, o `favicon.svg` e a
+  `og-image.png` (`node scripts/generate-og.mjs`) seguem o mesmo azul.
 - Camadas translúcidas usam `rgba(var(--ink), alfa)`: a "tinta" é branca no escuro
   e quase preta no claro. Sombras usam `--shadow-rgb` e `--shadow-k`.
 - `public/theme-init.js` aplica a escolha antes da primeira pintura (arquivo

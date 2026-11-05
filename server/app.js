@@ -150,7 +150,7 @@ export function createApp(
   });
 
   /* Orçamento pedido por visitante, sem conta. Não grava no banco daqui: vai
-     para a API Oliver Licensing, onde o Panel Desktop lê. `pick` mantém a
+     para a API de licenças TODAI, onde o Panel Desktop lê. `pick` mantém a
      mesma regra das outras rotas — mandar `status` ou `customerId` junto não
      tem efeito, e quem chega pelo formulário não escolhe a situação do próprio
      pedido. */
