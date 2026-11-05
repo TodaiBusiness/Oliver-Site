@@ -28,7 +28,7 @@ jobs:
       - name: Tag curta do commit
         id: tag
         # O dono da imagem segue o dono atual do repositório (a organização foi renomeada para TodaiBusiness;
-        # o GHCR exige minúsculas). O registro no .env da VPS (OLIVER_REGISTRY) precisa apontar para o mesmo lugar.
+        # o GHCR exige minúsculas). TODAI_REGISTRY no .env da VPS (antes OLIVER_REGISTRY) precisa apontar para o mesmo lugar.
         run: |
           echo "curta=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
           echo "dono=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
