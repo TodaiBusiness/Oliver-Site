@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import Icon from './Icon.jsx';
 import MockupTag from './MockupTag.jsx';
+import ThemedShot from './ThemedShot.jsx';
 import { WHATSAPP_MESSAGES } from '../data/company.js';
 import {
   createWhatsAppLink,
@@ -67,26 +68,17 @@ export default function ProjectModal({ project, onClose }) {
 
         <div className="modal__body">
           <figure className="modal__media">
-            <img
-              src={project.image}
-              alt={project.imageAlt}
-              width="800"
-              height="560"
-              loading="lazy"
-              decoding="async"
-            />
+            <ThemedShot base={project.image} alt={project.imageAlt} />
             {project.isMockup ? <MockupTag /> : null}
           </figure>
 
           {project.gallery?.length ? (
             <div className="modal__gallery">
-              {project.gallery.map((src) => (
-                <img
-                  key={src}
-                  src={src}
-                  alt={`${project.title} — imagem adicional`}
-                  loading="lazy"
-                  decoding="async"
+              {project.gallery.map((base) => (
+                <ThemedShot
+                  key={base}
+                  base={base}
+                  alt={`${project.title}: tela adicional`}
                 />
               ))}
             </div>

@@ -80,6 +80,7 @@
 
 .modal__media {
   position: relative;
+  flex-shrink: 0;
   margin: 0;
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
@@ -94,6 +95,7 @@
 
 .modal__gallery {
   display: grid;
+  flex-shrink: 0;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 0.6rem;
 }
