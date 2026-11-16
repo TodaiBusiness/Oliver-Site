@@ -17,7 +17,7 @@ export const projects = [
     title: 'Sistema de Gestão Empresarial',
     tagline: 'Estoque, vendas, PDV e comandas em um sistema só.',
     category: 'Sistema Desktop',
-    status: 'Em desenvolvimento',
+    status: 'Pronto',
     technologies: ['C#', 'PostgreSQL', 'PDV', 'Estoque', 'Comandas'],
     image: '/sistema/painel',
     imageAlt:
