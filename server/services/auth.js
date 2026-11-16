@@ -1,5 +1,6 @@
 /* =========================================================================
-   Autenticação: cadastro, login, logout e leitura da sessão.
+   Autenticação: cadastro, login (com segundo fator para ADMIN), logout e
+   leitura da sessão.
 
    Decisões de segurança tomadas aqui:
    · A resposta de login é IGUAL para e-mail inexistente e senha errada —
@@ -8,24 +9,71 @@
      executada, para o tempo de resposta não denunciar a diferença.
    · O papel do usuário NUNCA vem do cliente: cadastro sempre cria CLIENT.
    · O token de sessão só existe no cookie; no banco fica o hash dele.
+   · Login em dois passos: a senha certa NÃO cria sessão quando há 2FA; cria um
+     desafio de uso único e curto, e só o código (TOTP ou de recuperação) o
+     transforma em sessão. Falhas dos dois passos dividem o mesmo bloqueio.
+   · Sessão expira por inatividade (cliente 30 min, admin 15 min) além das 8 h
+     absolutas.
    ========================================================================= */
 
 import { AUDIT_ACTIONS, LIMITS, ROLES, SECURITY } from '../config.js';
 import { hashPassword, needsRehash, verifyPassword } from '../security/password.js';
 import { createSessionToken, hashToken } from '../security/tokens.js';
-import { conflict, tooManyRequests, unauthorized } from '../http/errors.js';
+import { conflict, unauthorized } from '../http/errors.js';
+import { clipUserAgent } from '../http/userAgent.js';
 import {
   cleanText,
   createValidator,
   normalizeEmail,
 } from '../http/validation.js';
+import { createLoginGuard } from './loginGuard.js';
+import { verifySecondFactor } from './twoFactor.js';
 
 /* Hash descartável usado para gastar tempo quando o e-mail não existe. */
 const DUMMY_HASH =
   'scrypt$32768$8$1$YWFhYWFhYWFhYWFhYWFhYQ==$' +
   'ZmFrZWhhc2hmYWtlaGFzaGZha2VoYXNoZmFrZWhhc2hmYWtlaGFzaGZha2VoYXNoZmFrZQ==';
 
-export function authService(ctx) {
+const NO_IP = 'desconhecido';
+
+const isUniqueViolation = (error) =>
+  error?.code === '23505' || /UNIQUE constraint failed/i.test(String(error?.message ?? ''));
+
+export function authService(ctx, { now = () => Date.now() } = {}) {
+  const guard = createLoginGuard(ctx, { now });
+
+  /** Referência opaca do e-mail digitado (HMAC): permite correlacionar sem guardar o texto. */
+  const emailRef = (email) => (ctx.vault.available ? ctx.vault.mac('email-ref', email).slice(0, 16) : null);
+
+  async function startSession(user, { ip, userAgent }) {
+    const token = createSessionToken();
+    const expiresAt = now() + SECURITY.SESSION_TTL_MS;
+
+    await ctx.sessions.create({
+      id: hashToken(token),
+      userId: user.id,
+      expiresAt,
+      ip: ip ?? null,
+      userAgent: clipUserAgent(userAgent),
+    });
+
+    await ctx.audit.log({
+      userId: user.id,
+      action: AUDIT_ACTIONS.LOGIN,
+      resourceType: 'auth',
+      ip,
+      userAgent,
+    });
+
+    return { user: await publicUser(user.id), token, expiresAt };
+  }
+
+  async function publicUser(id) {
+    const user = await ctx.users.findById(id);
+    const totp = await ctx.twoFactor.get(id);
+    return { ...user, twoFactorEnabled: Boolean(totp?.enabled) };
+  }
+
   return {
     /** Cria uma conta de CLIENTE. */
     async register(input) {
@@ -45,18 +93,29 @@ export function authService(ctx) {
 
       const email = normalizeEmail(input.email);
 
+      /* O hash vem ANTES de olhar se o e-mail existe: cadastro novo e cadastro
+         repetido gastam o mesmo scrypt, e o tempo não separa os dois casos. */
+      const passwordHash = await hashPassword(input.password);
+
       if (await ctx.users.existsByEmail(email)) {
         throw conflict('Já existe uma conta com este e-mail.');
       }
 
-      const userId = await ctx.users.create({
-        name: cleanText(input.name),
-        company: cleanText(input.company),
-        email,
-        phone: cleanText(input.phone),
-        passwordHash: await hashPassword(input.password),
-        role: ROLES.CLIENT, // sempre CLIENT: papel não vem da requisição
-      });
+      let userId;
+      try {
+        userId = await ctx.users.create({
+          name: cleanText(input.name),
+          company: cleanText(input.company),
+          email,
+          phone: cleanText(input.phone),
+          passwordHash,
+          role: ROLES.CLIENT, // sempre CLIENT: papel não vem da requisição
+        });
+      } catch (error) {
+        /* Dois cadastros simultâneos do mesmo e-mail: o UNIQUE decide. */
+        if (isUniqueViolation(error)) throw conflict('Já existe uma conta com este e-mail.');
+        throw error;
+      }
 
       await ctx.audit.log({
         userId,
@@ -68,8 +127,11 @@ export function authService(ctx) {
       return ctx.users.findById(userId);
     },
 
-    /** Autentica e devolve `{ user, token, expiresAt }`. */
-    async login(input) {
+    /**
+     * Primeiro passo. Devolve `{ user, token, expiresAt }` (sessão criada) ou,
+     * para conta com 2FA, `{ twoFactorRequired: true, challenge, expiresAt }`.
+     */
+    async login(input, { ip = NO_IP, userAgent = null } = {}) {
       const email = normalizeEmail(input.email);
       const password = typeof input.password === 'string' ? input.password : '';
 
@@ -77,12 +139,7 @@ export function authService(ctx) {
         throw unauthorized('E-mail ou senha incorretos.');
       }
 
-      const attempts = await ctx.loginAttempts.countRecent(email);
-      if (attempts >= SECURITY.LOGIN_MAX_ATTEMPTS) {
-        throw tooManyRequests(
-          'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.'
-        );
-      }
+      await guard.assertNotLocked(email, ip);
 
       const account = await ctx.users.findByEmailWithHash(email);
 
@@ -92,53 +149,118 @@ export function authService(ctx) {
         : await verifyPassword(password, DUMMY_HASH);
 
       if (!account || !passwordOk) {
-        await ctx.loginAttempts.register(email);
+        await guard.registerFailure(email, ip);
         await ctx.audit.log({
           userId: account?.id ?? null,
           action: AUDIT_ACTIONS.LOGIN_FAILED,
           resourceType: 'auth',
-          details: { email },
+          details: { motivo: account ? 'senha_incorreta' : 'conta_inexistente', ref: emailRef(email) },
+          ip,
+          userAgent,
         });
         throw unauthorized('E-mail ou senha incorretos.');
       }
-
-      await ctx.loginAttempts.clear(email);
 
       /* Parâmetros de hash endurecidos depois do cadastro? Atualiza agora. */
       if (needsRehash(account.password_hash)) {
         await ctx.users.updatePasswordHash(account.id, await hashPassword(password));
       }
 
-      await ctx.sessions.deleteExpired();
+      const totp = await ctx.twoFactor.get(account.id);
+      if (totp?.enabled) {
+        /* Senha certa, mas ainda não é login. O contador de falhas só zera
+           depois do segundo passo (senão o passo 1 seria um oráculo de senha
+           sem custo para o atacante). */
+        const challenge = createSessionToken();
+        const expiresAt = now() + SECURITY.TWO_FACTOR.CHALLENGE_TTL_MS;
+        await ctx.twoFactor.createChallenge({ id: hashToken(challenge), userId: account.id, expiresAt });
+        return { twoFactorRequired: true, challenge, expiresAt };
+      }
 
-      const token = createSessionToken();
-      const expiresAt = Date.now() + SECURITY.SESSION_TTL_MS;
-
-      await ctx.sessions.create({
-        id: hashToken(token),
-        userId: account.id,
-        expiresAt,
-      });
-
-      await ctx.audit.log({
-        userId: account.id,
-        action: AUDIT_ACTIONS.LOGIN,
-        resourceType: 'auth',
-      });
-
-      return {
-        user: await ctx.users.findById(account.id),
-        token,
-        expiresAt,
-      };
+      await guard.clear(email, ip);
+      return startSession(account, { ip, userAgent });
     },
 
-    /** Resolve o usuário a partir do token do cookie. */
+    /** Segundo passo: troca desafio + código por uma sessão. */
+    async loginWithSecondFactor(input, { ip = NO_IP, userAgent = null } = {}) {
+      const invalid = () =>
+        unauthorized('A verificação expirou. Entre com e-mail e senha novamente.');
+
+      if (typeof input.challenge !== 'string' || typeof input.code !== 'string') throw invalid();
+      if (input.code.length > 40) throw unauthorized('Código incorreto.');
+
+      const challengeId = hashToken(input.challenge);
+      const challenge = await ctx.twoFactor.findChallenge(challengeId, now());
+      if (!challenge) throw invalid();
+
+      const account = await ctx.users.findById(challenge.user_id);
+      if (!account) throw invalid();
+
+      await guard.assertNotLocked(account.email, ip);
+
+      /* Conta a tentativa ANTES de conferir: n requisições simultâneas não
+         ganham n chutes. Estourou o limite do desafio → ele morre. */
+      if (!(await ctx.twoFactor.bumpChallenge(challengeId, SECURITY.TWO_FACTOR.CHALLENGE_MAX_ATTEMPTS))) {
+        await ctx.twoFactor.consumeChallenge(challengeId);
+        throw invalid();
+      }
+
+      const result = await verifySecondFactor(ctx, account.id, input.code, { now: now() });
+
+      if (!result) {
+        await guard.registerFailure(account.email, ip);
+        await ctx.audit.log({
+          userId: account.id,
+          action: AUDIT_ACTIONS.LOGIN_2FA_FAILED,
+          resourceType: 'auth',
+          ip,
+          userAgent,
+        });
+        throw unauthorized('Código incorreto. Confira o app autenticador e tente de novo.');
+      }
+
+      /* Uso único: se outra requisição já gastou o desafio, esta não loga. */
+      if (!(await ctx.twoFactor.consumeChallenge(challengeId))) throw invalid();
+
+      await guard.clear(account.email, ip);
+
+      if (result.method === 'recovery') {
+        await ctx.audit.log({
+          userId: account.id,
+          action: AUDIT_ACTIONS.RECOVERY_CODE_USED,
+          resourceType: 'auth',
+          details: { restantes: await ctx.twoFactor.countUnusedRecoveryCodes(account.id) },
+          ip,
+          userAgent,
+        });
+      }
+
+      return startSession(account, { ip, userAgent });
+    },
+
+    /**
+     * Resolve o usuário a partir do token do cookie. Sessão parada além do
+     * limite do papel (ou vencida) é apagada e responde como "sem sessão".
+     */
     async resolveSession(token) {
       if (typeof token !== 'string' || !token) return null;
 
-      const session = await ctx.sessions.findValidWithUser(hashToken(token));
+      const current = now();
+      const id = hashToken(token);
+      const session = await ctx.sessions.findValidWithUser(id, current);
       if (!session) return null;
+
+      const idleLimit = SECURITY.SESSION_IDLE_MS[session.role] ?? SECURITY.SESSION_IDLE_MS.CLIENT;
+      const lastSeen = Number(session.last_seen_at ?? session.created_at);
+
+      if (current - lastSeen > idleLimit) {
+        await ctx.sessions.delete(id);
+        return null;
+      }
+
+      if (current - lastSeen > SECURITY.SESSION_TOUCH_MS) {
+        await ctx.sessions.touch(id, current);
+      }
 
       return {
         id: session.user_id,
@@ -146,6 +268,7 @@ export function authService(ctx) {
         company: session.company,
         email: session.email,
         role: session.role,
+        twoFactorEnabled: Boolean(Number(session.totp_enabled)),
         sessionId: session.session_id,
       };
     },

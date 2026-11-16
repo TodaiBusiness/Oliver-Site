@@ -1,8 +1,5 @@
 import { Link } from 'react-router-dom';
 import Icon from '../components/Icon.jsx';
-import Header from '../sections/Header.jsx';
-import Footer from '../sections/Footer.jsx';
-import Reveal from '../components/Reveal.jsx';
 import { useAuth } from '../app/AuthContext.jsx';
 
 /* O que dá para fazer. Uma frase por item — nada de parágrafo. */
@@ -37,12 +34,10 @@ export default function ClientAreaInfo() {
 
   return (
     <>
-      <Header />
-
-      <main id="conteudo" className="info">
+      <div className="info">
         <section className="section info__hero">
           <div className="container">
-            <Reveal>
+            <div>
 
               <h1 className="info__title">
                 Acompanhe seu projeto sem precisar cobrar ninguém.
@@ -71,7 +66,7 @@ export default function ClientAreaInfo() {
                   </>
                 )}
               </div>
-            </Reveal>
+            </div>
           </div>
         </section>
 
@@ -79,13 +74,13 @@ export default function ClientAreaInfo() {
           <div className="container">
             <ul className="info__grid">
               {RECURSOS.map((item, i) => (
-                <Reveal as="li" key={item.titulo} delay={i * 70} className="info__card">
+                <li key={item.titulo} className="info__card">
                   <span className="info__icon">
                     <Icon name={item.icon} size={20} />
                   </span>
                   <h2 className="info__card-title">{item.titulo}</h2>
                   <p className="info__card-text">{item.texto}</p>
-                </Reveal>
+                </li>
               ))}
             </ul>
           </div>
@@ -93,7 +88,7 @@ export default function ClientAreaInfo() {
 
         <section className="section section--tight">
           <div className="container">
-            <Reveal className="info__steps">
+            <div className="info__steps">
               <h2 className="info__steps-title">Como começa</h2>
               <ol className="info__steps-list">
                 {PASSOS.map((passo) => (
@@ -110,12 +105,10 @@ export default function ClientAreaInfo() {
                   <Icon name="arrowRight" size={17} className="btn__icon" />
                 </Link>
               ) : null}
-            </Reveal>
+            </div>
           </div>
         </section>
-      </main>
-
-      <Footer />
+      </div>
     </>
   );
 }

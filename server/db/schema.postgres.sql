@@ -112,6 +112,11 @@ CREATE TABLE IF NOT EXISTS sessions (
   CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Colunas de inatividade e origem (bancos criados antes desta versão).
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_seen_at BIGINT       NULL;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip           VARCHAR(64)  NULL;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_agent   VARCHAR(255) NULL;
+
 CREATE INDEX IF NOT EXISTS ix_sessions_user    ON sessions (user_id);
 CREATE INDEX IF NOT EXISTS ix_sessions_expires ON sessions (expires_at);
 
@@ -122,6 +127,9 @@ CREATE TABLE IF NOT EXISTS login_attempts (
   created_at BIGINT       NOT NULL,
   CONSTRAINT pk_login_attempts PRIMARY KEY (id)
 );
+
+-- Bloqueio por (e-mail + IP).
+ALTER TABLE login_attempts ADD COLUMN IF NOT EXISTS ip VARCHAR(64) NULL;
 
 CREATE INDEX IF NOT EXISTS ix_attempts_email ON login_attempts (email, created_at);
 
@@ -137,6 +145,9 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   CONSTRAINT pk_audit_logs PRIMARY KEY (id),
   CONSTRAINT fk_audit_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
+
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS ip         VARCHAR(64)  NULL;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_agent VARCHAR(255) NULL;
 
 CREATE INDEX IF NOT EXISTS ix_audit_user   ON audit_logs (user_id, created_at);
 CREATE INDEX IF NOT EXISTS ix_audit_action ON audit_logs (action, created_at);
@@ -171,3 +182,62 @@ CREATE TABLE IF NOT EXISTS site_visit_stats (
   sessions INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (stat_day, dim, label)
 );
+
+-- Cotas por usuário (contagem de mensagens por autor e janela de tempo).
+CREATE INDEX IF NOT EXISTS ix_messages_author ON messages (author_id, created_at);
+
+-- Segundo fator (TOTP) dos administradores. O segredo fica CIFRADO
+-- (AES-256-GCM, chave derivada de SESSION_SECRET). `last_step` é o último
+-- passo de 30 s aceito: impede reaproveitar o mesmo código (replay).
+CREATE TABLE IF NOT EXISTS user_totp (
+  user_id    BIGINT        NOT NULL,
+  secret_enc VARCHAR(255)  NOT NULL,
+  enabled    SMALLINT      NOT NULL DEFAULT 0,
+  last_step  BIGINT        NOT NULL DEFAULT 0,
+  created_at BIGINT        NOT NULL,
+  enabled_at BIGINT        NULL,
+  CONSTRAINT pk_user_totp PRIMARY KEY (user_id),
+  CONSTRAINT fk_user_totp_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT ck_user_totp_enabled CHECK (enabled IN (0,1))
+);
+
+-- Códigos de recuperação: só o HMAC fica no banco; cada um vale uma vez.
+CREATE TABLE IF NOT EXISTS recovery_codes (
+  id         BIGSERIAL   NOT NULL,
+  user_id    BIGINT      NOT NULL,
+  code_hash  VARCHAR(64) NOT NULL,
+  used_at    BIGINT      NULL,
+  created_at BIGINT      NOT NULL,
+  CONSTRAINT pk_recovery_codes PRIMARY KEY (id),
+  CONSTRAINT fk_recovery_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS ix_recovery_user ON recovery_codes (user_id, code_hash);
+
+-- Desafio do login em dois passos: criado depois da senha correta, vale uma
+-- vez só e por pouco tempo. Só o hash do token fica aqui.
+CREATE TABLE IF NOT EXISTS login_challenges (
+  id         VARCHAR(64) NOT NULL,
+  user_id    BIGINT      NOT NULL,
+  attempts   INTEGER     NOT NULL DEFAULT 0,
+  expires_at BIGINT      NOT NULL,
+  created_at BIGINT      NOT NULL,
+  CONSTRAINT pk_login_challenges PRIMARY KEY (id),
+  CONSTRAINT fk_challenges_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS ix_challenges_user ON login_challenges (user_id);
+
+-- Recuperação de senha por e-mail: só o SHA-256 do token fica aqui; vale uma
+-- vez e por pouco tempo.
+CREATE TABLE IF NOT EXISTS password_resets (
+  id         VARCHAR(64) NOT NULL,
+  user_id    BIGINT      NOT NULL,
+  expires_at BIGINT      NOT NULL,
+  used_at    BIGINT      NULL,
+  created_at BIGINT      NOT NULL,
+  CONSTRAINT pk_password_resets PRIMARY KEY (id),
+  CONSTRAINT fk_resets_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS ix_resets_user ON password_resets (user_id);

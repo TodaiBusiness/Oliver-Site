@@ -46,10 +46,15 @@ services:
       - key: DATABASE_URL
         sync: false
 
-      # Reservado e OPCIONAL: hoje nada o usa. A sessão é um token aleatório
-      # guardado (como hash) no banco, não um valor assinado com este segredo.
-      # Pode ficar em branco; a chave existe para um uso futuro.
+      # Obrigatório: cifra o segredo do 2FA dos administradores (mínimo 32 caracteres).
+      # Trocar o valor invalida os 2FA já cadastrados (ver docs/SEGURANCA.md).
       - key: SESSION_SECRET
+        sync: false
+
+      # E-mail de recuperação de senha (Resend). Sem a chave, o envio responde 503.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
         sync: false
 
       # URL pública deste serviço. É o que autoriza POST/PUT/PATCH/DELETE

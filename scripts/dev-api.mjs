@@ -13,7 +13,7 @@ import { createServer } from 'node:http';
 import './env.mjs'; // precisa vir antes de config.js
 import { LIMITS } from '../server/config.js';
 import { getDb } from '../server/db/index.js';
-import { createApp } from '../server/app.js';
+import { bodyLimitFor, createApp } from '../server/app.js';
 import { lerCorpo } from '../server/http/static.js';
 
 const PORT = Number(process.env.API_PORT ?? 8788);
@@ -36,7 +36,10 @@ const app = createApp(db, {
 const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, `http://localhost:${PORT}`);
-    const { body: raw, tooLarge } = await lerCorpo(request, MAX_BODY_BYTES);
+    const { body: raw, tooLarge } = await lerCorpo(
+      request,
+      bodyLimitFor(url.pathname) ?? MAX_BODY_BYTES
+    );
 
     if (tooLarge) {
       response.writeHead(413, { 'Content-Type': 'application/json', Connection: 'close' });
@@ -75,11 +78,7 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    const headers = { 'Content-Type': 'application/json; charset=utf-8' };
-    const cookies = result.headers['Set-Cookie'];
-    if (cookies?.length) headers['Set-Cookie'] = cookies;
-
-    response.writeHead(result.status, headers);
+    response.writeHead(result.status, result.headers);
     response.end(JSON.stringify(result.body));
   } catch (error) {
     console.error('[dev-api] falha:', error?.message);

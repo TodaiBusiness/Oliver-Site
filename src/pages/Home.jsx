@@ -1,41 +1,33 @@
-import Header from '../sections/Header.jsx';
+import { Link } from 'react-router-dom';
 import Hero from '../sections/Hero.jsx';
-import Product from '../sections/Product.jsx';
-import Pricing from '../sections/Pricing.jsx';
-import Projects from '../sections/Projects.jsx';
-import Capabilities from '../sections/Capabilities.jsx';
-import Process from '../sections/Process.jsx';
-import Stack from '../sections/Stack.jsx';
-import ClientArea from '../sections/ClientArea.jsx';
-import Contact from '../sections/Contact.jsx';
-import Footer from '../sections/Footer.jsx';
-import FloatingWhatsApp from '../components/FloatingWhatsApp.jsx';
+import ServicesIndex from '../sections/ServicesIndex.jsx';
+import SystemTeaser from '../sections/SystemTeaser.jsx';
+import FinalCta from '../sections/FinalCta.jsx';
+import HowItWorksDemo from '../components/HowItWorksDemo.jsx';
 
-/** O site público. */
+/** Início: proposta, como funciona, os três serviços, o sistema pronto e o convite. */
 export default function Home() {
   return (
     <>
-      <a className="skip-link" href="#conteudo">
-        Pular para o conteúdo
-      </a>
+      <Hero />
 
-      <Header />
+      <section className="section" aria-labelledby="demo-title">
+        <div className="container">
+          <div className="section-head section-head--row">
+            <h2 className="section-head__title" id="demo-title">
+              Do primeiro contato ao projeto no ar.
+            </h2>
+            <p className="section-head__text">
+              Cinco etapas, todas acompanhadas por você. <Link className="inline-link" to="/como-funciona">Ver em detalhe</Link>.
+            </p>
+          </div>
+          <HowItWorksDemo />
+        </div>
+      </section>
 
-      {/* Ordem = funil: produto → preço → serviços sob medida → conversa */}
-      <main id="conteudo">
-        <Hero />
-        <Product />
-        <Pricing />
-        <Projects />
-        <Capabilities />
-        <Process />
-        <Stack />
-        <ClientArea />
-        <Contact />
-      </main>
-
-      <Footer />
-      <FloatingWhatsApp />
+      <ServicesIndex />
+      <SystemTeaser />
+      <FinalCta origin="home" />
     </>
   );
 }

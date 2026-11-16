@@ -55,5 +55,17 @@ export function attachmentsRepository(db) {
       );
       return Number(row?.total ?? 0);
     },
+
+    /** Uso do autor desde `since`: quantidade e bytes (cota diária). */
+    async usageByAuthorSince(authorId, since) {
+      const row = await db.queryOne(
+        `SELECT COUNT(*) AS total, COALESCE(SUM(a.size), 0) AS bytes
+           FROM attachments a
+           JOIN messages m ON m.id = a.message_id
+          WHERE m.author_id = ? AND a.created_at > ?`,
+        [authorId, since]
+      );
+      return { count: Number(row?.total ?? 0), bytes: Number(row?.bytes ?? 0) };
+    },
   };
 }

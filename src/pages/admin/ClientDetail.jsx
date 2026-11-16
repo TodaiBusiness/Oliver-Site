@@ -3,17 +3,18 @@ import { Link, useParams } from 'react-router-dom';
 import Icon from '../../components/Icon.jsx';
 import StatusBadge from '../../components/panel/StatusBadge.jsx';
 import EmptyState from '../../components/panel/EmptyState.jsx';
+import DataState from '../../components/panel/DataState.jsx';
+import PageHead from '../../components/panel/PageHead.jsx';
+import { useToast } from '../../components/panel/Toast.jsx';
+import { formatarData } from '../../components/panel/format.js';
 import ConfirmDialog from '../../components/panel/ConfirmDialog.jsx';
 import { useApi } from '../../hooks/useApi.js';
 import { api } from '../../api/client.js';
 
-const formatarData = (ms) =>
-  new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    .format(new Date(Number(ms)));
-
 /** Ficha do cliente: dados, projetos vinculados e solicitações. */
 export default function AdminClientDetail() {
   const { id } = useParams();
+  const toast = useToast();
   const { data, loading, error, reload } = useApi(
     () => api.get(`/admin/clients/${id}`),
     [id]
@@ -33,6 +34,7 @@ export default function AdminClientDetail() {
     try {
       await api.post(`/admin/clients/${id}/projects`, { projectId: Number(selecionado) });
       setSelecionado('');
+      toast.success('Projeto vinculado ao cliente.');
       reload();
     } catch (problema) {
       setErro(problema.message);
@@ -47,25 +49,38 @@ export default function AdminClientDetail() {
     setErro(null);
     try {
       await api.delete(`/admin/clients/${id}/projects/${alvo.id}`);
+      toast.success(`“${alvo.title}” desvinculado.`, {
+        action: {
+          label: 'Desfazer',
+          onClick: async () => {
+            try {
+              await api.post(`/admin/clients/${id}/projects`, { projectId: alvo.id });
+              toast.success('Vínculo restaurado.');
+              reload();
+            } catch (problema) {
+              toast.error(`Não foi possível desfazer. ${problema.message}`);
+            }
+          },
+        },
+      });
       reload();
     } catch (problema) {
       setErro(problema.message);
     }
   };
 
-  if (loading) return <p className="panel-loading">Carregando ficha…</p>;
-
-  if (error) {
+  if (loading || error) {
     return (
-      <EmptyState
-        icon="close"
-        title="Cliente não encontrado."
-        action={
-          <Link className="btn btn--ghost btn--sm" to="/admin/clientes">
-            Voltar
-          </Link>
-        }
-      />
+      <>
+        <PageHead title="Cliente" crumbs={[{ label: 'Clientes', to: '/admin/clientes' }, { label: 'Ficha' }]} />
+        <DataState
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          skeleton="rows"
+          errorTitle={error?.status === 404 ? 'Cliente não encontrado.' : 'Não foi possível carregar a ficha.'}
+        />
+      </>
     );
   }
 
@@ -73,20 +88,12 @@ export default function AdminClientDetail() {
 
   return (
     <>
-      <Link className="back-link" to="/admin/clientes">
-        <Icon name="arrowRight" size={15} className="back-link__icon" />
-        Voltar para clientes
-      </Link>
-
-      <header className="page-head">
-        <div>
-          <h1 className="page-title">{client.name}</h1>
-          <p className="page-subtitle">
-            {client.company ? `${client.company} · ` : ''}
-            Cliente desde {formatarData(client.created_at)}
-          </p>
-        </div>
-      </header>
+      <PageHead
+        title={client.name}
+        titleText={client.name}
+        crumbs={[{ label: 'Clientes', to: '/admin/clientes' }, { label: client.name }]}
+        subtitle={`${client.company ? `${client.company} · ` : ''}Cliente desde ${formatarData(client.created_at)}`}
+      />
 
       {/* ---- Contato ---- */}
       <section className="block">

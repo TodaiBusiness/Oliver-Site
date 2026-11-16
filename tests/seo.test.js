@@ -7,13 +7,19 @@ import { applySeo, seoFor } from '../shared/seo.js';
 
 const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8').replaceAll('__SITE_URL__', 'https://loja.exemplo');
 
+const ROTAS_PUBLICAS = [
+  '/', '/sistema', '/precos', '/servicos', '/servicos/landing-pages', '/servicos/sites', '/servicos/saas',
+  '/projetos', '/como-funciona', '/contato', '/comprar', '/baixar', '/termos', '/privacidade',
+];
+
 test('cada rota pública tem título próprio e vende o produto', () => {
-  const titles = ['/', '/comprar', '/baixar', '/termos', '/privacidade'].map((path) => seoFor(path).title);
+  const titles = ROTAS_PUBLICAS.map((path) => seoFor(path).title);
   assert.equal(new Set(titles).size, titles.length);
   assert.match(seoFor('/').title, /TODAI/);
+  assert.match(seoFor('/sistema').description, /mensalidade a partir de R\$ 130/);
   assert.match(seoFor('/comprar').description, /mensalidade a partir de R\$ 130/);
   assert.equal(seoFor('/comprar/').title, seoFor('/comprar').title);
-  for (const path of ['/', '/comprar', '/baixar', '/termos', '/privacidade']) assert.equal(seoFor(path).noindex, false);
+  for (const path of ROTAS_PUBLICAS) assert.equal(seoFor(path).noindex, false);
 });
 
 test('conta, painel e página inexistente ficam fora dos buscadores', () => {

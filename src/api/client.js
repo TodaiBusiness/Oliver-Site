@@ -8,6 +8,9 @@
 
 const BASE = '/api';
 
+/** Disparado quando uma chamada autenticada volta 401. */
+export const SESSION_EXPIRED_EVENT = 'todai:session-expired';
+
 /** Erro com o status e os detalhes por campo devolvidos pelo servidor. */
 export class ApiError extends Error {
   constructor(status, code, message, details) {
@@ -45,6 +48,12 @@ async function request(method, path, body) {
   }
 
   if (!response.ok) {
+    /* Sessão que caiu (inatividade, troca de senha em outro aparelho, "sair de
+       todos"): avisa o AuthContext para voltar ao login em vez de deixar a tela
+       cheia de erros. As rotas de entrada têm o seu próprio 401. */
+    if (response.status === 401 && !path.startsWith('/auth/login') && path !== '/auth/me') {
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
     throw new ApiError(
       response.status,
       payload.error ?? 'ERRO',

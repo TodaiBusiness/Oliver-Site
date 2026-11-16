@@ -199,21 +199,6 @@
   font-size: 0.72rem;
 }
 
-/* ---------- Reveal ----------
-   Sem animação de entrada por seção: o conteúdo já nasce visível. O
-   componente Reveal continua existindo só para não mexer em quem o usa. */
-.js .reveal {
-  opacity: 1;
-  transform: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .js .reveal {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 /* ---------- Tela de falha (ErrorBoundary) ---------- */
 .fallback {
   display: flex;

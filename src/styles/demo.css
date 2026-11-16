@@ -1,0 +1,638 @@
+/* =========================================================================
+   <HowItWorksDemo/>: cinco cenas em HTML e CSS, sem vídeo.
+   A cena ativa recria o DOM (key) e cada peça entra no seu atraso (--d).
+   Pausa = animation-play-state. Reduzir movimento = quadros estáticos.
+   ========================================================================= */
+
+.demo {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: clamp(1.25rem, 3vw, 2.5rem);
+  align-items: stretch;
+}
+
+.demo.is-paused *,
+.demo.is-paused *::before,
+.demo.is-paused *::after {
+  animation-play-state: paused !important;
+}
+
+/* ---------- Palco ---------- */
+.demo__stage {
+  position: relative;
+  aspect-ratio: 16 / 11;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-xl);
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(var(--ink), 0.05), transparent 60%),
+    var(--bg-elev);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.demo__scene {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: clamp(0.9rem, 3vw, 1.75rem);
+  animation: demo-scene-in 420ms var(--ease) both;
+}
+
+.demo-scene {
+  width: 100%;
+  max-width: 30rem;
+}
+
+@keyframes demo-scene-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes demo-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+
+@keyframes demo-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* ---------- Cena 1: conversa ---------- */
+.demo-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.demo-bubble {
+  max-width: 78%;
+  padding: 0.6rem 0.85rem;
+  border-radius: 1rem;
+  font-size: clamp(0.78rem, 2.6vw, 0.9rem);
+  line-height: 1.4;
+  animation: demo-pop 480ms var(--ease) var(--d) both;
+}
+
+.demo-bubble--in {
+  align-self: flex-start;
+  border-bottom-left-radius: 0.3rem;
+  background: rgba(var(--ink), 0.08);
+  color: var(--text);
+}
+
+.demo-bubble--out {
+  align-self: flex-end;
+  border-bottom-right-radius: 0.3rem;
+  background: var(--accent-500);
+  color: var(--on-accent);
+}
+
+/* Os três pontinhos aparecem, pulsam e somem antes da resposta. */
+.demo-typing {
+  align-self: flex-end;
+  display: flex;
+  gap: 4px;
+  height: 0;
+  margin: 0;
+  padding: 0 0.8rem;
+  opacity: 0;
+  overflow: visible;
+  animation: demo-typing-box 800ms linear var(--d) both;
+}
+
+.demo-typing i {
+  width: 6px;
+  height: 6px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: demo-dot 800ms ease-in-out var(--d) both;
+}
+
+.demo-typing i:nth-child(2) {
+  animation-delay: calc(var(--d) + 120ms);
+}
+
+.demo-typing i:nth-child(3) {
+  animation-delay: calc(var(--d) + 240ms);
+}
+
+@keyframes demo-typing-box {
+  0%, 100% { opacity: 0; }
+  15%, 85% { opacity: 1; }
+}
+
+@keyframes demo-dot {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.demo-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  animation: demo-pop 480ms var(--ease) var(--d) both;
+}
+
+.demo-channels span {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+/* ---------- Cena 2: proposta ---------- */
+.demo-doc {
+  padding: clamp(0.9rem, 3vw, 1.4rem);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  background: var(--bg-elev-2);
+}
+
+.demo-doc__title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--white);
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.demo-doc ul {
+  display: grid;
+}
+
+.demo-doc li {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.45rem 0;
+  font-size: clamp(0.8rem, 2.6vw, 0.92rem);
+  color: var(--text);
+  animation: demo-pop 420ms var(--ease) var(--d) both;
+}
+
+.demo-check__ring {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+}
+
+.demo-check__tick {
+  fill: none;
+  stroke: var(--accent-400);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 14;
+  animation: demo-tick 420ms ease-out calc(var(--d) + 300ms) both;
+}
+
+@keyframes demo-tick {
+  from {
+    stroke-dashoffset: 14;
+  }
+}
+
+.demo-doc__stamp {
+  display: inline-block;
+  margin-top: 0.6rem;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-300);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  animation: demo-pop 480ms var(--ease) var(--d) both;
+}
+
+/* ---------- Cena 3: área do cliente ---------- */
+.demo-client {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  background: var(--bg-elev-2);
+  overflow: hidden;
+}
+
+.demo-client__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--white);
+}
+
+.demo-client__badge {
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--r-pill);
+  background: var(--accent-500);
+  color: var(--on-accent);
+  font-weight: 600;
+  animation: demo-pop 420ms var(--ease) var(--d) both;
+}
+
+.demo-client__list {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem 0.5rem;
+}
+
+.demo-client__list li {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 7.5rem) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  font-size: clamp(0.74rem, 2.4vw, 0.85rem);
+  color: var(--muted);
+}
+
+.demo-client__track {
+  height: 6px;
+  border-radius: 6px;
+  background: rgba(var(--ink), 0.09);
+  overflow: hidden;
+}
+
+.demo-client__fill {
+  display: block;
+  height: 100%;
+  width: var(--w);
+  border-radius: inherit;
+  background: var(--accent-500);
+  transform-origin: left;
+  animation: demo-grow 900ms var(--ease) var(--d) both;
+}
+
+.demo-client__msg {
+  margin: 0.4rem 1rem 1rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--r-md);
+  background: rgba(var(--ink), 0.06);
+  font-size: clamp(0.74rem, 2.4vw, 0.85rem);
+  color: var(--text);
+  animation: demo-pop 480ms var(--ease) var(--d) both;
+}
+
+/* ---------- Cena 4: testes ---------- */
+.demo-tests {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.demo-tests li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-elev-2);
+  font-size: clamp(0.8rem, 2.6vw, 0.92rem);
+  color: var(--text);
+  animation: demo-pop 420ms var(--ease) var(--d) both;
+}
+
+.demo-tests__state {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+
+.demo-tests__spin {
+  position: absolute;
+  inset: 2px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent-400);
+  border-radius: 50%;
+  animation:
+    demo-spin 700ms linear calc(var(--d) + 200ms) 1 both,
+    demo-gone 1ms linear calc(var(--d) + 900ms) both;
+}
+
+.demo-tests__state svg {
+  fill: none;
+  stroke: var(--accent-400);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 14;
+  animation: demo-tick 360ms ease-out calc(var(--d) + 900ms) both;
+}
+
+@keyframes demo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes demo-gone {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ---------- Cena 5: no ar ---------- */
+.demo-window {
+  position: relative;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  background: var(--bg-elev-2);
+  overflow: hidden;
+  animation: demo-pop 600ms var(--ease) 0.2s both;
+}
+
+.demo-window__bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.demo-window__bar i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.demo-window__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+  padding: 0.12rem 0.6rem;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-300);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  animation: demo-pop 480ms var(--ease) var(--d) both;
+}
+
+.demo-window__live b {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-400);
+  animation: soft-pulse 1.6s ease-in-out calc(var(--d) + 500ms) infinite;
+}
+
+.demo-window img.shot-escuro,
+.demo-window img.shot-claro {
+  width: 100%;
+  height: auto;
+}
+
+/* ---------- Passos (também é a legenda) ---------- */
+.demo__side {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.demo__steps {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.demo__step {
+  position: relative;
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.75rem 0 0.8rem 1.1rem;
+  text-align: left;
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  transition: color var(--t-fast), background-color var(--t-fast);
+}
+
+/* Trilho à esquerda: a parte preenchida é o progresso da cena. */
+.demo__step::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.7rem;
+  bottom: 0.7rem;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background-color var(--t-mid);
+}
+
+.demo__step.is-done::before {
+  background: var(--accent-line);
+}
+
+.demo__step:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.demo__step-title {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  transition: color var(--t-fast);
+}
+
+.demo__step-text {
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  display: none;
+}
+
+.demo__step.is-active .demo__step-title {
+  color: var(--white);
+}
+
+.demo__step.is-active .demo__step-text {
+  display: block;
+  animation: demo-scene-in 360ms var(--ease) both;
+}
+
+.demo__fill {
+  position: absolute;
+  left: 0;
+  top: 0.7rem;
+  bottom: 0.7rem;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent-400);
+  transform-origin: top;
+  animation: demo-fill var(--scene-ms) linear both;
+}
+
+@keyframes demo-fill {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+/* ---------- Controles ---------- */
+.demo__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.demo__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--white);
+  background: var(--surface);
+  transition: background-color var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
+}
+
+.demo__btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent-line);
+}
+
+.demo__btn:active {
+  transform: scale(0.96);
+}
+
+.demo__btn--main {
+  background: var(--accent-500);
+  border-color: transparent;
+  color: var(--on-accent);
+}
+
+.demo__btn--main:hover {
+  background: var(--accent-600);
+  border-color: transparent;
+}
+
+.demo__flip {
+  transform: scaleX(-1);
+}
+
+.demo__caption {
+  display: none;
+  min-height: 4.6em;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.demo__count {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--muted-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reduzir movimento: sem atraso, para o quadro aparecer inteiro. */
+@media (prefers-reduced-motion: reduce) {
+  .demo *,
+  .demo *::before,
+  .demo *::after {
+    animation-delay: 0s !important;
+  }
+
+  .demo-window__live b,
+  .demo-tests__spin {
+    animation: none !important;
+  }
+
+  .demo-tests__spin {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .demo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .demo__stage {
+    aspect-ratio: 4 / 3.2;
+  }
+
+  /* No celular só a cena ativa mostra o texto; os títulos viram uma linha. */
+  .demo__steps {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.35rem;
+  }
+
+  .demo__step {
+    padding: 0.55rem 0 0;
+  }
+
+  .demo__step::before,
+  .demo__fill {
+    inset: 0 0 auto 0;
+    width: auto;
+    height: 3px;
+    transform-origin: left;
+  }
+
+  /* No celular os passos viram cinco trilhos; o título vai na legenda abaixo. */
+  .demo__step {
+    height: 1.6rem;
+    padding: 0;
+  }
+
+  .demo__step-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  .demo__step-text {
+    display: none !important;
+  }
+
+  .demo__caption {
+    display: block;
+  }
+
+  .demo__caption strong {
+    font-family: var(--font-display);
+    color: var(--white);
+  }
+
+  .demo__side {
+    gap: 0.85rem;
+  }
+
+  .demo__fill {
+    animation-name: demo-fill-x;
+  }
+}
+
+@keyframes demo-fill-x {
+  from {
+    transform: scaleX(0);
+  }
+}

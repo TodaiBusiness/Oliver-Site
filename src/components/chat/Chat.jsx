@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../Icon.jsx';
 import ChatMessage from './ChatMessage.jsx';
 import EmptyState from '../panel/EmptyState.jsx';
+import { ErrorState } from '../panel/DataState.jsx';
 import { agruparPorDia } from './datas.js';
 import { formatarTamanho, prepararImagem, TIPOS_ACEITOS } from './anexo.js';
 import { api } from '../../api/client.js';
@@ -22,9 +23,11 @@ export default function Chat({ requestId, currentUser, onSent, variant }) {
   const [texto, setTexto] = useState('');
   const [imagem, setImagem] = useState(null);
   const [erro, setErro] = useState(null);
-  const [enviando, setEnviando] = useState(false);
+  const [falhaCarga, setFalhaCarga] = useState(null);
+  const [pendentes, setPendentes] = useState([]);
+  const [offline, setOffline] = useState(false);
 
-  const fimDaLista = useRef(null);
+  const fluxo = useRef(null);
   const primeiraCarga = useRef(true);
   const campoArquivo = useRef(null);
 
@@ -37,13 +40,16 @@ export default function Chat({ requestId, currentUser, onSent, variant }) {
     try {
       const { messages } = await api.get(`/requests/${requestId}/messages`);
       setMensagens(messages);
-      setErro(null);
+      setFalhaCarga(null);
+      setOffline(false);
       /* A lista de conversas e o indicador do menu dependem disto. */
       onSentRef.current?.();
       window.dispatchEvent(new Event('mensagens:mudou'));
     } catch (problema) {
-      /* Falha na atualização automática não pode apagar a conversa da tela. */
-      if (!silencioso) setErro(problema.message);
+      /* Falha na atualização automática não pode apagar a conversa da tela:
+         só avisa que está desatualizada. A primeira carga mostra erro com retry. */
+      if (silencioso) setOffline(true);
+      else setFalhaCarga(problema);
     } finally {
       if (!silencioso) setCarregando(false);
     }
@@ -58,15 +64,18 @@ export default function Chat({ requestId, currentUser, onSent, variant }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId]);
 
-  /* Rola para a última mensagem: sem animação na abertura, suave depois. */
+  /* Rola a própria lista (não a página) até a última mensagem: sem animação
+     na abertura, suave depois — e sem animação para quem pede menos movimento. */
   useEffect(() => {
-    if (!mensagens.length) return;
-    fimDaLista.current?.scrollIntoView({
-      behavior: primeiraCarga.current ? 'auto' : 'smooth',
-      block: 'nearest',
+    const lista = fluxo.current;
+    if (!lista || (!mensagens.length && !pendentes.length)) return;
+    const reduz = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    lista.scrollTo({
+      top: lista.scrollHeight,
+      behavior: primeiraCarga.current || reduz ? 'auto' : 'smooth',
     });
     primeiraCarga.current = false;
-  }, [mensagens]);
+  }, [mensagens, pendentes]);
 
   const grupos = useMemo(() => agruparPorDia(mensagens), [mensagens]);
 
@@ -83,29 +92,42 @@ export default function Chat({ requestId, currentUser, onSent, variant }) {
     }
   };
 
-  const enviar = async (event) => {
+  const transmitir = async (rascunho) => {
+    setPendentes((atuais) =>
+      atuais.map((p) => (p.id === rascunho.id ? { ...p, estado: 'enviando' } : p))
+    );
+    try {
+      await api.post(`/requests/${requestId}/messages`, {
+        body: rascunho.body,
+        ...(rascunho.imagem
+          ? { image: { dataBase64: rascunho.imagem.dataBase64, filename: rascunho.imagem.filename } }
+          : {}),
+      });
+      setPendentes((atuais) => atuais.filter((p) => p.id !== rascunho.id));
+      await carregar({ silencioso: true });
+    } catch (problema) {
+      setPendentes((atuais) =>
+        atuais.map((p) =>
+          p.id === rascunho.id ? { ...p, estado: 'erro', motivo: problema.message } : p
+        )
+      );
+    }
+  };
+
+  const enviar = (event) => {
     event?.preventDefault();
     const corpo = texto.trim();
     /* Com imagem, texto é opcional — o servidor aceita os dois casos. */
-    if ((!corpo && !imagem) || enviando) return;
+    if (!corpo && !imagem) return;
 
+    /* A mensagem aparece na hora, como "enviando"; se falhar, fica na lista
+       com a opção de tentar de novo — o texto nunca se perde. */
+    const rascunho = { id: `p${Date.now()}`, body: corpo, imagem, estado: 'enviando' };
+    setPendentes((atuais) => [...atuais, rascunho]);
+    setTexto('');
+    setImagem(null);
     setErro(null);
-    setEnviando(true);
-    try {
-      await api.post(`/requests/${requestId}/messages`, {
-        body: corpo,
-        ...(imagem
-          ? { image: { dataBase64: imagem.dataBase64, filename: imagem.filename } }
-          : {}),
-      });
-      setTexto('');
-      setImagem(null);
-      await carregar({ silencioso: true });
-    } catch (problema) {
-      setErro(problema.message);
-    } finally {
-      setEnviando(false);
-    }
+    transmitir(rascunho);
   };
 
   /* Enter envia, Shift+Enter quebra linha — comportamento esperado num chat. */
@@ -118,13 +140,25 @@ export default function Chat({ requestId, currentUser, onSent, variant }) {
 
   const restantes = LIMITE - texto.length;
   const podeEnviar = Boolean(texto.trim() || imagem);
+  const semMensagens = mensagens.length === 0 && pendentes.length === 0;
 
   return (
     <div className={`chat${variant === 'inbox' ? ' chat--inbox' : ''}`}>
-      <div className="chat__stream" role="log" aria-live="polite" aria-label="Conversa">
+      <div className="chat__stream" role="log" aria-live="polite" aria-label="Conversa" ref={fluxo}>
+        {offline ? (
+          <p className="chat__offline" role="status">
+            Sem conexão para atualizar. Mostrando a última versão.
+            <button type="button" onClick={() => carregar({ silencioso: true })}>
+              Tentar de novo
+            </button>
+          </p>
+        ) : null}
+
         {carregando ? (
           <p className="panel-loading">Carregando mensagens…</p>
-        ) : mensagens.length === 0 ? (
+        ) : falhaCarga ? (
+          <ErrorState error={falhaCarga} onRetry={() => carregar()} title="Não foi possível abrir a conversa." />
+        ) : semMensagens ? (
           <EmptyState
             icon="chat"
             title="Nenhuma mensagem ainda."
@@ -153,7 +187,37 @@ export default function Chat({ requestId, currentUser, onSent, variant }) {
           ))
         )}
 
-        <div ref={fimDaLista} aria-hidden="true" />
+        {pendentes.map((p) => (
+          <div className={`msg msg--mine msg--pending${p.estado === 'erro' ? ' msg--failed' : ''}`} key={p.id}>
+            <div className="msg__content">
+              <div className="msg__bubble">
+                {p.imagem ? (
+                  <span className="msg__anexo">
+                    <img src={p.imagem.previewUrl} alt={p.imagem.filename} />
+                  </span>
+                ) : null}
+                {p.body ? <p className="msg__text">{p.body}</p> : null}
+                <span className="msg__time">
+                  {p.estado === 'erro' ? 'Não enviada' : 'Enviando…'}
+                </span>
+              </div>
+              {p.estado === 'erro' ? (
+                <span className="msg__retry" role="alert">
+                  {p.motivo}
+                  <button type="button" onClick={() => transmitir(p)}>
+                    Tentar de novo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendentes((atuais) => atuais.filter((x) => x.id !== p.id))}
+                  >
+                    Descartar
+                  </button>
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ))}
       </div>
 
       {erro ? (
@@ -167,7 +231,7 @@ export default function Chat({ requestId, currentUser, onSent, variant }) {
         {/* Prévia da imagem escolhida, antes de enviar */}
         {imagem ? (
           <div className="chat-anexo">
-            <img className="chat-anexo__thumb" src={imagem.previewUrl} alt="" />
+            <img className="chat-anexo__thumb" src={imagem.previewUrl} alt={`Prévia de ${imagem.filename}`} />
             <span className="chat-anexo__info">
               <span className="chat-anexo__nome">{imagem.filename}</span>
               <span className="chat-anexo__tam">{formatarTamanho(imagem.size)}</span>
@@ -176,7 +240,7 @@ export default function Chat({ requestId, currentUser, onSent, variant }) {
               type="button"
               className="btn btn--soft btn--icon btn--xs"
               onClick={() => setImagem(null)}
-              aria-label="Remover imagem"
+              aria-label={`Remover ${imagem.filename}`}
             >
               <Icon name="close" size={14} />
             </button>
@@ -221,14 +285,10 @@ export default function Chat({ requestId, currentUser, onSent, variant }) {
           <button
             type="submit"
             className="chat-form__send"
-            disabled={enviando || !podeEnviar}
+            disabled={!podeEnviar}
             aria-label="Enviar mensagem"
           >
-            {enviando ? (
-              <span className="chat-form__spinner" aria-hidden="true" />
-            ) : (
-              <Icon name="arrowRight" size={18} />
-            )}
+            <Icon name="arrowRight" size={18} />
           </button>
         </div>
 

@@ -40,20 +40,25 @@
 #  · script-src 'self' sem 'unsafe-inline': o build gera um único <script src>,
 #    então nenhum script inline é necessário. Esta é a diretiva que realmente
 #    barra XSS.
-#  · style-src mantém 'unsafe-inline' por margem de segurança. Hoje o CSS sai
-#    todo em arquivo e o React aplica estilo via CSSOM (que a CSP não bloqueia),
-#    mas qualquer <style> futuro quebraria a página sem isto. É a diretiva de
-#    menor risco para relaxar.
+#  · style-src 'self' SEM 'unsafe-inline': o CSS sai todo em arquivo e o React
+#    aplica estilo via CSSOM (que a CSP não bloqueia). Um <style> ou style="..."
+#    escrito no HTML não funcionaria; o teste tests/server/headers.test.js
+#    vigia o código-fonte contra isso.
+#  · Estes valores têm fonte única em server/http/securityHeaders.js (usada
+#    pelo server.js); o mesmo teste falha se os dois divergirem.
+#  · As respostas da API ganham Cache-Control: no-store e CORP same-origin do
+#    próprio app (server/app.js).
 #  · img-src data: cobre a textura de ruído embutida no CSS.
 #  · Não há chamada a domínio externo: nenhuma fonte, script ou API de fora.
 # ---------------------------------------------------------------------------
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
     Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Resource-Policy = "same-site"

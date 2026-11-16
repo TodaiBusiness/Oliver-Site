@@ -54,12 +54,3 @@ export const WHATSAPP_MESSAGES = {
   /* Completado com o nome do projeto no modal de detalhe. */
   projectPrefix: `Olá! Vi o site da ${COMPANY_NAME} e me interessei pelo projeto`,
 };
-
-/** Itens do menu de navegação (usados no header e no footer). */
-export const NAV_LINKS = [
-  { label: 'Início', href: '#inicio' },
-  { label: 'Sistema', href: '#sistema' },
-  { label: 'Preço', href: '#preco' },
-  { label: 'Sob medida', href: '#projetos' },
-  { label: 'Contato', href: '#contato' },
-];

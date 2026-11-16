@@ -14,8 +14,44 @@ const PRICE = `instalação de R$ ${PLAN.installPrice} e mensalidade a partir de
 /** Rotas públicas: aparecem no Google. */
 const PUBLIC = {
   '/': {
+    title: `${COMPANY} | Sistemas, sites e software sob medida`,
+    description: `${PLAN.name}, sistema pronto de estoque, caixa e vendas para lojas, e landing pages, sites e sistemas sob medida. Peça um orçamento à ${COMPANY}.`,
+  },
+  '/sistema': {
     title: `${PLAN.name} | Estoque, caixa e vendas para a sua loja`,
     description: `Sistema para Windows com estoque, comandas, caixa e resultado da loja num só lugar. ${PRICE}. Da ${COMPANY}.`,
+  },
+  '/precos': {
+    title: `Preços | ${PLAN.name} e serviços sob orçamento | ${COMPANY}`,
+    description: `${PRICE} no ${PLAN.name}. Landing pages, sites e sistemas sob medida saem em proposta, sem compromisso.`,
+  },
+  '/servicos': {
+    title: `Serviços: landing page, site ou sistema | ${COMPANY}`,
+    description: `Entenda a diferença entre landing page, site completo e SaaS ou sistema sob medida, compare lado a lado e veja qual serve ao seu caso.`,
+  },
+  '/servicos/landing-pages': {
+    title: `Landing pages sob medida | ${COMPANY}`,
+    description: `Uma página feita para uma ação só: captar contatos, vender uma oferta ou divulgar um lançamento. Peça um orçamento.`,
+  },
+  '/servicos/sites': {
+    title: `Criação de sites completos | ${COMPANY}`,
+    description: `Sites com várias páginas para apresentar a empresa, mostrar projetos e ser encontrada no Google. Peça um orçamento.`,
+  },
+  '/servicos/saas': {
+    title: `SaaS e sistemas sob medida | ${COMPANY}`,
+    description: `Sistemas com login, banco de dados e regras do seu negócio, entregues em etapas e acompanhados na área do cliente. Peça um orçamento.`,
+  },
+  '/projetos': {
+    title: `Projetos | ${COMPANY}`,
+    description: `Sistemas em uso e projetos em desenvolvimento da ${COMPANY}: o problema, a solução e as funcionalidades de cada um.`,
+  },
+  '/como-funciona': {
+    title: `Como funciona | ${COMPANY}`,
+    description: `Da primeira conversa ao projeto no ar: ideia, proposta, desenvolvimento por etapas com acompanhamento, testes e entrega.`,
+  },
+  '/contato': {
+    title: `Contato e orçamento | ${COMPANY}`,
+    description: `Conte o que você precisa por WhatsApp, e-mail ou formulário e receba uma proposta da ${COMPANY}.`,
   },
   '/comprar': {
     title: `Comprar o ${PLAN.name} | ${COMPANY}`,

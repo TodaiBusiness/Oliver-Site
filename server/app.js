@@ -35,8 +35,24 @@ import { quoteRequestsService } from './services/quoteRequests.js';
 import { checkoutService } from './services/checkout.js';
 import { accountService } from './services/account.js';
 import { analyticsService, parseDays } from './services/analytics.js';
+import { accountSecurityService } from './services/accountSecurity.js';
+import { twoFactorService } from './services/twoFactor.js';
+import { passwordResetService } from './services/passwordReset.js';
+import { maintenanceService } from './services/maintenance.js';
+import { createMailer } from './services/mailer.js';
+import { runWithRequest } from './http/requestContext.js';
+import { clipUserAgent } from './http/userAgent.js';
+import { normalizeEmail } from './http/validation.js';
 
-const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
+/* Toda resposta JSON da API: nada de cache (há dado de sessão e de conta),
+   sem adivinhação de tipo e sem uso por outra origem (CORP). O servidor
+   estático acrescenta CSP/HSTS/etc. (server/http/securityHeaders.js). */
+const JSON_HEADERS = {
+  'Content-Type': 'application/json; charset=utf-8',
+  'Cache-Control': 'no-store',
+  'X-Content-Type-Options': 'nosniff',
+  'Cross-Origin-Resource-Policy': 'same-origin',
+};
 
 /** Métodos que alteram estado — só eles precisam de checagem de origem. */
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -46,7 +62,16 @@ const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
    continua valendo; este é o teto por endereço. */
 const AUTH_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_MAX_PER_IP = 20;
-const REGISTER_MAX_PER_IP = 10;
+const REGISTER_MAX_PER_IP = 5;
+const REGISTER_HOUR_MS = 60 * 60 * 1000;
+const REGISTER_MAX_PER_IP_HOUR = 15;
+/* Operações sensíveis de quem JÁ está logado (trocar senha, 2FA): por usuário. */
+const SENSITIVE_MAX_PER_USER = 10;
+/* Recuperação de senha: por IP e, mais apertado, por e-mail. */
+const FORGOT_MAX_PER_IP = 5;
+const FORGOT_MAX_PER_EMAIL = 3;
+const FORGOT_EMAIL_WINDOW_MS = 60 * 60 * 1000;
+const RESET_MAX_PER_IP = 10;
 
 /* Coleta de visitas: uma por página aberta. 30 por minuto por IP cobre quem
    navega rápido (uma página a cada 2 s, sustentado); o teto diário de 1500 por
@@ -63,7 +88,32 @@ export const COLLECT_MAX_BODY_BYTES = 2048;
 
 /** Teto de corpo por caminho; `null` = vale o teto global do servidor. */
 export function bodyLimitFor(path) {
-  return path === '/api/analytics/collect' ? COLLECT_MAX_BODY_BYTES : null;
+  if (path === '/api/analytics/collect') return COLLECT_MAX_BODY_BYTES;
+  /* Login, cadastro, 2FA, troca de senha: poucas dezenas de bytes. O teto
+     global (feito para a imagem do chat) não faz sentido aqui. */
+  if (typeof path === 'string' && path.startsWith('/api/auth/')) return SECURITY.AUTH_MAX_BODY_BYTES;
+  return null;
+}
+
+/**
+ * Defesa de CSRF: quem altera estado precisa provar que veio do próprio site.
+ * `Origin` manda; sem ele, `Referer`; sem os dois, `Sec-Fetch-Site`. Navegador
+ * nenhum faz POST cross-site sem ao menos um desses (e os que não mandam
+ * `Origin` mandam os outros). Sem NENHUM dos três é script/cliente fora do
+ * navegador, que não é o vetor de CSRF e é recusado de qualquer forma quando há
+ * origens configuradas.
+ */
+export function isTrustedRequestOrigin(headers, allowedOrigins) {
+  if (headers.origin !== undefined) return allowedOrigins.includes(headers.origin);
+  if (headers.referer) {
+    try {
+      return allowedOrigins.includes(new URL(headers.referer).origin);
+    } catch {
+      return false;
+    }
+  }
+  const site = headers['sec-fetch-site'];
+  return site === 'same-origin' || site === 'none';
 }
 
 /**
@@ -78,11 +128,18 @@ export function createApp(
     quoteRequests = quoteRequestsService(),
     checkout = checkoutService(),
     account = accountService(),
+    mailer = createMailer(),
+    forgotMinMs = 1200,
+    vault,
     analytics = analyticsService(db, { readKey: config.analytics.readKey, allowedOrigins }),
   } = {}
 ) {
-  const ctx = createContext(db);
+  const ctx = createContext(db, vault ? { vault } : undefined);
   const auth = authService(ctx);
+  const accountSecurity = accountSecurityService(ctx);
+  const twoFactor = twoFactorService(ctx);
+  const passwordReset = passwordResetService(ctx, { mailer, minDurationMs: forgotMinMs });
+  const maintenance = maintenanceService(ctx);
   const projects = projectsService(ctx);
   const requests = requestsService(ctx);
   const attachments = attachmentsService(ctx, requests);
@@ -95,6 +152,22 @@ export function createApp(
     max: REGISTER_MAX_PER_IP,
     windowMs: AUTH_WINDOW_MS,
   });
+
+  const registerHourLimiter = createRateLimiter({
+    max: REGISTER_MAX_PER_IP_HOUR,
+    windowMs: REGISTER_HOUR_MS,
+  });
+  const twoFactorLimiter = createRateLimiter({ max: LOGIN_MAX_PER_IP, windowMs: AUTH_WINDOW_MS });
+  const sensitiveLimiter = createRateLimiter({
+    max: SENSITIVE_MAX_PER_USER,
+    windowMs: AUTH_WINDOW_MS,
+  });
+  const forgotIpLimiter = createRateLimiter({ max: FORGOT_MAX_PER_IP, windowMs: AUTH_WINDOW_MS });
+  const forgotEmailLimiter = createRateLimiter({
+    max: FORGOT_MAX_PER_EMAIL,
+    windowMs: FORGOT_EMAIL_WINDOW_MS,
+  });
+  const resetLimiter = createRateLimiter({ max: RESET_MAX_PER_IP, windowMs: AUTH_WINDOW_MS });
 
   const collectLimiter = createRateLimiter({ max: COLLECT_MAX_PER_IP, windowMs: COLLECT_WINDOW_MS });
   /* Janela diária por IP: só um contador em memória, sem lista de instantes. */
@@ -213,10 +286,21 @@ export function createApp(
       remoteAddress,
       'Muitos cadastros deste endereço agora há pouco. Aguarde alguns minutos.'
     );
+    limitByIp(
+      registerHourLimiter,
+      headers,
+      remoteAddress,
+      'Muitos cadastros deste endereço. Tente novamente mais tarde.'
+    );
     /* Só estes campos são lidos: enviar `role` junto não tem efeito. */
     const input = pick(body, ['name', 'company', 'email', 'phone', 'password']);
     const user = await auth.register(input);
     return { status: 201, body: { user } };
+  });
+
+  const requestMeta = (headers, remoteAddress) => ({
+    ip: clientAddress(headers, remoteAddress),
+    userAgent: clipUserAgent(headers['user-agent']),
   });
 
   router.post('/api/auth/login', async ({ body, headers, remoteAddress }) => {
@@ -226,13 +310,89 @@ export function createApp(
       remoteAddress,
       'Muitas tentativas de login deste endereço. Aguarde alguns minutos e tente novamente.'
     );
+    await maintenance.maybeRun();
     const input = pick(body, ['email', 'password']);
-    const { user, token, expiresAt } = await auth.login(input);
+    const result = await auth.login(input, requestMeta(headers, remoteAddress));
+
+    /* Conta com 2FA: ainda NÃO há sessão nem cookie, só o desafio. */
+    if (result.twoFactorRequired) {
+      return {
+        status: 200,
+        body: {
+          twoFactorRequired: true,
+          challenge: result.challenge,
+          expiresAt: result.expiresAt,
+        },
+      };
+    }
 
     return {
       status: 200,
-      body: { user, expiresAt },
-      cookies: [serializeSessionCookie(token, { maxAgeMs: SECURITY.SESSION_TTL_MS })],
+      body: { user: result.user, expiresAt: result.expiresAt },
+      cookies: [serializeSessionCookie(result.token, { maxAgeMs: SECURITY.SESSION_TTL_MS })],
+    };
+  });
+
+  router.post('/api/auth/login/2fa', async ({ body, headers, remoteAddress }) => {
+    limitByIp(
+      twoFactorLimiter,
+      headers,
+      remoteAddress,
+      'Muitas tentativas deste endereço. Aguarde alguns minutos e tente novamente.'
+    );
+    const input = pick(body, ['challenge', 'code']);
+    const result = await auth.loginWithSecondFactor(input, requestMeta(headers, remoteAddress));
+
+    return {
+      status: 200,
+      body: { user: result.user, expiresAt: result.expiresAt },
+      cookies: [serializeSessionCookie(result.token, { maxAgeMs: SECURITY.SESSION_TTL_MS })],
+    };
+  });
+
+  /* Recuperação de senha. A resposta é a MESMA para e-mail com conta, sem
+     conta, e com limite por e-mail estourado; só o limite por IP (que não
+     depende do e-mail) e a falta de provedor de e-mail respondem diferente. */
+  router.post('/api/auth/forgot', async ({ body, headers, remoteAddress }) => {
+    limitByIp(
+      forgotIpLimiter,
+      headers,
+      remoteAddress,
+      'Muitos pedidos deste endereço. Aguarde alguns minutos e tente novamente.'
+    );
+    if (!passwordReset.available) {
+      throw new AppError(
+        503,
+        'EMAIL_INDISPONIVEL',
+        'A recuperação de senha está indisponível no momento. Fale com o suporte.'
+      );
+    }
+    const { email } = pick(body, ['email']);
+    const normalized = normalizeEmail(email);
+    await passwordReset.requestReset(email, {
+      allowed: forgotEmailLimiter.hit(normalized || 'vazio'),
+      ip: clientAddress(headers, remoteAddress),
+    });
+    return {
+      status: 202,
+      body: {
+        ok: true,
+        message: 'Se existir uma conta com este e-mail, enviaremos um link para redefinir a senha.',
+      },
+    };
+  });
+
+  router.post('/api/auth/reset', async ({ body, headers, remoteAddress }) => {
+    limitByIp(
+      resetLimiter,
+      headers,
+      remoteAddress,
+      'Muitas tentativas deste endereço. Aguarde alguns minutos e tente novamente.'
+    );
+    const input = pick(body, ['token', 'password']);
+    return {
+      status: 200,
+      body: await passwordReset.reset(input, { ip: clientAddress(headers, remoteAddress) }),
     };
   });
 
@@ -252,6 +412,115 @@ export function createApp(
     async ({ user }) => {
       const { sessionId, ...publicUser } = user;
       return { status: 200, body: { user: publicUser } };
+    },
+    { auth: true }
+  );
+
+  /* ------------------------------------------- segurança da própria conta */
+
+  const sensitive = (user) => {
+    if (!sensitiveLimiter.hit(String(user.id))) {
+      throw tooManyRequests('Muitas tentativas. Aguarde alguns minutos e tente novamente.');
+    }
+  };
+
+  router.post(
+    '/api/auth/password',
+    async ({ user, body, headers, remoteAddress }) => {
+      sensitive(user);
+      const input = pick(body, ['currentPassword', 'newPassword']);
+      return {
+        status: 200,
+        body: await accountSecurity.changePassword(user, input, {
+          ip: clientAddress(headers, remoteAddress),
+        }),
+      };
+    },
+    { auth: true }
+  );
+
+  router.get(
+    '/api/auth/sessions',
+    async ({ user }) => ({ status: 200, body: { sessions: await accountSecurity.listSessions(user) } }),
+    { auth: true }
+  );
+
+  router.post(
+    '/api/auth/sessions/revoke-all',
+    async ({ user }) => ({
+      status: 200,
+      body: await accountSecurity.revokeAll(user),
+      cookies: [serializeClearedSessionCookie()],
+    }),
+    { auth: true }
+  );
+
+  router.delete(
+    '/api/auth/sessions/:id',
+    async ({ user, params }) => ({
+      status: 200,
+      body: await accountSecurity.revokeSession(user, params.id),
+    }),
+    { auth: true }
+  );
+
+  /* 2FA: só ADMIN (o serviço também confere). */
+  router.get(
+    '/api/auth/2fa',
+    async ({ user }) => ({ status: 200, body: await twoFactor.status(user) }),
+    { auth: true }
+  );
+
+  router.post(
+    '/api/auth/2fa/setup',
+    async ({ user, body, headers, remoteAddress }) => {
+      sensitive(user);
+      const input = pick(body, ['password']);
+      return {
+        status: 200,
+        body: await twoFactor.setup(user, input, { ip: clientAddress(headers, remoteAddress) }),
+      };
+    },
+    { auth: true }
+  );
+
+  router.post(
+    '/api/auth/2fa/enable',
+    async ({ user, body, headers, remoteAddress }) => {
+      sensitive(user);
+      const input = pick(body, ['code']);
+      return {
+        status: 200,
+        body: await twoFactor.enable(user, input, { ip: clientAddress(headers, remoteAddress) }),
+      };
+    },
+    { auth: true }
+  );
+
+  router.post(
+    '/api/auth/2fa/disable',
+    async ({ user, body, headers, remoteAddress }) => {
+      sensitive(user);
+      const input = pick(body, ['password', 'code']);
+      return {
+        status: 200,
+        body: await twoFactor.disable(user, input, { ip: clientAddress(headers, remoteAddress) }),
+      };
+    },
+    { auth: true }
+  );
+
+  router.post(
+    '/api/auth/2fa/recovery-codes',
+    async ({ user, body, headers, remoteAddress }) => {
+      sensitive(user);
+      const input = pick(body, ['password', 'code']);
+      return {
+        status: 200,
+        body: await twoFactor.regenerateRecoveryCodes(user, input, {
+          ip: clientAddress(headers, remoteAddress),
+        }),
+      };
     },
     { auth: true }
   );
@@ -534,6 +803,19 @@ export function createApp(
    * devolve   { status, headers, body }
    */
   async function handle(request) {
+    const headers = normalizeHeaders(request.headers);
+
+    /* IP e user agent da requisição ficam disponíveis para a auditoria. */
+    return runWithRequest(
+      {
+        ip: clientAddress(headers, request.remoteAddress),
+        userAgent: clipUserAgent(headers['user-agent']),
+      },
+      () => dispatch(request, headers)
+    );
+  }
+
+  async function dispatch(request, headers) {
     try {
       const method = String(request.method ?? 'GET').toUpperCase();
       const path = String(request.path ?? '');
@@ -545,15 +827,16 @@ export function createApp(
       }
 
       const { route, params } = found;
-      const headers = normalizeHeaders(request.headers);
 
-      /* CSRF: requisição que altera estado precisa vir da própria origem.
-         Combinado com SameSite=Lax, cobre o cenário clássico de CSRF. */
-      if (MUTATING_METHODS.has(method) && allowedOrigins.length) {
-        const origin = headers.origin;
-        if (origin && !allowedOrigins.includes(origin)) {
-          throw forbidden('Origem não autorizada.');
-        }
+      /* CSRF: requisição que altera estado precisa vir da própria origem
+         (Origin, ou Referer, ou Sec-Fetch-Site). Combinado com SameSite=Lax,
+         cobre o cenário clássico de CSRF. */
+      if (
+        MUTATING_METHODS.has(method) &&
+        allowedOrigins.length &&
+        !isTrustedRequestOrigin(headers, allowedOrigins)
+      ) {
+        throw forbidden('Origem não autorizada.');
       }
 
       const token = parseCookies(headers.cookie)[SECURITY.SESSION_COOKIE] ?? null;
@@ -567,7 +850,7 @@ export function createApp(
       if (route.options.role && user.role !== route.options.role) {
         await ctx.audit.log({
           userId: user.id,
-          action: AUDIT_ACTIONS.LOGIN_FAILED,
+          action: AUDIT_ACTIONS.ACCESS_DENIED,
           resourceType: 'authz',
           details: { rota: path, papel: user.role },
         });
@@ -592,7 +875,7 @@ export function createApp(
     }
   }
 
-  return { handle, ctx, services: { auth, projects, requests, messages } };
+  return { handle, ctx, maintenance, services: { auth, projects, requests, messages } };
 }
 
 /* ------------------------------------------------------------- helpers */
@@ -627,7 +910,8 @@ function respondRaw(status, { buffer, contentType, filename }) {
       'Content-Length': String(buffer.length),
       'X-Content-Type-Options': 'nosniff',
       'Content-Disposition': `inline; filename="${filename.replace(/"/g, '')}"`,
-      'Cache-Control': 'private, max-age=3600',
+      'Cache-Control': 'private, no-store',
+      'Cross-Origin-Resource-Policy': 'same-origin',
     },
   };
 }
@@ -645,11 +929,14 @@ function respond(status, body, cookies) {
  */
 function toErrorResponse(error) {
   if (error instanceof AppError) {
-    return respond(error.status, {
+    const response = respond(error.status, {
       error: error.code,
       message: error.message,
       ...(error.details ? { details: error.details } : {}),
+      ...(error.retryAfterSeconds ? { retryAfterSeconds: error.retryAfterSeconds } : {}),
     });
+    if (error.retryAfterSeconds) response.headers['Retry-After'] = String(error.retryAfterSeconds);
+    return response;
   }
 
   console.error('[api] erro inesperado:', error?.message, error?.stack);

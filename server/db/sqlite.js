@@ -10,6 +10,27 @@ import { normalizeParams, toNumber } from './normalize.js';
 
 const SCHEMA_PATH = resolve(import.meta.dirname, 'schema.sqlite.sql');
 
+/* SQLite não tem `ADD COLUMN IF NOT EXISTS`: o que o schema ganhou depois da
+   primeira versão entra aqui, conferindo `PRAGMA table_info` antes (idempotente).
+   Bancos novos já nascem com as colunas pelo CREATE TABLE. */
+const COLUNAS_NOVAS = [
+  ['sessions', 'last_seen_at', 'INTEGER'],
+  ['sessions', 'ip', 'TEXT'],
+  ['sessions', 'user_agent', 'TEXT'],
+  ['login_attempts', 'ip', 'TEXT'],
+  ['audit_logs', 'ip', 'TEXT'],
+  ['audit_logs', 'user_agent', 'TEXT'],
+];
+
+export function aplicarMigracoesSqlite(db) {
+  for (const [tabela, coluna, tipo] of COLUNAS_NOVAS) {
+    const existentes = db.prepare(`PRAGMA table_info(${tabela})`).all();
+    if (!existentes.some((c) => c.name === coluna)) {
+      db.exec(`ALTER TABLE ${tabela} ADD COLUMN ${coluna} ${tipo}`);
+    }
+  }
+}
+
 export function createSqliteDriver({ file = ':memory:' } = {}) {
   if (file !== ':memory:') mkdirSync(dirname(resolve(file)), { recursive: true });
 
@@ -24,6 +45,7 @@ export function createSqliteDriver({ file = ':memory:' } = {}) {
     /** Cria as tabelas (idempotente). */
     async init() {
       db.exec(readFileSync(SCHEMA_PATH, 'utf8'));
+      aplicarMigracoesSqlite(db);
     },
 
     async query(sql, params = []) {

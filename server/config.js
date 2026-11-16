@@ -39,6 +39,17 @@ export const PROJECT_STATUS_VALUES = Object.freeze(
   Object.values(PROJECT_STATUS)
 );
 
+const readEnv = (key, fallback = undefined) => {
+  const value = process.env[key];
+  return value === undefined || value === '' ? fallback : value;
+};
+
+/** Número positivo vindo do ambiente; o que não for vira o padrão. */
+const readPositive = (key, fallback) => {
+  const value = Number(readEnv(key));
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+};
+
 /** Ações registradas em audit_logs. */
 export const AUDIT_ACTIONS = Object.freeze({
   LOGIN: 'LOGIN',
@@ -53,6 +64,18 @@ export const AUDIT_ACTIONS = Object.freeze({
   MESSAGE_SENT: 'MENSAGEM_ENVIADA',
   PROJECT_LINKED: 'PROJETO_VINCULADO',
   PROJECT_UNLINKED: 'PROJETO_DESVINCULADO',
+  ACCESS_DENIED: 'ACESSO_NEGADO',
+  LOGIN_2FA_FAILED: 'LOGIN_2FA_FALHOU',
+  RECOVERY_CODE_USED: 'CODIGO_RECUPERACAO_USADO',
+  TWO_FACTOR_ENABLED: 'DOIS_FATORES_ATIVADO',
+  TWO_FACTOR_DISABLED: 'DOIS_FATORES_DESATIVADO',
+  RECOVERY_CODES_REGENERATED: 'CODIGOS_RECUPERACAO_GERADOS',
+  PASSWORD_CHANGED: 'SENHA_ALTERADA',
+  PASSWORD_CHANGE_FAILED: 'SENHA_ALTERACAO_FALHOU',
+  SESSION_REVOKED: 'SESSAO_ENCERRADA',
+  SESSIONS_REVOKED_ALL: 'SESSOES_ENCERRADAS',
+  PASSWORD_RESET_REQUESTED: 'SENHA_RECUPERACAO_PEDIDA',
+  PASSWORD_RESET: 'SENHA_REDEFINIDA',
 });
 
 /* ------------------------------------------------------------ segurança */
@@ -75,9 +98,41 @@ export const SECURITY = Object.freeze({
     maxmem: 96 * 1024 * 1024,
   }),
 
-  /** Bloqueio por tentativas de login. */
+  /* Expiração por inatividade (além do limite absoluto acima). Cada pedido
+     autenticado renova o relógio; ficar parado além disto derruba a sessão.
+     Ajustável por SESSION_IDLE_MINUTES_CLIENT / SESSION_IDLE_MINUTES_ADMIN. */
+  SESSION_IDLE_MS: Object.freeze({
+    CLIENT: readPositive('SESSION_IDLE_MINUTES_CLIENT', 30) * 60 * 1000,
+    ADMIN: readPositive('SESSION_IDLE_MINUTES_ADMIN', 15) * 60 * 1000,
+  }),
+  /** Renovar o `last_seen_at` no máximo uma vez por este intervalo (poupa escrita). */
+  SESSION_TOUCH_MS: 60 * 1000,
+
+  /* Bloqueio por tentativas de login: por (e-mail + IP), não pela conta inteira
+     (senão qualquer um negaria o login de terceiros). Depois de
+     LOGIN_MAX_ATTEMPTS falhas na janela, cada nova falha dobra a espera
+     (30 s, 1 min, 2 min... até a própria janela). */
   LOGIN_MAX_ATTEMPTS: 5,
   LOGIN_WINDOW_MS: 1000 * 60 * 15, // 15 minutos
+  LOGIN_LOCK_BASE_MS: 1000 * 30,
+
+  /* Segundo fator (TOTP, RFC 6238) para ADMIN. */
+  TWO_FACTOR: Object.freeze({
+    ISSUER: 'TODAI',
+    CHALLENGE_TTL_MS: 1000 * 60 * 5, // tempo para digitar o código depois da senha
+    CHALLENGE_MAX_ATTEMPTS: 5, // erros por desafio antes de exigir a senha de novo
+    WINDOW: 1, // aceita o passo anterior e o seguinte (±30 s de relógio)
+    RECOVERY_CODES: 10,
+  }),
+
+  /** Recuperação de senha por e-mail. */
+  PASSWORD_RESET_TTL_MS: 1000 * 60 * 30, // 30 minutos
+
+  /** Retenção da trilha de auditoria (0 desliga a purga). */
+  AUDIT_RETENTION_DAYS: readPositive('AUDIT_RETENTION_DAYS', 365),
+
+  /** Corpo máximo das rotas de autenticação (o global é para upload de imagem). */
+  AUTH_MAX_BODY_BYTES: 8 * 1024,
 
   /** Regras de senha. */
   PASSWORD_MIN_LENGTH: 10,
@@ -102,14 +157,16 @@ export const LIMITS = Object.freeze({
      acima disso o payload em base64 começa a pesar na função serverless. */
   UPLOAD_MAX_BYTES: 3 * 1024 * 1024,
   ATTACHMENT_NAME_MAX: 80,
+
+  /* Cotas por usuário logado (cliente). O admin não entra nelas. Janelas
+     móveis, contadas no banco: valem para todas as instâncias. */
+  MESSAGES_PER_HOUR: 60,
+  ATTACHMENTS_PER_DAY: 30,
+  ATTACHMENT_BYTES_PER_DAY: 30 * 1024 * 1024,
+  REQUESTS_PER_DAY: 10,
 });
 
 /* --------------------------------------------------------- ambiente */
-
-const readEnv = (key, fallback = undefined) => {
-  const value = process.env[key];
-  return value === undefined || value === '' ? fallback : value;
-};
 
 /** Tempo máximo padrão das chamadas à API de licenciamento (o Render hiberna). */
 export const DEFAULT_TIMEOUT_MS = 90000;
@@ -149,14 +206,26 @@ export const config = Object.freeze({
     ssl: readEnv('DATABASE_SSL', 'require') !== 'disable',
   }),
 
-  /* Reservado: hoje nada o usa (a sessão é um token aleatório cujo hash fica no
-     banco). Opcional; não é exigido em produção. */
+  /* Chave-mestra do que o servidor precisa cifrar/assinar em repouso: o segredo
+     TOTP do 2FA e o hash dos códigos de recuperação. A sessão em si NÃO depende
+     dela (é um token aleatório cujo hash fica no banco). Em produção, sem ela o
+     2FA fica indisponível (e o boot avisa); em desenvolvimento cai numa chave
+     fixa, só para o fluxo funcionar. Trocar o valor invalida os segredos 2FA já
+     cadastrados (ver docs/SEGURANCA.md). */
   sessionSecret: readEnv('SESSION_SECRET'),
   isProduction: readEnv('NODE_ENV') === 'production',
 
   admin: Object.freeze({
     email: readEnv('ADMIN_EMAIL'),
     password: readEnv('ADMIN_INITIAL_PASSWORD'),
+  }),
+
+  /* E-mail transacional (recuperação de senha). Com RESEND_API_KEY + MAIL_FROM
+     envia pela API HTTP do Resend; sem eles, em desenvolvimento só registra o
+     link no console, e em produção o pedido de recuperação responde 503. */
+  mail: Object.freeze({
+    resendApiKey: readEnv('RESEND_API_KEY'),
+    from: readEnv('MAIL_FROM'),
   }),
 
   /* Endereço público do site, com https. A compra o usa para dizer ao
@@ -190,20 +259,34 @@ export const config = Object.freeze({
 /**
  * Falha cedo e com mensagem clara quando falta configuração em produção —
  * melhor do que quebrar numa query no meio de um request.
+ *
+ * `cfg` e `env` são injetáveis só para os testes (o `config` real é congelado
+ * na hora do import).
  */
-export function assertProductionConfig() {
+export function assertProductionConfig(cfg = config, env = process.env) {
   const missing = [];
 
-  if (config.driver === 'postgres' && !config.postgres.url) {
+  /* Produção em SQLite grava num arquivo local: some a cada deploy em
+     serverless/Render e não aguenta duas instâncias. Quem de fato roda numa VPS
+     com volume pode assumir isso de propósito com ALLOW_SQLITE_IN_PRODUCTION=true. */
+  if (
+    cfg.isProduction &&
+    cfg.driver !== 'postgres' &&
+    String(env.ALLOW_SQLITE_IN_PRODUCTION ?? '').toLowerCase() !== 'true'
+  ) {
+    missing.push('DATABASE_DRIVER=postgres');
+  }
+
+  if (cfg.driver === 'postgres' && !cfg.postgres.url) {
     missing.push('DATABASE_URL');
   }
 
   /* As duas andam juntas: uma sozinha significa integração pela metade, e o
      formulário de orçamento falharia só em produção, na frente do visitante. */
-  if (config.licensing.baseUrl && !config.licensing.serviceKey) {
+  if (cfg.licensing.baseUrl && !cfg.licensing.serviceKey) {
     missing.push('SITE_SERVICE_API_KEY');
   }
-  if (config.licensing.serviceKey && !config.licensing.baseUrl) {
+  if (cfg.licensing.serviceKey && !cfg.licensing.baseUrl) {
     missing.push('LICENSING_API_BASE_URL');
   }
 
@@ -211,6 +294,14 @@ export function assertProductionConfig() {
     throw new Error(
       `Configuração ausente: ${missing.join(', ')}. ` +
         'Defina essas variáveis de ambiente (ver .env.example).'
+    );
+  }
+
+  /* Não derruba o boot (o site funciona sem 2FA), mas avisa em voz alta. */
+  if (cfg.isProduction && !(cfg.sessionSecret && cfg.sessionSecret.length >= 32)) {
+    console.warn(
+      '[config] SESSION_SECRET ausente ou com menos de 32 caracteres: o 2FA do administrador ' +
+        'fica indisponível. Gere um com: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"'
     );
   }
 }

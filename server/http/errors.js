@@ -30,5 +30,9 @@ export const forbidden = (message = 'Você não tem acesso a este recurso.') =>
 
 export const conflict = (message) => new AppError(409, 'CONFLITO', message);
 
-export const tooManyRequests = (message) =>
-  new AppError(429, 'MUITAS_TENTATIVAS', message);
+/** `retryAfterSeconds` (opcional) vira o cabeçalho Retry-After e `details`. */
+export const tooManyRequests = (message, retryAfterSeconds = null) => {
+  const error = new AppError(429, 'MUITAS_TENTATIVAS', message);
+  if (retryAfterSeconds) error.retryAfterSeconds = Math.max(1, Math.ceil(retryAfterSeconds));
+  return error;
+};

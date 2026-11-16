@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
 /** Áreas logadas: não são o site público e não entram na medição. */
-const PRIVATE_PREFIXES = ['/admin', '/cliente'];
+const PRIVATE_PREFIXES = ['/admin', '/cliente', '/login', '/cadastro', '/esqueci-senha', '/redefinir-senha'];
 
 function trackingRefused() {
   return (

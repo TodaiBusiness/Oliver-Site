@@ -79,10 +79,12 @@ h1,
 h2,
 h3,
 h4 {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
   line-height: 1.1;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.028em;
   color: var(--white);
-  font-weight: 600;
+  font-weight: 650;
   text-wrap: balance;
 }
 
@@ -164,4 +166,9 @@ ul {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* O <main> recebe foco ao trocar de página (leitores de tela); sem aro visual. */
+main:focus {
+  outline: none;
 }

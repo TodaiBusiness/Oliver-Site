@@ -21,6 +21,24 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
   (`Panel-Desktop/deploy/hostinger`) ainda baixa `oliver-site`. Quando o Panel-Desktop passar a usar `todai-site` e isso
   estiver na VPS, apagar a segunda linha de `tags:` e, depois, o pacote `oliver-site` do GHCR.
 
+### Segurança da conta
+
+- **P-019** · 2026-11-16 · **Fechar as pontas da segurança de contas (2FA, recuperação de senha, sessões).** O servidor já tem tudo
+  (ver `docs/SEGURANCA.md`); falta, por ordem:
+  1. **Ligar as telas** no `src/App.jsx`: `/esqueci-senha` (`ForgotPassword`), `/redefinir-senha` (`ResetPassword`) e
+     `seguranca` dentro de `/cliente` e `/admin` (`SecuritySettings`), mais o link "Segurança" nos dois menus laterais.
+  2. **Netlify:** `netlify/functions/api.js` ignora `result.headers` da API em respostas JSON (só repassa `Set-Cookie`), então lá
+     faltam `Cache-Control: no-store`, `Retry-After` e CORP. No `server.js` (Render/VPS) já saem. Copiar todos os cabeçalhos do resultado.
+  3. **Analytics:** acrescentar `/redefinir-senha`, `/esqueci-senha` e `/login` a `PRIVATE_PREFIXES` em `src/app/PageTracker.jsx`.
+     (O token do link vai no fragmento `#token=`, que nunca sai do navegador; o caminho em si não é segredo, só ruído.)
+  4. **Provedor de e-mail:** criar a conta no Resend, verificar o domínio e definir `RESEND_API_KEY` e `MAIL_FROM` (sem isso, em
+     produção `POST /api/auth/forgot` responde 503). `SESSION_SECRET` (32+ caracteres) também precisa existir em produção
+     para o 2FA do administrador ser ativado; no `render.yaml` ele ainda está documentado como "reservado".
+  5. **Ativar o 2FA do administrador** em Segurança e remover `ADMIN_INITIAL_PASSWORD` do ambiente.
+  6. **Opcional:** QR code na ativação do 2FA (hoje o painel mostra a chave para digitar e um link `otpauth://`; um gerador de QR
+     próprio ou uma biblioteca nova exigiria decisão); tornar o 2FA obrigatório para ADMIN depois que todos o tiverem ativado;
+     testar o SQL novo em um Postgres real (os testes rodam em SQLite).
+
 ### Depende do dono
 
 - **P-018** · 2026-11-05 · **Nome do repositório no GitHub.** O repositório ainda se chama `Oliver-Site`

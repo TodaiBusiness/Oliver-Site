@@ -20,6 +20,14 @@ export function usersRepository(db) {
       );
     },
 
+    /** Para conferir a senha atual (troca de senha, 2FA). Nunca sai da camada de serviço. */
+    async findByIdWithHash(id) {
+      return db.queryOne(
+        `SELECT id, name, email, role, password_hash FROM users WHERE id = ?`,
+        [id]
+      );
+    },
+
     async findById(id) {
       return db.queryOne(
         `SELECT ${PUBLIC_FIELDS} FROM users WHERE id = ?`,

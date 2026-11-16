@@ -79,8 +79,13 @@ export default async function handler(request) {
     }
 
     const headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    for (const cookie of result.headers['Set-Cookie'] ?? []) {
-      headers.append('Set-Cookie', cookie);
+    for (const [name, value] of Object.entries(result.headers ?? {})) {
+      if (name.toLowerCase() === 'content-type') continue;
+      if (Array.isArray(value)) {
+        for (const item of value) headers.append(name, item);
+      } else if (value != null) {
+        headers.set(name, String(value));
+      }
     }
 
     return new Response(JSON.stringify(result.body), {
