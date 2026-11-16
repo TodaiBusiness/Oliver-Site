@@ -165,16 +165,23 @@ test('serviceAuth: comparação por digest, sem aceitar vazio, curto ou tipo err
   assert.equal(createServiceAuth(undefined).enabled, false);
 });
 
-test('corpo máximo de 8 KB nas rotas de serviço', async () => {
-  assert.equal(bodyLimitFor('/api/service/conversations/1/messages'), 8 * 1024);
+test('corpo máximo de 32 KB nas rotas de serviço (4000 acentuados/emoji passam)', async () => {
+  assert.equal(bodyLimitFor('/api/service/conversations/1/messages'), 32 * 1024);
   const { app, close } = await createTestApp({ serviceKey: KEY });
   try {
     const cliente = await createClient(app);
     const id = await conversa(app, cliente);
     const r = await svc(app, 'POST', `/api/service/conversations/${id}/messages`, {
-      body: { body: 'a'.repeat(9000), adminId: ADMIN_GUID, adminName: 'Kaique' },
+      body: { body: 'a'.repeat(40000), adminId: ADMIN_GUID, adminName: 'Kaique' },
     });
     assert.equal(r.status, 413);
+
+    for (const texto of ['é'.repeat(4000), '🙂'.repeat(2000)]) {
+      const ok = await svc(app, 'POST', `/api/service/conversations/${id}/messages`, {
+        body: { body: texto, adminId: ADMIN_GUID, adminName: 'Kaique' },
+      });
+      assert.equal(ok.status, 201);
+    }
   } finally {
     close();
   }
@@ -534,4 +541,119 @@ test('a migração é idempotente: reaplicar não duplica o usuário de sistema'
   assert.match(pg, /ADD COLUMN IF NOT EXISTS author_external_id/);
   assert.match(pg, /ADD COLUMN IF NOT EXISTS author_external_name/);
   assert.match(pg, /ON CONFLICT \(email\) DO NOTHING/);
+});
+
+/* ------------------------------------------------------ revisão (rodada 2) */
+
+test('conversa com mais de 1000 mensagens traz as 1000 MAIS RECENTES, em ordem cronológica', async () => {
+  const { app, ctx, close } = await createTestApp({ serviceKey: KEY });
+  try {
+    const userId = await ctx.users.create({ name: 'Ana', company: null, email: 'ana@t.com', phone: null, passwordHash: 'x' });
+    const id = await ctx.requests.create({ userId, type: 'Site', description: 'Descrição longa o bastante.', budget: null, deadline: null, status: 'NOVO' });
+    await ctx.db.transaction(async (tx) => {
+      for (let i = 1; i <= 1005; i += 1) {
+        await tx.execute(
+          'INSERT INTO messages (request_id, author_id, body, is_read, created_at) VALUES (?, ?, ?, 0, ?)',
+          [id, userId, `m${i}`, 1000000 + i]
+        );
+      }
+    });
+    const r = await svc(app, 'GET', `/api/service/conversations/${id}`);
+    assert.equal(r.body.messages.length, 1000);
+    assert.equal(r.body.messages[0].body, 'm6');
+    assert.equal(r.body.messages[999].body, 'm1005');
+  } finally {
+    close();
+  }
+});
+
+test('conta com o e-mail do usuário de sistema que não é a de sistema: recusa com 500 genérico', async () => {
+  const { app, ctx, close } = await createTestApp({ serviceKey: KEY });
+  try {
+    const cliente = await createClient(app);
+    const id = await conversa(app, cliente);
+    await ctx.db.execute("UPDATE users SET role = 'CLIENT', password_hash = 'scrypt$x' WHERE email = ?", [SYSTEM_USER.EMAIL]);
+    const r = await svc(app, 'POST', `/api/service/conversations/${id}/messages`, {
+      body: { body: 'oi', adminId: ADMIN_GUID, adminName: 'Kaique' },
+    });
+    assert.equal(r.status, 500);
+    assert.ok(!JSON.stringify(r.body).includes(SYSTEM_USER.EMAIL));
+    const n = await ctx.db.queryOne('SELECT COUNT(*) AS n FROM messages WHERE author_external_name IS NOT NULL');
+    assert.equal(Number(n.n), 0);
+  } finally {
+    close();
+  }
+});
+
+test('limite por minuto é configurável (serviceRatePerMin); falhas de chave têm limite próprio', async () => {
+  const { app, close } = await createTestApp({ serviceKey: KEY, serviceRatePerMin: 5 });
+  try {
+    const h = { 'x-forwarded-for': '198.51.100.50' };
+    const codigos = [];
+    for (let i = 0; i < 7; i += 1) {
+      codigos.push((await svc(app, 'GET', '/api/service/conversations/unread', { headers: h })).status);
+    }
+    assert.deepEqual(codigos, [200, 200, 200, 200, 200, 429, 429]);
+  } finally {
+    close();
+  }
+  const padrao = (await import('../../server/config.js')).config.service.ratePerMin;
+  assert.equal(padrao, 1200);
+});
+
+test('clientMessageId: reenvio igual não duplica; ids diferentes e ausente criam mensagens', async () => {
+  const { app, ctx, close } = await createTestApp({ serviceKey: KEY });
+  try {
+    const cliente = await createClient(app);
+    const id = await conversa(app, cliente);
+    const enviar = (extra) =>
+      svc(app, 'POST', `/api/service/conversations/${id}/messages`, {
+        body: { body: 'Resposta', adminId: ADMIN_GUID, adminName: 'Kaique', ...extra },
+      });
+    const total = async () =>
+      Number((await ctx.db.queryOne('SELECT COUNT(*) AS n FROM messages WHERE author_external_name IS NOT NULL')).n);
+
+    const a = await enviar({ clientMessageId: 'envio-0001' });
+    const b = await enviar({ clientMessageId: 'envio-0001' });
+    assert.equal(a.status, 201);
+    assert.equal(b.status, 201);
+    assert.equal(b.body.message.id, a.body.message.id);
+    assert.equal(await total(), 1);
+
+    /* Concorrentes: a restrição única decide. */
+    const [c, d] = await Promise.all([enviar({ clientMessageId: 'envio-0002' }), enviar({ clientMessageId: 'envio-0002' })]);
+    assert.equal(c.body.message.id, d.body.message.id);
+    assert.equal(await total(), 2);
+
+    /* Mesmo id em outro admin é outra mensagem. */
+    const outro = await svc(app, 'POST', `/api/service/conversations/${id}/messages`, {
+      body: { body: 'x', adminId: '9', adminName: 'Outro', clientMessageId: 'envio-0001' },
+    });
+    assert.notEqual(outro.body.message.id, a.body.message.id);
+
+    await enviar({});
+    await enviar({});
+    assert.equal(await total(), 5, 'sem id: comportamento atual (uma por chamada)');
+
+    for (const ruim of ['curto', 'a'.repeat(65), 'com espaço aqui', 123, ['x']]) {
+      const r = await enviar({ clientMessageId: ruim });
+      assert.equal(r.status, 400, String(ruim));
+      assert.ok(r.body.details.clientMessageId);
+    }
+  } finally {
+    close();
+  }
+});
+
+test('a chave de serviço lida do ambiente passa por trim', async () => {
+  const antes = process.env.SITE_SERVICE_API_KEY;
+  process.env.SITE_SERVICE_API_KEY = `  ${KEY}\n`;
+  try {
+    const { config } = await import(`../../server/config.js?trim=${Date.now()}`);
+    assert.equal(config.service.apiKey, KEY);
+    assert.equal(config.licensing.serviceKey, KEY);
+  } finally {
+    if (antes === undefined) delete process.env.SITE_SERVICE_API_KEY;
+    else process.env.SITE_SERVICE_API_KEY = antes;
+  }
 });

@@ -75,7 +75,8 @@ CREATE TABLE IF NOT EXISTS messages (
   is_read    INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
   author_external_id   TEXT,     -- guid do administrador no Panel (resposta vinda de lá)
-  author_external_name TEXT      -- nome mostrado ao cliente: "<nome> · TODAI"
+  author_external_name TEXT,     -- nome mostrado ao cliente: "<nome> · TODAI"
+  client_message_id    TEXT      -- id de idempotência enviado pelo Panel
 );
 
 CREATE INDEX IF NOT EXISTS ix_messages_request ON messages (request_id, created_at);

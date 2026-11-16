@@ -143,8 +143,9 @@ subdomínios; `src/utils/checkoutUrl.js`).
 - **`/api/service/*`** (API do Panel → site, servidor a servidor). Credencial única: `X-Service-Key` = `SITE_SERVICE_API_KEY`
   (mín. 32 caracteres; sem ela, 503). Comparação por SHA-256 + `timingSafeEqual`. Qualquer caminho sob `/api/service/` passa
   pelo porteiro **antes** do roteamento (sem chave, nem a existência da rota aparece): 401 sem detalhe; cookie é ignorado
-  (cliente ou admin do site com sessão válida não entra); requisição com `Origin` (navegador) é 403 mesmo com chave; limite de 300/min
-  por IP e 20 falhas/10 min por IP (429); corpo máx. 8 KB. Sem CSRF/Origin porque não há cookie. O e-mail do cliente só sai
+  (cliente ou admin do site com sessão válida não entra); requisição com `Origin` (navegador) é 403 mesmo com chave; limite de `SERVICE_RATE_LIMIT_PER_MIN`
+  (padrão 1200) por IP e 20 falhas de chave/10 min por IP (429); corpo máx. 32 KB (o cliente C# escapa não-ASCII); a chave lida do ambiente passa por `trim`.
+  O envio aceita `clientMessageId` opcional (idempotência: reenvio devolve a mesma mensagem, índice único parcial). Sem CSRF/Origin porque não há cookie. O e-mail do cliente só sai
   por aqui. A chave é a mesma string de `SITE_SERVICE_API_KEY` já usada para falar com a API de licenciamento (um segredo, três pontas).
 - **Resposta do Panel**: gravada com `author_id` = usuário de sistema "TODAI Atendimento" (ADMIN, hash `!login-desativado`: nenhuma
   senha confere, não recebe recuperação de senha, sem sessão) e `author_external_id/name` (id do admin no Panel, `[A-Za-z0-9_-]{1,64}`;

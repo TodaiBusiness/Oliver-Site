@@ -88,7 +88,6 @@ const COLLECT_MAX_PER_IP_DAY = 1500;
    IP (a API do Panel). Teto folgado para o uso normal (polling de 30 s) e um
    teto bem menor só para chave errada. */
 const SERVICE_WINDOW_MS = 60 * 1000;
-const SERVICE_MAX_PER_IP = 300;
 const SERVICE_FAIL_WINDOW_MS = 10 * 60 * 1000;
 const SERVICE_FAIL_MAX_PER_IP = 20;
 
@@ -145,6 +144,7 @@ export function createApp(
     analytics = analyticsService(db, { readKey: config.analytics.readKey, allowedOrigins }),
     adminEnabled = config.siteAdminEnabled,
     serviceKey = config.service.apiKey,
+    serviceRatePerMin = config.service.ratePerMin,
   } = {}
 ) {
   const ctx = createContext(db, vault ? { vault } : undefined);
@@ -184,7 +184,7 @@ export function createApp(
   });
   const resetLimiter = createRateLimiter({ max: RESET_MAX_PER_IP, windowMs: AUTH_WINDOW_MS });
 
-  const serviceLimiter = createRateLimiter({ max: SERVICE_MAX_PER_IP, windowMs: SERVICE_WINDOW_MS });
+  const serviceLimiter = createRateLimiter({ max: serviceRatePerMin, windowMs: SERVICE_WINDOW_MS });
   const serviceFailLimiter = createRateLimiter({
     max: SERVICE_FAIL_MAX_PER_IP,
     windowMs: SERVICE_FAIL_WINDOW_MS,
@@ -879,7 +879,7 @@ export function createApp(
       }
       const requestId = requireServiceId(params.id);
       /* Só estes campos são lidos: autor, papel ou data no corpo não têm efeito. */
-      const input = pick(body, ['body', 'adminId', 'adminName']);
+      const input = pick(body, ['body', 'adminId', 'adminName', 'clientMessageId']);
       return {
         status: 201,
         body: { message: await panelConversations.sendMessage(requestId, input) },

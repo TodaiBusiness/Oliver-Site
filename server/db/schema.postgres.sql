@@ -106,7 +106,12 @@ CREATE INDEX IF NOT EXISTS ix_messages_request ON messages (request_id, created_
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS author_external_id   VARCHAR(64) NULL;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS author_external_name VARCHAR(80) NULL;
 
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS client_message_id    VARCHAR(64) NULL;
+
 CREATE INDEX IF NOT EXISTS ix_messages_unread ON messages (is_read, request_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_messages_client_id
+  ON messages (request_id, author_external_id, client_message_id)
+  WHERE client_message_id IS NOT NULL;
 
 -- Usuário de sistema "TODAI Atendimento": assina as mensagens do Panel. O hash é
 -- inválido de propósito (não é scrypt): nenhuma senha confere, login impossível.

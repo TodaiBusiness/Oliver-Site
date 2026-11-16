@@ -13,7 +13,7 @@
    ========================================================================= */
 
 import { AUDIT_ACTIONS, LIMITS, LOGIN_DISABLED_HASH, ROLES, SYSTEM_USER } from '../config.js';
-import { badRequest, notFound } from '../http/errors.js';
+import { AppError, badRequest, notFound } from '../http/errors.js';
 import { cleanText, createValidator } from '../http/validation.js';
 
 const PREVIEW_MAX = 140;
@@ -21,6 +21,7 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
 /* Id do administrador no Panel: bigint enviado como texto ("3"); aceita também guid. */
+const CLIENT_MESSAGE_ID = /^[A-Za-z0-9_-]{8,64}$/;
 const ADMIN_ID = /^[A-Za-z0-9_-]{1,64}$/;
 /* Nome exibido ao cliente: sem controle (quebra de linha, NUL...) e sem < > —
    o React já escapa, mas o nome também pode ir parar em e-mail, log, PDF. */
@@ -62,6 +63,12 @@ export function panelConversationsService(ctx) {
         /* corrida com outra instância: o UNIQUE decide, e a releitura abaixo resolve. */
       }
       row = await ctx.users.findByEmailWithHash(SYSTEM_USER.EMAIL);
+    }
+    /* Nunca assinar com conta que não seja a de sistema de verdade (ex.: um
+       cliente que se cadastrou antes com este e-mail). */
+    if (!row || row.role !== ROLES.ADMIN || row.password_hash !== LOGIN_DISABLED_HASH) {
+      console.error('[service] a conta de sistema', SYSTEM_USER.EMAIL, 'está inconsistente (papel ou hash).');
+      throw new AppError(500, 'ERRO_INTERNO', 'Algo deu errado. Tente novamente em instantes.');
     }
     systemUserId = row.id;
     return systemUserId;
@@ -185,6 +192,13 @@ export function panelConversationsService(ctx) {
       if (typeof input.adminId !== 'string' || !ADMIN_ID.test(input.adminId)) {
         validator.fail('adminId', 'Identificador do administrador inválido.');
       }
+      if (
+        input.clientMessageId !== undefined &&
+        input.clientMessageId !== null &&
+        (typeof input.clientMessageId !== 'string' || !CLIENT_MESSAGE_ID.test(input.clientMessageId))
+      ) {
+        validator.fail('clientMessageId', 'Identificador de envio inválido.');
+      }
       validator.assert();
 
       await requireRequest(requestId);
@@ -195,13 +209,35 @@ export function panelConversationsService(ctx) {
       const body = cleanText(input.body);
       if (!body) throw badRequest('Informe a mensagem.');
 
-      const id = await ctx.messages.create({
-        requestId,
-        authorId,
-        body,
-        externalId: adminId,
-        externalName: adminName,
-      });
+      const clientMessageId = input.clientMessageId ?? null;
+      const jaGravada = async () =>
+        clientMessageId
+          ? ctx.messages.findByClientMessageId(requestId, adminId, clientMessageId)
+          : null;
+
+      /* Reenvio com o mesmo clientMessageId devolve a mensagem já gravada. */
+      const repetida = await jaGravada();
+      if (repetida) return shapeMessage(await ctx.messages.findById(repetida.id), null);
+
+      let id;
+      try {
+        id = await ctx.messages.create({
+          requestId,
+          authorId,
+          body,
+          externalId: adminId,
+          externalName: adminName,
+          clientMessageId,
+        });
+      } catch (error) {
+        /* Corrida: duas chamadas iguais ao mesmo tempo; o índice único decide. */
+        const duplicada = /UNIQUE constraint failed|23505|duplicate key/i.test(
+          `${error?.code ?? ''} ${error?.message ?? ''}`
+        );
+        const existente = duplicada ? await jaGravada() : null;
+        if (!existente) throw error;
+        return shapeMessage(await ctx.messages.findById(existente.id), null);
+      }
 
       /* Sem o texto da mensagem no log (só quem e onde). */
       await ctx.audit.log({

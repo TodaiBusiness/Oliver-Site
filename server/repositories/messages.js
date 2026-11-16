@@ -8,12 +8,12 @@ import { ROLES } from '../config.js';
 export function messagesRepository(db) {
   return {
     /** `externalId`/`externalName`: resposta vinda do Panel (autor real fora do banco do site). */
-    async create({ requestId, authorId, body, externalId = null, externalName = null }) {
+    async create({ requestId, authorId, body, externalId = null, externalName = null, clientMessageId = null }) {
       const { insertId } = await db.execute(
         `INSERT INTO messages (request_id, author_id, body, is_read, created_at,
-                               author_external_id, author_external_name)
-         VALUES (?, ?, ?, 0, ?, ?, ?)`,
-        [requestId, authorId, body, Date.now(), externalId, externalName]
+                               author_external_id, author_external_name, client_message_id)
+         VALUES (?, ?, ?, 0, ?, ?, ?, ?)`,
+        [requestId, authorId, body, Date.now(), externalId, externalName, clientMessageId]
       );
       return insertId;
     },
@@ -213,9 +213,28 @@ export function messagesRepository(db) {
       return affectedRows;
     },
 
-    /** Conversa inteira, cronológica (teto de segurança de 1000 mensagens). */
-    async listAllForRequest(requestId) {
-      return this.listForRequest(requestId, { limit: 1000, offset: 0 });
+    /** Mensagem já gravada para este envio idempotente, se houver. */
+    async findByClientMessageId(requestId, externalId, clientMessageId) {
+      return db.queryOne(
+        `SELECT id FROM messages
+          WHERE request_id = ? AND author_external_id = ? AND client_message_id = ?`,
+        [requestId, externalId, clientMessageId]
+      );
+    },
+
+    /** As `limit` mensagens MAIS RECENTES da conversa, em ordem cronológica. */
+    async listAllForRequest(requestId, limit = 1000) {
+      const rows = await db.query(
+        `SELECT m.id, m.request_id, m.author_id, m.body, m.is_read, m.created_at,
+                m.author_external_name, u.name AS author_name, u.role AS author_role
+           FROM messages m
+           JOIN users u ON u.id = m.author_id
+          WHERE m.request_id = ?
+          ORDER BY m.created_at DESC, m.id DESC
+          LIMIT ?`,
+        [requestId, limit]
+      );
+      return rows.reverse();
     },
   };
 }

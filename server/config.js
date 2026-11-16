@@ -57,6 +57,9 @@ const readEnv = (key, fallback = undefined) => {
 };
 
 /** Número positivo vindo do ambiente; o que não for vira o padrão. */
+/** Valor com espaços/quebras de linha das pontas removidos (a API do Panel também faz trim). */
+const readTrimmed = (key) => readEnv(key)?.trim() || undefined;
+
 const readPositive = (key, fallback) => {
   const value = Number(readEnv(key));
   return Number.isFinite(value) && value > 0 ? value : fallback;
@@ -163,7 +166,9 @@ export const LIMITS = Object.freeze({
   DESCRIPTION_MAX: 4000,
   MESSAGE_MAX: 4000,
   SERVICE_ADMIN_NAME_MAX: 80,
-  SERVICE_MAX_BODY_BYTES: 8 * 1024,
+  /* 32 KB: o cliente C# escapa não-ASCII (\uXXXX), então 4000 caracteres acentuados
+     ou emoji passam fácil de 8 KB. */
+  SERVICE_MAX_BODY_BYTES: 32 * 1024,
   URL_MAX: 500,
   PAGE_SIZE: 20,
   PAGE_SIZE_MAX: 100,
@@ -266,7 +271,9 @@ export const config = Object.freeze({
      com menos de 32 caracteres, esses endpoints respondem 503. Nunca chega ao
      navegador. */
   service: Object.freeze({
-    apiKey: readEnv('SITE_SERVICE_API_KEY'),
+    apiKey: readTrimmed('SITE_SERVICE_API_KEY'),
+    /* Pedidos por minuto por IP. Todos os admins chegam pelo IP da API do Panel. */
+    ratePerMin: readPositive('SERVICE_RATE_LIMIT_PER_MIN', 1200),
   }),
 
   /* API de licenças TODAI — a API central. Os orçamentos pedidos aqui não ficam no
@@ -275,7 +282,7 @@ export const config = Object.freeze({
      chama é este servidor. */
   licensing: Object.freeze({
     baseUrl: readEnv('LICENSING_API_BASE_URL'),
-    serviceKey: readEnv('SITE_SERVICE_API_KEY'),
+    serviceKey: readTrimmed('SITE_SERVICE_API_KEY'),
 
     /* O plano gratuito do Render hiberna: o primeiro pedido depois da
        inatividade acorda o serviço e demora. Abaixo disso, um orçamento

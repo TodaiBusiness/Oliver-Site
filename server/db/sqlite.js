@@ -25,6 +25,8 @@ const COLUNAS_NOVAS = [
      administrador do Panel). author_id aponta para o usuário de sistema. */
   ['messages', 'author_external_id', 'TEXT'],
   ['messages', 'author_external_name', 'TEXT'],
+  /* Idempotência do envio pelo Panel (reenvio com o mesmo id não duplica). */
+  ['messages', 'client_message_id', 'TEXT'],
 ];
 
 export function aplicarMigracoesSqlite(db) {
@@ -46,6 +48,9 @@ export function aplicarMigracoesSqlite(db) {
      VALUES (?, 'TODAI', ?, NULL, ?, 'ADMIN', ?, ?)`
   ).run(SYSTEM_USER.NAME, SYSTEM_USER.EMAIL, LOGIN_DISABLED_HASH, agora, agora);
   db.exec('CREATE INDEX IF NOT EXISTS ix_messages_unread ON messages (is_read, request_id)');
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_messages_client_id
+             ON messages (request_id, author_external_id, client_message_id)
+             WHERE client_message_id IS NOT NULL`);
 }
 
 export function createSqliteDriver({ file = ':memory:' } = {}) {
