@@ -117,10 +117,6 @@ export default function Buy() {
     <SiteShell>
       <div className="buy">
         <div>
-          <span className="eyebrow">
-            <span className="eyebrow__dot" aria-hidden="true" />
-            Comprar
-          </span>
           <h1 className="buy__title">Comece a usar o {PRODUCT.name} hoje.</h1>
           <p className="buy__lead">
             Preencha os dados da empresa e pague pelo Mercado Pago. Assim que o

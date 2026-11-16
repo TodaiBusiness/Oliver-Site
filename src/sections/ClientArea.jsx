@@ -34,13 +34,7 @@ export default function ClientArea() {
     <section className="section" id="clientes" aria-labelledby="clientes-title">
       <div className="container">
         <Reveal className="clientarea">
-          <div className="clientarea__glow" aria-hidden="true" />
-
           <div className="clientarea__content">
-            <span className="eyebrow">
-              <span className="eyebrow__dot" aria-hidden="true" />
-              Área do cliente
-            </span>
 
             <h2 className="clientarea__title" id="clientes-title">
               Seu projeto, acompanhado de perto.
@@ -60,7 +54,6 @@ export default function ClientArea() {
               ) : (
                 <>
                   <Link className="btn btn--primary" to="/login">
-                    <Icon name="arrowUpRight" size={17} />
                     Entrar
                   </Link>
                   <Link className="btn btn--ghost" to="/area-do-cliente">
@@ -74,9 +67,6 @@ export default function ClientArea() {
           <ul className="clientarea__features">
             {FEATURES.map((feature) => (
               <li key={feature.title} className="clientarea__feature">
-                <span className="clientarea__feature-icon">
-                  <Icon name={feature.icon} size={17} />
-                </span>
                 <div>
                   <h3 className="clientarea__feature-title">{feature.title}</h3>
                   <p className="clientarea__feature-text">{feature.text}</p>

@@ -14,10 +14,6 @@ export default function Terms() {
   return (
     <SiteShell>
       <article className="legal">
-        <span className="eyebrow">
-          <span className="eyebrow__dot" aria-hidden="true" />
-          Documento
-        </span>
         <h1 className="legal__title">Termos de uso do {PLAN.name}</h1>
         <p className="legal__updated">Versão de 19/10/2026</p>
 
@@ -39,8 +35,10 @@ export default function Terms() {
 
         <h2>3. Preço e computadores</h2>
         <ul>
+          <li>Instalação de {formatBRL(PLAN.installPrice)}, paga uma vez.</li>
           <li>
-            Mensalidade de {formatBRL(PLAN.basePrice)} com {PLAN.includedDevices} computador incluído.
+            Mensalidade a partir de {formatBRL(PLAN.basePrice)} com {PLAN.includedDevices} computador incluído. O valor
+            final depende das funcionalidades contratadas.
           </li>
           <li>{formatBRL(PLAN.extraDevicePrice)} por mês para cada computador adicional, até {PLAN.maxDevices}.</li>
           <li>Acima de {PLAN.maxDevices} computadores o valor é combinado diretamente.</li>

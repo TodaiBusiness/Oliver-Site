@@ -123,7 +123,6 @@ export default function Header() {
                   onClick={() => setOpen(false)}
                 >
                   <span>{link.label}</span>
-                  <Icon name="arrowRight" size={18} />
                 </a>
               </li>
             ))}

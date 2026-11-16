@@ -25,11 +25,11 @@ export default function AccountButton({ className = '', onNavigate }) {
 
   return (
     <Link
-      className={`btn btn--primary btn--sm account-btn ${className}`.trim()}
+      className={`btn ${user ? 'btn--primary' : 'btn--ghost'} btn--sm account-btn ${className}`.trim()}
       to={destino}
       onClick={onNavigate}
     >
-      <Icon name={user ? 'dashboard' : 'arrowUpRight'} size={16} />
+      {user ? <Icon name="dashboard" size={16} /> : null}
       {rotulo}
     </Link>
   );

@@ -13,10 +13,6 @@ export default function Privacy() {
   return (
     <SiteShell>
       <article className="legal">
-        <span className="eyebrow">
-          <span className="eyebrow__dot" aria-hidden="true" />
-          Documento
-        </span>
         <h1 className="legal__title">Política de privacidade</h1>
         <p className="legal__updated">Versão de 27/10/2026</p>
 

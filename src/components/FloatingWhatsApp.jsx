@@ -6,15 +6,23 @@ import { EVENTS, track } from '../utils/analytics.js';
 import { FLOATING_WA_OFFSET } from '../config/constants.js';
 
 /**
- * Botão flutuante de WhatsApp. Só aparece depois que a pessoa rola um pouco,
- * para não competir com os CTAs do hero logo na entrada.
+ * Botão flutuante de WhatsApp. Aparece depois que a pessoa rola um pouco e
+ * sai da frente enquanto ela desce a página: quem está lendo não tem o texto
+ * coberto, e quem sobe (procurando contato) vê o botão de volta.
  */
 export default function FloatingWhatsApp() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setVisible(window.scrollY > FLOATING_WA_OFFSET);
-    onScroll();
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const goingDown = y > lastY + 4;
+      const goingUp = y < lastY - 4;
+      if (y <= FLOATING_WA_OFFSET || goingDown) setVisible(false);
+      else if (goingUp) setVisible(true);
+      if (goingDown || goingUp) lastY = y;
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -29,9 +37,7 @@ export default function FloatingWhatsApp() {
       aria-hidden={visible ? undefined : 'true'}
       {...whatsappLinkProps}
     >
-      <span className="floating-wa__pulse" aria-hidden="true" />
-      <Icon name="whatsapp" size={26} />
-      <span className="floating-wa__tooltip">Falar no WhatsApp</span>
+      <Icon name="whatsapp" size={24} />
     </a>
   );
 }

@@ -54,10 +54,6 @@ export default function Projects() {
       <div className="container">
         <Reveal className="section-head section-head--row">
           <div>
-            <span className="eyebrow">
-              <span className="eyebrow__dot" aria-hidden="true" />
-              Projetos
-            </span>
             <h2 className="section-head__title" id="projetos-title">
               O que construímos.
             </h2>
@@ -115,7 +111,6 @@ export default function Projects() {
                 onClick={() => open(featuredProject)}
               >
                 Ver projeto
-                <Icon name="arrowRight" size={16} className="btn__icon" />
               </button>
 
               <span className="featured__status">
@@ -161,9 +156,8 @@ export default function Projects() {
 
                   <span className="pcard__foot">
                     <span className="pcard__tech">
-                      {project.technologies.slice(0, 3).join(' • ')}
+                      {project.technologies.slice(0, 3).join(', ')}
                     </span>
-                    <Icon name="arrowRight" size={16} className="pcard__arrow" />
                   </span>
                 </span>
               </button>

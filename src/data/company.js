@@ -47,6 +47,7 @@ export const company = {
 export const WHATSAPP_MESSAGES = {
   default: `Olá! Vi o site da ${COMPANY_NAME} e gostaria de conhecer melhor os projetos e soluções de software.`,
   project: `Olá! Vi o site da ${COMPANY_NAME} e gostaria de conversar sobre um projeto de software.`,
+  quote: `Olá! Vi o site da ${COMPANY_NAME} e gostaria de um orçamento do TODAI para a minha loja.`,
   contact: `Olá! Vim pelo site da ${COMPANY_NAME} e gostaria de entrar em contato.`,
   floating: `Olá! Vim pelo site da ${COMPANY_NAME} e gostaria de conhecer os serviços.`,
   clientArea: `Olá! Vim pelo site da ${COMPANY_NAME} e gostaria de solicitar acesso à área do cliente.`,
