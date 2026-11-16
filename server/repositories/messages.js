@@ -3,26 +3,41 @@
    O acesso é sempre validado pela solicitação (ver services/messages.js).
    ========================================================================= */
 
+import { ROLES } from '../config.js';
+
 export function messagesRepository(db) {
   return {
-    async create({ requestId, authorId, body }) {
+    /** `externalId`/`externalName`: resposta vinda do Panel (autor real fora do banco do site). */
+    async create({ requestId, authorId, body, externalId = null, externalName = null }) {
       const { insertId } = await db.execute(
-        `INSERT INTO messages (request_id, author_id, body, is_read, created_at)
-         VALUES (?, ?, ?, 0, ?)`,
-        [requestId, authorId, body, Date.now()]
+        `INSERT INTO messages (request_id, author_id, body, is_read, created_at,
+                               author_external_id, author_external_name)
+         VALUES (?, ?, ?, 0, ?, ?, ?)`,
+        [requestId, authorId, body, Date.now(), externalId, externalName]
       );
       return insertId;
+    },
+
+    async findById(id) {
+      return db.queryOne(
+        `SELECT m.id, m.request_id, m.author_id, m.body, m.is_read, m.created_at,
+                m.author_external_name, u.name AS author_name, u.role AS author_role
+           FROM messages m
+           JOIN users u ON u.id = m.author_id
+          WHERE m.id = ?`,
+        [id]
+      );
     },
 
     /** Traz o autor junto — evita uma consulta por mensagem (N+1). */
     async listForRequest(requestId, { limit, offset }) {
       return db.query(
         `SELECT m.id, m.request_id, m.author_id, m.body, m.is_read, m.created_at,
-                u.name AS author_name, u.role AS author_role
+                m.author_external_name, u.name AS author_name, u.role AS author_role
            FROM messages m
            JOIN users u ON u.id = m.author_id
           WHERE m.request_id = ?
-          ORDER BY m.created_at ASC
+          ORDER BY m.created_at ASC, m.id ASC
           LIMIT ? OFFSET ?`,
         [requestId, limit, offset]
       );
@@ -141,6 +156,66 @@ export function messagesRepository(db) {
          LIMIT ? OFFSET ?`,
         [viewerId, limit, offset]
       );
+    },
+
+    /* ------------------------------------------------ endpoints de serviço
+       (Panel). "Não lida" aqui = mensagem de CLIENTE com is_read = 0; vale para
+       todos os admins (um só sinalizador por mensagem). Mensagem do Panel e dos
+       admins do site nunca contam. */
+
+    /** Conversas (solicitações com ao menos uma mensagem), da mais recente para a mais antiga. */
+    async listConversationsForService({ limit, offset }) {
+      const ultima = (coluna) => `(SELECT ${coluna} FROM messages m WHERE m.request_id = r.id
+          ORDER BY m.created_at DESC, m.id DESC LIMIT 1)`;
+
+      return db.query(
+        `SELECT * FROM (
+           SELECT r.id, r.type, r.description, r.status,
+                  u.name AS client_name, u.email AS client_email,
+                  ${ultima('m.created_at')} AS last_at,
+                  ${ultima('m.body')} AS last_body,
+                  ${ultima('COALESCE(m.author_external_name, (SELECT a.name FROM users a WHERE a.id = m.author_id))')} AS last_author_name,
+                  ${ultima('(SELECT a.role FROM users a WHERE a.id = m.author_id)')} AS last_author_role,
+                  (SELECT COUNT(*) FROM attachments t WHERE t.message_id = ${ultima('m.id')}) AS last_attachments,
+                  (SELECT COUNT(*) FROM messages m
+                    JOIN users a ON a.id = m.author_id
+                   WHERE m.request_id = r.id AND m.is_read = 0 AND a.role = '${ROLES.CLIENT}') AS unread
+             FROM project_requests r
+             JOIN users u ON u.id = r.user_id
+            WHERE EXISTS (SELECT 1 FROM messages m WHERE m.request_id = r.id)
+         ) AS conversas
+         ORDER BY last_at DESC, id DESC
+         LIMIT ? OFFSET ?`,
+        [limit, offset]
+      );
+    },
+
+    async countUnreadForService() {
+      const row = await db.queryOne(
+        `SELECT COUNT(*) AS total
+           FROM messages m
+           JOIN users a ON a.id = m.author_id
+          WHERE m.is_read = 0 AND a.role = ?`,
+        [ROLES.CLIENT]
+      );
+      return Number(row?.total ?? 0);
+    },
+
+    /** Marca como lidas as mensagens de CLIENTE da solicitação. */
+    async markClientMessagesRead(requestId) {
+      const { affectedRows } = await db.execute(
+        `UPDATE messages
+            SET is_read = 1
+          WHERE request_id = ? AND is_read = 0
+            AND author_id IN (SELECT id FROM users WHERE role = ?)`,
+        [requestId, ROLES.CLIENT]
+      );
+      return affectedRows;
+    },
+
+    /** Conversa inteira, cronológica (teto de segurança de 1000 mensagens). */
+    async listAllForRequest(requestId) {
+      return this.listForRequest(requestId, { limit: 1000, offset: 0 });
     },
   };
 }

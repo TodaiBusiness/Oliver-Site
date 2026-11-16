@@ -5,7 +5,7 @@ para Windows) e, abaixo, apresenta os serviços sob medida. Feito em **React + V
 CSS, ícones em SVG inline, nenhuma biblioteca de UI.
 
 > **Versão 1.0 do sistema TODAI (02/11/2026).** O site fecha a versão 1.0 junto da API de licenças e do painel
-> (`TodaiBusiness/Panel-Desktop`) e do PDV 1.18.0 (`TodaiBusiness/Sistema-Gerenciamento-Estoque`). Produção em `https://todai.com.br`, numa
+> (`TodaiBusiness/Panel-Desktop`) e do PDV 1.18.0 (`TodaiBusiness/Sistema-Gerenciamento-Estoque`). Produção em `https://todaibusiness.com` (o antigo `todai.com.br` só redireciona), numa
 > VPS KVM 1 da Hostinger (imagem `ghcr.io/todaibusiness/todai-site` pelo fluxo `publicar-imagem-site`, publicada também como `oliver-site` enquanto o `docker-compose` da VPS usar o nome antigo). Validação: `npm test` 228/228 e `npm run build`.
 
 ---
@@ -77,7 +77,7 @@ export const COMPANY_NAME = 'TODAI';     // ← nome da empresa
   VITE_COMPANY_EMAIL=contato@seudominio.com.br
   ```
 
-  Sem isso, cai em `vendas@todai.com.br`.
+  Sem isso, cai em `vendas@todaibusiness.com` (suporte: `suporte@todaibusiness.com`).
 
 ### Ainda falta preencher
 
@@ -293,7 +293,8 @@ JavaScript do navegador, à vista de qualquer visitante.
 
 **Sobre `ALLOWED_ORIGINS`** (as origens que podem gravar dados — defesa de
 CSRF): em produção (`NODE_ENV=production`) fora do Render, como na VPS, o servidor já
-aceita `https://todai.com.br` e `https://www.todai.com.br` sozinho
+aceita `https://todaibusiness.com` e `https://www.todaibusiness.com` sozinho — e, só como
+origem extra do redirecionamento antigo, `https://todai.com.br` e `https://www.todai.com.br`
 (`server/http/origins.js`); `ALLOWED_ORIGINS` só acrescenta outras origens
 (separadas por vírgula, sem barra final; apex e www são origens diferentes para
 o navegador). No Render, o servidor também aceita o `RENDER_EXTERNAL_URL`, que o
@@ -325,9 +326,19 @@ no **SQL Editor** do Neon. É tudo `IF NOT EXISTS` — rodar de novo não apaga
 nada. O administrador, porém, precisa do script: a senha vira hash antes de
 tocar no banco e nunca é gravada em texto puro.
 
+### Administração: agora é no Panel
+
+Com `SITE_ADMIN_ENABLED` ausente ou `false` (padrão), o `/admin` do site está
+**desligado**: o front mostra "A administração agora é no Panel", o login de
+administrador é recusado, sessões de admin deixam de valer e `/api/admin/*`
+responde 410. As conversas com clientes são respondidas pelo Panel por
+`/api/service/*` (chave `SITE_SERVICE_API_KEY`, cabeçalho `X-Service-Key`; ver
+`docs/SEGURANCA.md`). `SITE_ADMIN_ENABLED=true` devolve o comportamento antigo
+(reserva/rollback; nada foi apagado).
+
 ### 6. Conferir no ar
 
-- `https://todai.com.br/api/health` → deve responder `{"ok":true}`
+- `https://todaibusiness.com/api/health` → deve responder `{"ok":true}`
 - `/login` → entrar com o admin
 - Criar um projeto em `/admin/projetos` e ver se ele aparece na home
 

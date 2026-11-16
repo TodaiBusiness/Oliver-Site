@@ -19,7 +19,10 @@ export const WHATSAPP_NUMBER = '5512988232512';
  * Enquanto não houver, cai no endereço informado anteriormente.
  */
 export const EMAIL =
-  import.meta.env?.VITE_COMPANY_EMAIL || 'vendas@todai.com.br';
+  import.meta.env?.VITE_COMPANY_EMAIL || 'vendas@todaibusiness.com';
+
+/** E-mail de suporte (domínio oficial: todaibusiness.com). */
+export const SUPPORT_EMAIL = 'suporte@todaibusiness.com';
 
 /** Nome da empresa exibido no site inteiro (header, footer, títulos, SEO). */
 export const COMPANY_NAME = 'TODAI';
@@ -34,6 +37,7 @@ export const LEGAL_NAME = 'Nexus Soluções Tecnológicas Ltda';
 export const company = {
   name: COMPANY_NAME,
   email: EMAIL,
+  supportEmail: SUPPORT_EMAIL,
   whatsapp: WHATSAPP_NUMBER,
   tagline: 'Desenvolvimento de software e soluções digitais',
   description:

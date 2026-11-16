@@ -73,7 +73,9 @@ CREATE TABLE IF NOT EXISTS messages (
   author_id  INTEGER NOT NULL REFERENCES users(id)            ON DELETE CASCADE,
   body       TEXT    NOT NULL,
   is_read    INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  author_external_id   TEXT,     -- guid do administrador no Panel (resposta vinda de lá)
+  author_external_name TEXT      -- nome mostrado ao cliente: "<nome> · TODAI"
 );
 
 CREATE INDEX IF NOT EXISTS ix_messages_request ON messages (request_id, created_at);

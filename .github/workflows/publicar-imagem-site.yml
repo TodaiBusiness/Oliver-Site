@@ -3,8 +3,8 @@
 # Constrói a imagem do site e publica no GHCR com a tag do commit (12 primeiros caracteres), igual à
 # API. Os valores PÚBLICOS que o Vite grava no JavaScript entram como "variáveis do repositório"
 # (Settings > Secrets and variables > Actions > Variables):
-#   VITE_SITE_URL        ex.: https://todai.com.br (vazia, vale esse mesmo padrão: uma variável vazia anularia o padrão do Dockerfile em silêncio)
-#   VITE_COMPANY_EMAIL   ex.: vendas@todai.com.br
+#   VITE_SITE_URL        ex.: https://todaibusiness.com (vazia, vale esse mesmo padrão: uma variável vazia anularia o padrão do Dockerfile em silêncio)
+#   VITE_COMPANY_EMAIL   ex.: vendas@todaibusiness.com
 #   VITE_INSTALLER_URL   endereço do instalador do PDV
 # Mudou um deles? É preciso um commit novo (ou "Run workflow") para gerar imagem nova.
 name: publicar-imagem-site
@@ -54,7 +54,7 @@ jobs:
             ghcr.io/${{ steps.tag.outputs.dono }}/todai-site:${{ steps.tag.outputs.curta }}
             ghcr.io/${{ steps.tag.outputs.dono }}/oliver-site:${{ steps.tag.outputs.curta }}
           build-args: |
-            VITE_SITE_URL=${{ vars.VITE_SITE_URL || 'https://todai.com.br' }}
+            VITE_SITE_URL=${{ vars.VITE_SITE_URL || 'https://todaibusiness.com' }}
             VITE_COMPANY_EMAIL=${{ vars.VITE_COMPANY_EMAIL }}
             VITE_INSTALLER_URL=${{ vars.VITE_INSTALLER_URL }}
           labels: |

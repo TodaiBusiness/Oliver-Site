@@ -16,7 +16,7 @@
 
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
-import { SECURITY } from '../config.js';
+import { LOGIN_DISABLED_HASH, SECURITY } from '../config.js';
 
 const scryptAsync = promisify(scrypt);
 const ALGORITHM = 'scrypt';
@@ -79,4 +79,9 @@ export function needsRehash(stored) {
 
   const { N, r, p } = SECURITY.SCRYPT;
   return Number(rawN) < N || Number(rawR) < r || Number(rawP) < p;
+}
+
+/** Conta sem login possível (usuário de sistema): nenhuma senha, reset ou sessão a abre. */
+export function isLoginDisabled(stored) {
+  return stored === LOGIN_DISABLED_HASH;
 }

@@ -101,6 +101,20 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS ix_messages_request ON messages (request_id, created_at);
 
+-- Respostas enviadas pelo Panel: quem respondeu (guid e nome do administrador no
+-- Panel). author_id aponta para o usuário de sistema abaixo.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS author_external_id   VARCHAR(64) NULL;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS author_external_name VARCHAR(80) NULL;
+
+CREATE INDEX IF NOT EXISTS ix_messages_unread ON messages (is_read, request_id);
+
+-- Usuário de sistema "TODAI Atendimento": assina as mensagens do Panel. O hash é
+-- inválido de propósito (não é scrypt): nenhuma senha confere, login impossível.
+INSERT INTO users (name, company, email, phone, password_hash, role, created_at, updated_at)
+VALUES ('TODAI Atendimento', 'TODAI', 'atendimento@sistema.todai.invalid', NULL, '!login-desativado', 'ADMIN',
+        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT)
+ON CONFLICT (email) DO NOTHING;
+
 -- `id` guarda o HASH do token de sessão, nunca o token cru.
 -- VARCHAR e não CHAR: no Postgres o CHAR completa com espaços à direita.
 CREATE TABLE IF NOT EXISTS sessions (

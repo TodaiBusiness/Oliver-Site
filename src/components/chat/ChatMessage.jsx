@@ -9,6 +9,12 @@ const inicial = (nome = '?') => nome.trim().charAt(0).toUpperCase();
  */
 export default function ChatMessage({ mensagem, minha, agrupada }) {
   const daEquipe = mensagem.author_role === 'ADMIN';
+  /* Resposta vinda do Panel: "<nome> · TODAI" (o nome de quem respondeu). As
+     antigas, de admins do site, seguem com o nome do usuário e a etiqueta TODAI. */
+  const respostaDoPanel = Boolean(mensagem.author_external_name);
+  const nomeExibido = respostaDoPanel
+    ? `${mensagem.author_external_name} · TODAI`
+    : mensagem.author_name;
 
   return (
     <div
@@ -19,7 +25,7 @@ export default function ChatMessage({ mensagem, minha, agrupada }) {
           className={`msg__avatar${daEquipe ? ' msg__avatar--team' : ''}`}
           aria-hidden="true"
         >
-          {agrupada ? '' : inicial(mensagem.author_name)}
+          {agrupada ? '' : inicial(respostaDoPanel ? mensagem.author_external_name : mensagem.author_name)}
         </span>
       ) : null}
 
@@ -27,9 +33,9 @@ export default function ChatMessage({ mensagem, minha, agrupada }) {
         {!agrupada ? (
           <span className="msg__head">
             <span className="msg__author">
-              {minha ? 'Você' : mensagem.author_name}
+              {minha ? 'Você' : nomeExibido}
             </span>
-            {daEquipe && !minha ? (
+            {daEquipe && !minha && !respostaDoPanel ? (
               <span className="msg__tag">TODAI</span>
             ) : null}
           </span>

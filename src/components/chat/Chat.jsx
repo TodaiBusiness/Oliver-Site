@@ -17,6 +17,12 @@ const INTERVALO_ATUALIZACAO = 30_000;
  * Conversa de uma solicitação: lista, envio de texto e de imagem.
  * A aparência de cada mensagem fica em `ChatMessage`.
  */
+/* Respostas do Panel dividem o mesmo author_id (usuário de sistema): o que
+   distingue um admin do outro é o nome. */
+const mesmoAutor = (a, b) =>
+  a.author_id === b.author_id &&
+  (a.author_external_name ?? null) === (b.author_external_name ?? null);
+
 export default function Chat({ requestId, currentUser, onSent, variant }) {
   const [mensagens, setMensagens] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -179,7 +185,7 @@ export default function Chat({ requestId, currentUser, onSent, variant }) {
                   /* Mensagens seguidas do mesmo autor não repetem o cabeçalho. */
                   agrupada={
                     indice > 0 &&
-                    grupo.mensagens[indice - 1].author_id === mensagem.author_id
+                    mesmoAutor(grupo.mensagens[indice - 1], mensagem)
                   }
                 />
               ))}

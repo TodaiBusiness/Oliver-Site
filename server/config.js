@@ -14,6 +14,18 @@ export const ROLES = Object.freeze({
   ADMIN: 'ADMIN',
 });
 
+/* Usuário de sistema que assina, no banco do site, as mensagens enviadas pelo
+   Panel. Existe só para satisfazer a chave estrangeira de messages.author_id:
+   não tem senha utilizável (hash inválido), nunca autentica e não é cliente.
+   O nome de quem respondeu fica em messages.author_external_name. */
+export const SYSTEM_USER = Object.freeze({
+  NAME: 'TODAI Atendimento',
+  EMAIL: 'atendimento@sistema.todai.invalid',
+});
+
+/** Hash gravado no usuário de sistema: não é scrypt, então nenhuma senha confere. */
+export const LOGIN_DISABLED_HASH = '!login-desativado';
+
 /** Estados possíveis de uma solicitação. */
 export const REQUEST_STATUS = Object.freeze({
   NEW: 'NOVO',
@@ -76,6 +88,7 @@ export const AUDIT_ACTIONS = Object.freeze({
   SESSIONS_REVOKED_ALL: 'SESSOES_ENCERRADAS',
   PASSWORD_RESET_REQUESTED: 'SENHA_RECUPERACAO_PEDIDA',
   PASSWORD_RESET: 'SENHA_REDEFINIDA',
+  SERVICE_MESSAGE_SENT: 'MENSAGEM_PANEL_ENVIADA',
 });
 
 /* ------------------------------------------------------------ segurança */
@@ -149,6 +162,8 @@ export const LIMITS = Object.freeze({
   TITLE_MAX: 160,
   DESCRIPTION_MAX: 4000,
   MESSAGE_MAX: 4000,
+  SERVICE_ADMIN_NAME_MAX: 80,
+  SERVICE_MAX_BODY_BYTES: 8 * 1024,
   URL_MAX: 500,
   PAGE_SIZE: 20,
   PAGE_SIZE_MAX: 100,
@@ -239,6 +254,19 @@ export const config = Object.freeze({
      relatório fica desligada. Nunca chega ao navegador. */
   analytics: Object.freeze({
     readKey: readEnv('ANALYTICS_READ_KEY'),
+  }),
+
+  /* Administração dentro do site. Desligada por padrão: os administradores são os
+     do Panel (que responde as conversas por /api/service). Com `true` o /admin
+     do site volta a funcionar como antes (reserva/rollback). */
+  siteAdminEnabled: ['true', '1'].includes(String(readEnv('SITE_ADMIN_ENABLED', '')).toLowerCase()),
+
+  /* Chave dos endpoints de serviço (/api/service/*), usados pela API do Panel.
+     É a mesma string de SITE_SERVICE_API_KEY na API de licenciamento. Sem ela, ou
+     com menos de 32 caracteres, esses endpoints respondem 503. Nunca chega ao
+     navegador. */
+  service: Object.freeze({
+    apiKey: readEnv('SITE_SERVICE_API_KEY'),
   }),
 
   /* API de licenças TODAI — a API central. Os orçamentos pedidos aqui não ficam no

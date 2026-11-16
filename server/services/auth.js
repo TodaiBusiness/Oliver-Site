@@ -17,9 +17,9 @@
    ========================================================================= */
 
 import { AUDIT_ACTIONS, LIMITS, ROLES, SECURITY } from '../config.js';
-import { hashPassword, needsRehash, verifyPassword } from '../security/password.js';
+import { hashPassword, isLoginDisabled, needsRehash, verifyPassword } from '../security/password.js';
 import { createSessionToken, hashToken } from '../security/tokens.js';
-import { conflict, unauthorized } from '../http/errors.js';
+import { AppError, conflict, unauthorized } from '../http/errors.js';
 import { clipUserAgent } from '../http/userAgent.js';
 import {
   cleanText,
@@ -39,13 +39,21 @@ const NO_IP = 'desconhecido';
 const isUniqueViolation = (error) =>
   error?.code === '23505' || /UNIQUE constraint failed/i.test(String(error?.message ?? ''));
 
-export function authService(ctx, { now = () => Date.now() } = {}) {
+export function authService(ctx, { now = () => Date.now(), adminEnabled = true } = {}) {
   const guard = createLoginGuard(ctx, { now });
 
   /** Referência opaca do e-mail digitado (HMAC): permite correlacionar sem guardar o texto. */
   const emailRef = (email) => (ctx.vault.available ? ctx.vault.mac('email-ref', email).slice(0, 16) : null);
 
+  const adminDisabled = () =>
+    new AppError(
+      403,
+      'ADMIN_DESATIVADO',
+      'O acesso de administradores agora é pelo Panel TODAI. A administração do site foi desativada.'
+    );
+
   async function startSession(user, { ip, userAgent }) {
+    if (user.role === ROLES.ADMIN && !adminEnabled) throw adminDisabled();
     const token = createSessionToken();
     const expiresAt = now() + SECURITY.SESSION_TTL_MS;
 
@@ -148,6 +156,12 @@ export function authService(ctx, { now = () => Date.now() } = {}) {
         ? await verifyPassword(password, account.password_hash)
         : await verifyPassword(password, DUMMY_HASH);
 
+      /* Conta de sistema (sem senha utilizável) nunca entra, nem por acidente. */
+      if (account && isLoginDisabled(account.password_hash)) {
+        await guard.registerFailure(email, ip);
+        throw unauthorized('E-mail ou senha incorretos.');
+      }
+
       if (!account || !passwordOk) {
         await guard.registerFailure(email, ip);
         await ctx.audit.log({
@@ -160,6 +174,10 @@ export function authService(ctx, { now = () => Date.now() } = {}) {
         });
         throw unauthorized('E-mail ou senha incorretos.');
       }
+
+      /* Senha certa de um ADMIN com a administração do site desligada: só aqui a
+         resposta muda (quem não sabe a senha não descobre nada por este caminho). */
+      if (account.role === ROLES.ADMIN && !adminEnabled) throw adminDisabled();
 
       /* Parâmetros de hash endurecidos depois do cadastro? Atualiza agora. */
       if (needsRehash(account.password_hash)) {
@@ -195,6 +213,7 @@ export function authService(ctx, { now = () => Date.now() } = {}) {
 
       const account = await ctx.users.findById(challenge.user_id);
       if (!account) throw invalid();
+      if (account.role === ROLES.ADMIN && !adminEnabled) throw adminDisabled();
 
       await guard.assertNotLocked(account.email, ip);
 
@@ -249,6 +268,13 @@ export function authService(ctx, { now = () => Date.now() } = {}) {
       const id = hashToken(token);
       const session = await ctx.sessions.findValidWithUser(id, current);
       if (!session) return null;
+
+      /* Administração do site desligada: sessão de ADMIN deixa de valer (e é
+         apagada, para não "ressuscitar" se a flag voltar a ligar). */
+      if (session.role === ROLES.ADMIN && !adminEnabled) {
+        await ctx.sessions.delete(id);
+        return null;
+      }
 
       const idleLimit = SECURITY.SESSION_IDLE_MS[session.role] ?? SECURITY.SESSION_IDLE_MS.CLIENT;
       const lastSeen = Number(session.last_seen_at ?? session.created_at);

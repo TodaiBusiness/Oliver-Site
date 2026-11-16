@@ -14,6 +14,28 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  /* A administração do site pode estar desligada (ela agora é no Panel). Até o
+     servidor responder, assume desligada: nenhum link de admin pisca na tela. */
+  const [adminEnabled, setAdminEnabled] = useState(false);
+  const [configLoading, setConfigLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get('/config/public')
+      .then((config) => {
+        if (!cancelled) setAdminEnabled(config?.adminEnabled === true);
+      })
+      .catch(() => {
+        if (!cancelled) setAdminEnabled(false);
+      })
+      .finally(() => {
+        if (!cancelled) setConfigLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /* Ao abrir a página, pergunta ao servidor quem está logado (via cookie). */
   useEffect(() => {
@@ -95,15 +117,18 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       loading,
+      configLoading,
+      adminEnabled,
       login,
       completeTwoFactor,
       refresh,
       register,
       logout,
       logoutEverywhere,
-      isAdmin: user?.role === 'ADMIN',
+      /* Só vale como admin com a administração do site ligada. */
+      isAdmin: adminEnabled && user?.role === 'ADMIN',
     }),
-    [user, loading, login, completeTwoFactor, refresh, register, logout, logoutEverywhere]
+    [user, loading, configLoading, adminEnabled, login, completeTwoFactor, refresh, register, logout, logoutEverywhere]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
