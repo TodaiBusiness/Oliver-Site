@@ -44,27 +44,6 @@
   margin-top: 0.9rem;
 }
 
-/* ---------- Eyebrow ---------- */
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.eyebrow__dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent-400);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
-  flex: none;
-}
-
 /* ---------- Botões ---------- */
 .btn {
   position: relative;
@@ -220,21 +199,12 @@
   font-size: 0.72rem;
 }
 
-/* ---------- Reveal no scroll ----------
-   Escondido apenas quando o JS assumiu a página (classe `js` no <html>).
-   Sem JS, o conteúdo aparece normalmente em vez de ficar invisível. */
+/* ---------- Reveal ----------
+   Sem animação de entrada por seção: o conteúdo já nasce visível. O
+   componente Reveal continua existindo só para não mexer em quem o usa. */
 .js .reveal {
-  opacity: 0;
-  transform: translateY(22px);
-  transition: opacity var(--t-slow), transform var(--t-slow);
-  transition-delay: var(--reveal-delay, 0ms);
-  will-change: opacity, transform;
-}
-
-.js .reveal.is-visible {
   opacity: 1;
   transform: none;
-  will-change: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {

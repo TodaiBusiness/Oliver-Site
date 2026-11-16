@@ -21,10 +21,6 @@ export default function Contact() {
       <div className="container">
         <div className="contact">
           <Reveal className="contact__intro">
-            <span className="eyebrow">
-              <span className="eyebrow__dot" aria-hidden="true" />
-              Contato
-            </span>
 
             <h2 className="contact__title" id="contato-title">
               Vamos conversar sobre o seu projeto.

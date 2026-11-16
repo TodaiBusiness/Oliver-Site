@@ -14,10 +14,6 @@ export default function Download() {
   return (
     <SiteShell>
       <div className="store-card">
-        <span className="eyebrow">
-          <span className="eyebrow__dot" aria-hidden="true" />
-          Download
-        </span>
         <h1 className="store-card__title">Baixe o {PRODUCT.name} para Windows.</h1>
         <p className="store-card__text">
           Requer {PRODUCT.platform}. Para usar, você precisa do código de

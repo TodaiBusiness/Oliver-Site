@@ -43,10 +43,6 @@ export default function ClientAreaInfo() {
         <section className="section info__hero">
           <div className="container">
             <Reveal>
-              <span className="eyebrow">
-                <span className="eyebrow__dot" aria-hidden="true" />
-                Área do cliente
-              </span>
 
               <h1 className="info__title">
                 Acompanhe seu projeto sem precisar cobrar ninguém.

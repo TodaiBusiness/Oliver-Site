@@ -9,7 +9,7 @@
 import { PLAN } from './plan.js';
 
 const COMPANY = 'TODAI';
-const PRICE = `R$ ${PLAN.basePrice} por mês com ${PLAN.includedDevices} computador e R$ ${PLAN.extraDevicePrice} por computador a mais`;
+const PRICE = `instalação de R$ ${PLAN.installPrice} e mensalidade a partir de R$ ${PLAN.basePrice}`;
 
 /** Rotas públicas: aparecem no Google. */
 const PUBLIC = {

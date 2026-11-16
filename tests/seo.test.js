@@ -11,7 +11,7 @@ test('cada rota pública tem título próprio e vende o produto', () => {
   const titles = ['/', '/comprar', '/baixar', '/termos', '/privacidade'].map((path) => seoFor(path).title);
   assert.equal(new Set(titles).size, titles.length);
   assert.match(seoFor('/').title, /TODAI/);
-  assert.match(seoFor('/comprar').description, /R\$ 110 por mês/);
+  assert.match(seoFor('/comprar').description, /mensalidade a partir de R\$ 130/);
   assert.equal(seoFor('/comprar/').title, seoFor('/comprar').title);
   for (const path of ['/', '/comprar', '/baixar', '/termos', '/privacidade']) assert.equal(seoFor(path).noindex, false);
 });

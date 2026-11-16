@@ -120,50 +120,6 @@
   color: var(--accent-400);
 }
 
-/* ---------- Passos numerados ---------- */
-.steps {
-  display: grid;
-  gap: 0.9rem;
-  margin: 1.5rem 0 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: passo;
-}
-
-.steps__item {
-  position: relative;
-  padding-left: 2.6rem;
-  counter-increment: passo;
-}
-
-.steps__item::before {
-  content: counter(passo);
-  position: absolute;
-  left: 0;
-  top: 0.05rem;
-  display: grid;
-  place-items: center;
-  width: 1.8rem;
-  height: 1.8rem;
-  border-radius: 50%;
-  border: 1px solid var(--border-strong);
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  color: var(--text);
-}
-
-.steps__title {
-  font-size: var(--fs-body);
-  font-weight: 600;
-  color: var(--white);
-}
-
-.steps__text {
-  margin-top: 0.15rem;
-  font-size: var(--fs-sm);
-  color: var(--muted);
-}
-
 .store-note {
   margin-top: 1.5rem;
   padding: 0.9rem 1rem;
@@ -213,10 +169,7 @@
 }
 
 .buy__plan {
-  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
   color: var(--muted);
 }
 
@@ -341,47 +294,6 @@
 }
 
 /* ---------- Seções da home: produto e preço ---------- */
-.features {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
-  gap: 1rem;
-}
-
-.feature {
-  padding: 1.4rem;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  transition: border-color var(--t-fast), background var(--t-fast);
-}
-
-.feature:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-hover);
-}
-
-.feature__icon {
-  display: inline-grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--r-sm);
-  background: var(--icon-bg);
-  border: 1px solid var(--icon-border);
-  color: var(--icon-fg);
-}
-
-.feature__title {
-  margin-top: 1rem;
-  font-size: 1.05rem;
-}
-
-.feature__text {
-  margin-top: 0.5rem;
-  font-size: var(--fs-sm);
-  color: var(--muted);
-}
-
 .pricing {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
@@ -418,8 +330,38 @@
   background: linear-gradient(180deg, var(--accent-soft), rgba(var(--ink), 0.015));
 }
 
-.pricing__devices {
-  margin-top: 1.25rem;
+.pricing__rows {
+  margin: 1.1rem 0 1.5rem;
+}
+
+.pricing__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.pricing__row dd {
+  margin: 0;
+  text-align: right;
+}
+
+.pricing__row strong {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--white);
+}
+
+.pricing__card .buy__legal a {
+  color: var(--accent-400);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 @media (max-width: 860px) {
@@ -504,10 +446,7 @@
 }
 
 .account__label {
-  font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
   color: var(--muted);
 }
 

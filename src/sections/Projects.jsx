@@ -3,6 +3,7 @@ import Icon from '../components/Icon.jsx';
 import Reveal from '../components/Reveal.jsx';
 import ProjectModal from '../components/ProjectModal.jsx';
 import MockupTag from '../components/MockupTag.jsx';
+import ThemedShot from '../components/ThemedShot.jsx';
 import { projects as staticProjects } from '../data/projects.js';
 import { api } from '../api/client.js';
 import { pickProjects } from '../utils/publicProjects.js';
@@ -54,10 +55,6 @@ export default function Projects() {
       <div className="container">
         <Reveal className="section-head section-head--row">
           <div>
-            <span className="eyebrow">
-              <span className="eyebrow__dot" aria-hidden="true" />
-              Projetos
-            </span>
             <h2 className="section-head__title" id="projetos-title">
               O que construímos.
             </h2>
@@ -77,17 +74,8 @@ export default function Projects() {
             onClick={() => open(featuredProject)}
             aria-label={`Ver detalhes de ${featuredProject.title}`}
           >
-            <img
-              src={featuredProject.image}
-              alt={featuredProject.imageAlt}
-              width="800"
-              height="560"
-              loading="lazy"
-              decoding="async"
-            />
-            {featuredProject.isMockup ? (
-              <MockupTag />
-            ) : null}
+            <ThemedShot base={featuredProject.image} alt={featuredProject.imageAlt} />
+            {featuredProject.isMockup ? <MockupTag /> : null}
             <span className="featured__zoom" aria-hidden="true">
               <Icon name="arrowUpRight" size={18} />
             </span>
@@ -115,7 +103,6 @@ export default function Projects() {
                 onClick={() => open(featuredProject)}
               >
                 Ver projeto
-                <Icon name="arrowRight" size={16} className="btn__icon" />
               </button>
 
               <span className="featured__status">
@@ -137,17 +124,8 @@ export default function Projects() {
                 aria-label={`Ver detalhes de ${project.title}`}
               >
                 <span className="pcard__media">
-                  <img
-                    src={project.image}
-                    alt={project.imageAlt}
-                    width="800"
-                    height="560"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  {project.isMockup ? (
-                    <MockupTag short />
-                  ) : null}
+                  <ThemedShot base={project.image} alt={project.imageAlt} />
+                  {project.isMockup ? <MockupTag short /> : null}
                 </span>
 
                 <span className="pcard__body">
@@ -161,9 +139,8 @@ export default function Projects() {
 
                   <span className="pcard__foot">
                     <span className="pcard__tech">
-                      {project.technologies.slice(0, 3).join(' • ')}
+                      {project.technologies.slice(0, 3).join(', ')}
                     </span>
-                    <Icon name="arrowRight" size={16} className="pcard__arrow" />
                   </span>
                 </span>
               </button>

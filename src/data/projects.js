@@ -1,19 +1,13 @@
 /* =========================================================================
-   PROJETOS — o conteúdo central do site.
+   PROJETOS: o que a TODAI construiu.
    -------------------------------------------------------------------------
-   COMO TROCAR PELAS IMAGENS REAIS DOS SEUS SISTEMAS:
-
-   1. Coloque o print em `public/projects/` (ex.: erp-dashboard.png).
-   2. Aponte `image` para ele: image: '/projects/erp-dashboard.png'.
-   3. Mude `isMockup` para `false` — isso remove a etiqueta "Mockup
-      ilustrativo" que aparece sobre a imagem.
-   4. Opcional: adicione mais prints em `gallery` para aparecerem no detalhe.
-
-   Enquanto `isMockup: true`, o site deixa explícito que a arte é ilustrativa,
-   para não passar um sistema fictício como se fosse um produto entregue.
+   Cada projeto usa uma captura real. `image` é o caminho base em public/ sem
+   o tema e sem a extensão: o site carrega <image>-escuro.webp ou
+   <image>-claro.webp conforme o tema do visitante. `gallery` segue a mesma
+   regra e aparece no detalhe.
 
    Campos: id, title, tagline, category, status, technologies, image, imageAlt,
-   isMockup, featured, gallery, problem, solution, features, link.
+   featured, gallery, problem, solution, features, link.
    `link: null` esconde o botão "Abrir projeto" em vez de gerar link morto.
    ========================================================================= */
 
@@ -25,12 +19,11 @@ export const projects = [
     category: 'Sistema Desktop',
     status: 'Em desenvolvimento',
     technologies: ['C#', 'PostgreSQL', 'PDV', 'Estoque', 'Comandas'],
-    image: '/projects/erp.svg',
+    image: '/sistema/painel',
     imageAlt:
-      'Tela de sistema de gestão com painel de vendas, estoque, comandas e relatórios',
-    isMockup: true,
+      'Painel do TODAI com os filtros do período e a tabela de caixas abertos, com vendas e total por forma de pagamento.',
     featured: true,
-    gallery: [],
+    gallery: ['/sistema/comandas', '/sistema/caixa', '/sistema/estoque'],
     problem:
       'Venda, estoque e comandas viviam em fluxos separados, obrigando a repetir a mesma informação em mais de um lugar e dificultando enxergar a operação como um todo.',
     solution:
@@ -52,10 +45,9 @@ export const projects = [
     category: 'Web',
     status: 'Entregue',
     technologies: ['HTML', 'CSS', 'JavaScript', 'Netlify'],
-    image: '/projects/site.svg',
+    image: '/sistema/site',
     imageAlt:
-      'Layout de site institucional responsivo exibido em navegador e celular',
-    isMockup: true,
+      'Página inicial do site da TODAI, com o título, os botões de compra e uma tela do sistema.',
     featured: false,
     gallery: [],
     problem:
@@ -71,27 +63,26 @@ export const projects = [
     link: null,
   },
   {
-    id: 'automacao',
-    title: 'Automação de Processos',
-    tagline: 'Menos trabalho manual, menos erro de digitação.',
-    category: 'Automação',
-    status: 'Entregue',
-    technologies: ['Python', 'APIs', 'Integrações'],
-    image: '/projects/automacao.svg',
+    id: 'integracoes-delivery',
+    title: 'Integrações de delivery',
+    tagline: 'Pedidos de iFood e 99Food na Central de Delivery do sistema.',
+    category: 'Integração',
+    status: 'Em desenvolvimento',
+    technologies: ['C#', 'APIs', 'iFood', '99Food'],
+    image: '/sistema/integracoes',
     imageAlt:
-      'Diagrama de fluxo de automação conectando etapas de um processo por APIs',
-    isMockup: true,
+      'Tela Integrações de delivery do TODAI, com os cartões do iFood e da 99Food e o botão Conectar com código.',
     featured: false,
     gallery: [],
     problem:
-      'Tarefas repetitivas consumiam tempo da equipe e abriam espaço para erro humano a cada repetição.',
+      'Pedidos de aplicativos de delivery chegam por canais separados do sistema e precisam ser conferidos e lançados à mão.',
     solution:
-      'Rotinas automatizadas em Python que integram os sistemas envolvidos por API e executam o processo sem intervenção manual.',
+      'Conexão com a conta oficial da loja para receber os pedidos na Central de Delivery. Os dados de acesso ficam protegidos no computador da loja.',
     features: [
-      'Rotinas automatizadas',
-      'Integração entre sistemas',
-      'Consumo de APIs',
-      'Tratamento de erros',
+      'Conexão com a conta oficial do iFood por código',
+      'Conexão com a 99Food, quando o acesso for liberado',
+      'Central de Delivery para receber os pedidos',
+      'Conexão manual para casos avançados',
     ],
     link: null,
   },

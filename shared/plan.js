@@ -11,7 +11,9 @@
 export const PLAN = Object.freeze({
   name: 'TODAI',
   /** Mensalidade com o computador incluído. */
-  basePrice: 110,
+  basePrice: 130,
+  /** Instalação, paga uma vez. Só informativo no site: não entra na cobrança online. */
+  installPrice: 550,
   includedDevices: 1,
   /** Por computador a mais. */
   extraDevicePrice: 20,

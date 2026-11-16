@@ -182,10 +182,6 @@ function RequestLink({ notice }) {
 
   return (
     <div className="store-card">
-      <span className="eyebrow">
-        <span className="eyebrow__dot" aria-hidden="true" />
-        Minha licença
-      </span>
       <h1 className="store-card__title">Veja a sua licença e os computadores ativados.</h1>
       <p className="store-card__text">
         Informe o CPF ou CNPJ e o e-mail usados na compra. Mandamos um link de
@@ -255,10 +251,6 @@ function Summary({ data, onLeave }) {
     <div className="account">
       <header className="account__head">
         <div>
-          <span className="eyebrow">
-            <span className="eyebrow__dot" aria-hidden="true" />
-            Minha licença
-          </span>
           <h1 className="store-card__title">{data.companyName}</h1>
           <p className="store-card__text">Olá, {data.contactFirstName}.</p>
         </div>

@@ -1,0 +1,294 @@
+/* =========================================================================
+   Seção #sistema: passeio pelas telas reais, módulos extras e como começar.
+   Usa só os tokens do site; as capturas trocam com o tema claro/escuro.
+   ========================================================================= */
+
+.tour__head {
+  max-width: 46rem;
+}
+
+/* ---------- Abas ---------- */
+.tour__tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+
+.tour__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tour__tab {
+  flex: none;
+  position: relative;
+  padding: 0.7rem 1rem;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: color var(--t-fast);
+}
+
+/* A linha marca a aba aberta: é a própria informação de "onde estou". */
+.tour__tab::after {
+  content: "";
+  position: absolute;
+  inset: auto 0.5rem -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent-400);
+  transform: scaleX(0);
+  transition: transform var(--t-mid);
+}
+
+.tour__tab:hover {
+  color: var(--white);
+}
+
+.tour__tab[aria-selected="true"] {
+  color: var(--white);
+}
+
+.tour__tab[aria-selected="true"]::after {
+  transform: scaleX(1);
+}
+
+.tour__tab:focus-visible {
+  outline: 2px solid var(--accent-400);
+  outline-offset: -2px;
+  border-radius: var(--r-sm);
+}
+
+/* ---------- Quadro da captura ---------- */
+.tour__frame {
+  position: relative;
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--bg-elev);
+  box-shadow:
+    var(--shadow-md),
+    0 40px 90px -50px var(--accent-glow);
+  animation: tour-in 360ms var(--ease);
+}
+
+@keyframes tour-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.tour__shot {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Escuro é o padrão; o claro entra quando o tema é claro (mesma regra do tokens.css). */
+.shot-claro {
+  display: none;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .shot-escuro {
+    display: none;
+  }
+  :root:not([data-theme="dark"]) .shot-claro {
+    display: block;
+  }
+}
+
+:root[data-theme="light"] .shot-escuro {
+  display: none;
+}
+
+:root[data-theme="light"] .shot-claro {
+  display: block;
+}
+
+/* ---------- Fatos da tela ---------- */
+.tour__facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 1.5rem clamp(1.5rem, 4vw, 3rem);
+  margin-top: 1.75rem;
+  align-items: start;
+}
+
+.tour__title {
+  font-size: var(--fs-lead);
+  line-height: 1.3;
+}
+
+.tour__list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.tour__list li {
+  padding-left: 1.1rem;
+  position: relative;
+  max-width: 62ch;
+}
+
+.tour__list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-400);
+}
+
+/* ---------- Também no sistema ---------- */
+.more {
+  margin-top: clamp(3rem, 6vw, 4.5rem);
+  padding-top: clamp(2rem, 4vw, 2.75rem);
+  border-top: 1px solid var(--border);
+}
+
+.more__title,
+.start__title {
+  font-size: var(--fs-lead);
+}
+
+.more__lead {
+  max-width: 56ch;
+  margin-top: 0.5rem;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.more__groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
+  gap: 1.75rem 2rem;
+  margin-top: 1.75rem;
+}
+
+.more__group-title {
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border-strong);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--white);
+}
+
+.more__group ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.more__group li {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+/* ---------- Como começar ---------- */
+.start {
+  margin-top: clamp(3rem, 6vw, 4.5rem);
+  padding-top: clamp(2rem, 4vw, 2.75rem);
+  border-top: 1px solid var(--border);
+}
+
+.start__steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem clamp(1.5rem, 4vw, 3rem);
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: passo;
+}
+
+/* Aqui a numeração é informação: é uma sequência de verdade. */
+.start__step {
+  position: relative;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border-strong);
+  counter-increment: passo;
+}
+
+.start__step::before {
+  content: counter(passo);
+  position: absolute;
+  top: -1px;
+  left: 0;
+  padding-right: 0.6rem;
+  transform: translateY(-50%);
+  background: var(--bg);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent-400);
+}
+
+.start__step-title {
+  font-weight: 600;
+  color: var(--white);
+}
+
+.start__step-text {
+  margin-top: 0.25rem;
+  max-width: 34ch;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.start__note {
+  margin-top: 1.75rem;
+  max-width: 62ch;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+/* ---------- Telas pequenas ---------- */
+@media (max-width: 760px) {
+  .tour__facts,
+  .start__steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tour__tab {
+    padding-inline: 0.85rem;
+  }
+
+  /* A captura inteira não cabe legível em 360px: o quadro rola de lado. */
+  .tour__frame {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .tour__panel .tour__shot {
+    width: 44rem;
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour__frame {
+    animation: none;
+  }
+  .tour__tab::after {
+    transition: none;
+  }
+}

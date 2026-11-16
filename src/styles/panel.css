@@ -591,10 +591,7 @@ select.field__control option {
 }
 
 .mini-card__category {
-  font-family: var(--font-mono);
   font-size: 0.65rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--accent-400);
 }
 
@@ -818,7 +815,6 @@ select.field__control option {
   font-family: var(--font-mono);
   font-size: 0.62rem;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--accent-300);
   align-self: flex-start;
 }

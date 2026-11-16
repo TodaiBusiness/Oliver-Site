@@ -15,7 +15,7 @@ const STATUS_LABELS = Object.freeze({
 });
 
 /** Imagem de reserva quando o projeto do admin não tem uma. */
-export const PLACEHOLDER_IMAGE = '/projects/site.svg';
+export const PLACEHOLDER_IMAGE = '/sistema/site';
 
 /** Converte um projeto da API para o formato que as telas da home usam. */
 export function fromApi(project) {

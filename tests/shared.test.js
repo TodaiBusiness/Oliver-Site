@@ -26,17 +26,17 @@ test('a máscara acompanha a digitação de CPF e de CNPJ', () => {
 });
 
 test('o preço estimado soma o computador incluído e os extras', () => {
-  assert.equal(monthlyPrice(1), 110);
-  assert.equal(monthlyPrice(2), 130);
-  assert.equal(monthlyPrice(5), 190);
-  assert.equal(monthlyPrice(PLAN.maxDevices), 110 + 19 * 20);
+  assert.equal(monthlyPrice(1), 130);
+  assert.equal(monthlyPrice(2), 150);
+  assert.equal(monthlyPrice(5), 210);
+  assert.equal(monthlyPrice(PLAN.maxDevices), 130 + 19 * 20);
 });
 
 test('quantidade absurda não gera preço negativo nem NaN', () => {
-  assert.equal(monthlyPrice(0), 110);
-  assert.equal(monthlyPrice(-3), 110);
-  assert.equal(monthlyPrice('x'), 110);
-  assert.equal(monthlyPrice(2.9), 130, 'fração não conta computador');
+  assert.equal(monthlyPrice(0), 130);
+  assert.equal(monthlyPrice(-3), 130);
+  assert.equal(monthlyPrice('x'), 130);
+  assert.equal(monthlyPrice(2.9), 150, 'fração não conta computador');
 });
 
 test('o valor sai em reais, no formato brasileiro', () => {
