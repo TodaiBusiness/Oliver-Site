@@ -131,8 +131,26 @@ subdomínios; `src/utils/checkoutUrl.js`).
 - `SITE_PUBLIC_URL` é obrigatória para a compra (sem ela `/comprar` responde 503); está no `render.yaml`.
 - `SESSION_SECRET` não derruba o boot, mas em produção é necessária para o 2FA (cifra o segredo TOTP; ver seção acima). As sessões
   continuam sendo tokens aleatórios com hash no banco: trocá-lo não derruba sessões (para isso, apague-as ou use "Sair de todos").
-- A imagem Docker usa `https://todai.com.br` como endereço do site (canônico e imagens de compartilhamento) e
+- A imagem Docker usa `https://todaibusiness.com` (domínio oficial; `todai.com.br` só como origem extra do redirecionamento antigo) como endereço do site (canônico e imagens de compartilhamento) e
   escuta na porta 8080, a mesma do healthcheck.
+
+## Administração no Panel e endpoints de serviço (16/11/2026)
+
+- **`SITE_ADMIN_ENABLED` (padrão `false`).** Desligada: login de ADMIN recusado (403 `ADMIN_DESATIVADO`, só depois de a senha
+  conferir, então não enumera contas), sessões de ADMIN deixam de valer e são apagadas, `/api/admin/*` responde 410 antes de
+  qualquer autenticação (`/api/analytics/report` por `ANALYTICS_READ_KEY` não muda) e o front mostra "A administração agora é
+  no Panel" em `/admin/*` (o front lê `GET /api/config/public` → `{adminEnabled}`). Ligada: comportamento antigo. Nada foi apagado.
+- **`/api/service/*`** (API do Panel → site, servidor a servidor). Credencial única: `X-Service-Key` = `SITE_SERVICE_API_KEY`
+  (mín. 32 caracteres; sem ela, 503). Comparação por SHA-256 + `timingSafeEqual`. Qualquer caminho sob `/api/service/` passa
+  pelo porteiro **antes** do roteamento (sem chave, nem a existência da rota aparece): 401 sem detalhe; cookie é ignorado
+  (cliente ou admin do site com sessão válida não entra); requisição com `Origin` (navegador) é 403 mesmo com chave; limite de 300/min
+  por IP e 20 falhas/10 min por IP (429); corpo máx. 8 KB. Sem CSRF/Origin porque não há cookie. O e-mail do cliente só sai
+  por aqui. A chave é a mesma string de `SITE_SERVICE_API_KEY` já usada para falar com a API de licenciamento (um segredo, três pontas).
+- **Resposta do Panel**: gravada com `author_id` = usuário de sistema "TODAI Atendimento" (ADMIN, hash `!login-desativado`: nenhuma
+  senha confere, não recebe recuperação de senha, sem sessão) e `author_external_id/name` (id do admin no Panel, `[A-Za-z0-9_-]{1,64}`;
+  nome 1..80 sem controle nem `<`/`>`). O cliente só recebe `author_external_name`, exibido como "Nome · TODAI"; nunca o id externo
+  nem o e-mail do usuário de sistema. Auditoria `MENSAGEM_PANEL_ENVIADA` (requisição e admin, sem o texto).
+- "Lida" no Panel = `is_read` das mensagens de CLIENTE da solicitação (vale para todos os admins).
 
 ## Visitas do site
 

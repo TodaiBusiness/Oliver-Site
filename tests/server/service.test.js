@@ -313,7 +313,7 @@ test('resposta do Panel: 201, aparece para o cliente como "Nome · TODAI" e cont
     const id = await conversa(app, cliente);
 
     const r = await svc(app, 'POST', `/api/service/conversations/${id}/messages`, {
-      body: { body: '  Olá Ana, já vamos ver isso.  ', adminId: ADMIN_GUID, adminName: ' Kaique ' },
+      body: { body: '  Olá Ana, já vamos ver isso.  ', adminId: 'adm-77421-x', adminName: ' Kaique ' },
     });
     assert.equal(r.status, 201);
     assert.equal(r.body.message.body, 'Olá Ana, já vamos ver isso.');
@@ -325,7 +325,7 @@ test('resposta do Panel: 201, aparece para o cliente como "Nome · TODAI" e cont
     /* Gravado com o usuário de sistema e o autor externo. */
     const linha = await ctx.db.queryOne('SELECT * FROM messages WHERE id = ?', [Number(r.body.message.id)]);
     assert.equal(linha.author_external_name, 'Kaique');
-    assert.equal(linha.author_external_id, ADMIN_GUID);
+    assert.equal(linha.author_external_id, 'adm-77421-x');
     const sistema = await ctx.db.queryOne('SELECT * FROM users WHERE id = ?', [linha.author_id]);
     assert.equal(sistema.email, SYSTEM_USER.EMAIL);
     assert.equal(sistema.role, 'ADMIN');
@@ -336,7 +336,7 @@ test('resposta do Panel: 201, aparece para o cliente como "Nome · TODAI" e cont
     assert.equal(resposta.author_external_name, 'Kaique');
     assert.equal(resposta.author_role, 'ADMIN');
     const bruto = JSON.stringify(doCliente.body);
-    assert.ok(!bruto.includes(ADMIN_GUID), 'guid do admin do Panel não vai ao cliente');
+    assert.ok(!bruto.includes('adm-77421-x'), 'guid do admin do Panel não vai ao cliente');
     assert.ok(!bruto.includes('sistema.todai.invalid'), 'e-mail do usuário de sistema não vai ao cliente');
     assert.ok(!bruto.includes('author_external_id'));
   } finally {
