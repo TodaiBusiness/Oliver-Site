@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import Icon from '../components/Icon.jsx';
-import Reveal from '../components/Reveal.jsx';
 import { useAuth } from '../app/AuthContext.jsx';
 
 const FEATURES = [
@@ -33,11 +32,11 @@ export default function ClientArea() {
   return (
     <section className="section" id="clientes" aria-labelledby="clientes-title">
       <div className="container">
-        <Reveal className="clientarea">
+        <div className="clientarea">
           <div className="clientarea__content">
 
             <h2 className="clientarea__title" id="clientes-title">
-              Seu projeto, acompanhado de perto.
+              Acompanhe cada etapa e fale com a gente num lugar só.
             </h2>
 
             <p className="clientarea__text">
@@ -74,7 +73,7 @@ export default function ClientArea() {
               </li>
             ))}
           </ul>
-        </Reveal>
+        </div>
       </div>
     </section>
   );

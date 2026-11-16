@@ -27,6 +27,7 @@ import { getDb } from './server/db/index.js';
 import { bodyLimitFor, createApp } from './server/app.js';
 import { normalizeApiPath } from './server/http/path.js';
 import { parseAllowedOrigins } from './server/http/origins.js';
+import { SECURITY_HEADERS } from './server/http/securityHeaders.js';
 import { applySeo } from './shared/seo.js';
 import { caminhoEstatico, lerCorpo, statusDaSpa } from './server/http/static.js';
 
@@ -62,24 +63,9 @@ const TIPOS = new Map(
   })
 );
 
-/* Os mesmos cabeçalhos que o netlify.toml aplicava. Sem eles, sair do Netlify
-   seria uma perda silenciosa de segurança.
-   · script-src sem 'unsafe-inline': o build gera um <script src> só.
-   · style-src mantém 'unsafe-inline' por margem (React aplica estilo via
-     CSSOM, que a CSP não bloqueia, mas um <style> futuro quebraria a página).
-   · img-src data: cobre a textura de ruído do CSS e a prévia das imagens. */
-const SEGURANCA = {
-  'Content-Security-Policy':
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-    "img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; " +
-    "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests",
-  'X-Frame-Options': 'DENY',
-  'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'geolocation=(), camera=(), microphone=(), payment=(), usb=()',
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-  'Cross-Origin-Opener-Policy': 'same-origin',
-};
+/* Cabeçalhos de segurança: fonte única em server/http/securityHeaders.js
+   (e repetidos no netlify.toml, com teste contra divergência). */
+const SEGURANCA = SECURITY_HEADERS;
 
 /* ------------------------------------------------------------- inicialização */
 
@@ -189,9 +175,9 @@ const server = createServer(async (request, response) => {
       /* A API também responde com os cabeçalhos de segurança: sem `nosniff`,
          um JSON com conteúdo enviado pelo usuário pode ser reinterpretado como
          HTML por navegador antigo e virar XSS na própria origem do site. */
-      const headers = { ...SEGURANCA, 'Content-Type': 'application/json; charset=utf-8' };
-      const cookies = resultado.headers['Set-Cookie'];
-      if (cookies?.length) headers['Set-Cookie'] = cookies;
+      /* Os cabeçalhos da própria resposta (no-store, CORP same-origin,
+         Retry-After, Set-Cookie) têm a última palavra sobre os gerais. */
+      const headers = { ...SEGURANCA, ...resultado.headers };
 
       response.writeHead(resultado.status, headers);
       response.end(JSON.stringify(resultado.body));
@@ -263,6 +249,12 @@ const server = createServer(async (request, response) => {
     );
   }
 });
+
+/* Faxina de sessões vencidas, tentativas de login e auditoria antiga. Também
+   roda sob demanda no login (maintenance.maybeRun), para quem não tem processo longo. */
+setInterval(() => {
+  app.maintenance.run().catch((error) => console.error('[server] faxina falhou:', error?.message));
+}, 60 * 60 * 1000).unref();
 
 server.listen(PORT, HOST, () => {
   console.log(`[server] ouvindo em http://${HOST}:${PORT}`);

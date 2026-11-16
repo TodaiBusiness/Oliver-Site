@@ -96,6 +96,15 @@ export function requestsRepository(db) {
       return Number(row?.total ?? 0);
     },
 
+    /** Solicitações abertas pelo usuário desde `since` (cota diária). */
+    async countByUserSince(userId, since) {
+      const row = await db.queryOne(
+        'SELECT COUNT(*) AS total FROM project_requests WHERE user_id = ? AND created_at > ?',
+        [userId, since]
+      );
+      return Number(row?.total ?? 0);
+    },
+
     async countAll() {
       const row = await db.queryOne('SELECT COUNT(*) AS total FROM project_requests');
       return Number(row?.total ?? 0);

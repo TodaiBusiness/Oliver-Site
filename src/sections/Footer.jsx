@@ -1,13 +1,8 @@
 import { Link } from 'react-router-dom';
 import Icon from '../components/Icon.jsx';
 import Logo from '../components/Logo.jsx';
-import AccountButton from '../components/AccountButton.jsx';
-import {
-  COMPANY_NAME,
-  EMAIL,
-  NAV_LINKS,
-  WHATSAPP_MESSAGES,
-} from '../data/company.js';
+import { COMPANY_NAME, EMAIL, WHATSAPP_MESSAGES } from '../data/company.js';
+import { FOOTER_GROUPS } from '../data/nav.js';
 import {
   createMailtoLink,
   createWhatsAppLink,
@@ -22,49 +17,46 @@ export default function Footer() {
     <footer className="footer">
       <div className="container footer__inner">
         <div className="footer__brand">
-          <Logo size={30} />
+          <Link to="/" aria-label="TODAI: ir para o início">
+            <Logo size={30} />
+          </Link>
           <p className="footer__description">
-            Software &amp; Digital Solutions — sistemas, web e automação sob
-            medida.
+            Software e soluções digitais: um sistema pronto para lojas e projetos sob medida.
           </p>
-        </div>
 
-        <nav className="footer__nav" aria-label="Navegação do rodapé">
-          <AccountButton className="footer__account" />
-          <Link className="footer__link" to="/minha-licenca">
-            Minha licença
-          </Link>
-          <Link className="footer__link" to="/termos">
-            Termos
-          </Link>
-          <Link className="footer__link" to="/privacidade">
-            Privacidade
-          </Link>
-          {NAV_LINKS.map((link) => (
-            <a key={link.href} className="footer__link" href={link.href}>
-              {link.label}
+          <div className="footer__contacts">
+            <a
+              className="footer__link footer__link--icon"
+              href={createWhatsAppLink(WHATSAPP_MESSAGES.default)}
+              {...whatsappLinkProps}
+            >
+              <Icon name="whatsapp" size={15} />
+              {whatsappDisplay}
             </a>
-          ))}
-        </nav>
-
-        <div className="footer__contacts">
-          <a
-            className="footer__link footer__link--icon"
-            href={createWhatsAppLink(WHATSAPP_MESSAGES.default)}
-            {...whatsappLinkProps}
-          >
-            <Icon name="whatsapp" size={15} />
-            {whatsappDisplay}
-          </a>
-
-          <a
-            className="footer__link footer__link--icon"
-            href={createMailtoLink(WHATSAPP_MESSAGES.contact, 'Contato pelo site')}
-          >
-            <Icon name="mail" size={15} />
-            {EMAIL}
-          </a>
+            <a
+              className="footer__link footer__link--icon"
+              href={createMailtoLink(WHATSAPP_MESSAGES.contact, 'Contato pelo site')}
+            >
+              <Icon name="mail" size={15} />
+              {EMAIL}
+            </a>
+          </div>
         </div>
+
+        {FOOTER_GROUPS.map((group) => (
+          <nav className="footer__group" key={group.title} aria-label={group.title}>
+            <h2 className="footer__heading">{group.title}</h2>
+            <ul>
+              {group.links.map((link) => (
+                <li key={link.to}>
+                  <Link className="footer__link" to={link.to}>
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
       </div>
 
       <div className="container footer__bottom">

@@ -72,6 +72,15 @@ export function messagesRepository(db) {
       return Number(row?.total ?? 0);
     },
 
+    /** Mensagens escritas pelo autor desde `since` (cota por hora). */
+    async countByAuthorSince(authorId, since) {
+      const row = await db.queryOne(
+        'SELECT COUNT(*) AS total FROM messages WHERE author_id = ? AND created_at > ?',
+        [authorId, since]
+      );
+      return Number(row?.total ?? 0);
+    },
+
     async countAll() {
       const row = await db.queryOne('SELECT COUNT(*) AS total FROM messages');
       return Number(row?.total ?? 0);

@@ -17,7 +17,7 @@ import { ROLES, config } from '../server/config.js';
 import { getDb, closeDb } from '../server/db/index.js';
 import { createContext } from '../server/context.js';
 import { hashPassword } from '../server/security/password.js';
-import { normalizeEmail } from '../server/http/validation.js';
+import { normalizeEmail, passwordProblem } from '../server/http/validation.js';
 
 const IS_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -35,9 +35,9 @@ async function main() {
     );
   }
 
-  if (password.length < 10) {
-    throw new Error('ADMIN_INITIAL_PASSWORD precisa ter ao menos 10 caracteres.');
-  }
+  /* A mesma regra do cadastro e da troca de senha (server/http/validation.js). */
+  const problema = passwordProblem(password);
+  if (problema) throw new Error(`ADMIN_INITIAL_PASSWORD recusada: ${problema}`);
 
   if (!IS_EMAIL.test(identifier)) {
     console.warn(
@@ -69,8 +69,8 @@ async function main() {
     console.log(`✔ Administrador criado (id ${id}): ${identifier}`);
   }
 
-  console.log('\n⚠ Troque esta senha após o primeiro acesso.');
-  console.log('  Rode este mesmo comando com outra ADMIN_INITIAL_PASSWORD.');
+  console.log('\n⚠ Entre, troque esta senha e ative o 2FA em Segurança.');
+  console.log('  Depois, REMOVA ADMIN_INITIAL_PASSWORD do ambiente.');
 }
 
 main()

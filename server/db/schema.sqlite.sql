@@ -79,10 +79,13 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS ix_messages_request ON messages (request_id, created_at);
 
 CREATE TABLE IF NOT EXISTS sessions (
-  id         TEXT    PRIMARY KEY,
-  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  expires_at INTEGER NOT NULL,
-  created_at INTEGER NOT NULL
+  id           TEXT    PRIMARY KEY,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at   INTEGER NOT NULL,
+  created_at   INTEGER NOT NULL,
+  last_seen_at INTEGER,          -- inatividade; NULL = nunca usada depois do login
+  ip           TEXT,
+  user_agent   TEXT
 );
 
 CREATE INDEX IF NOT EXISTS ix_sessions_user    ON sessions (user_id);
@@ -91,7 +94,8 @@ CREATE INDEX IF NOT EXISTS ix_sessions_expires ON sessions (expires_at);
 CREATE TABLE IF NOT EXISTS login_attempts (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   email      TEXT    NOT NULL,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  ip         TEXT                -- bloqueio por (e-mail + IP)
 );
 
 CREATE INDEX IF NOT EXISTS ix_attempts_email ON login_attempts (email, created_at);
@@ -103,7 +107,9 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   resource_type TEXT,
   resource_id   TEXT,
   details       TEXT,
-  created_at    INTEGER NOT NULL
+  created_at    INTEGER NOT NULL,
+  ip            TEXT,
+  user_agent    TEXT
 );
 
 CREATE INDEX IF NOT EXISTS ix_audit_user   ON audit_logs (user_id, created_at);
@@ -132,3 +138,53 @@ CREATE TABLE IF NOT EXISTS site_visit_stats (
   sessions INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (stat_day, dim, label)
 );
+
+-- Cotas por usuário (contagem de mensagens por autor e janela de tempo).
+CREATE INDEX IF NOT EXISTS ix_messages_author ON messages (author_id, created_at);
+
+-- Segundo fator (TOTP) dos administradores. O segredo fica CIFRADO
+-- (AES-256-GCM, chave derivada de SESSION_SECRET). `last_step` é o último
+-- passo de 30 s aceito: impede reaproveitar o mesmo código (replay).
+CREATE TABLE IF NOT EXISTS user_totp (
+  user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  secret_enc TEXT    NOT NULL,
+  enabled    INTEGER NOT NULL DEFAULT 0,
+  last_step  INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  enabled_at INTEGER
+);
+
+-- Códigos de recuperação: só o HMAC fica no banco; cada um vale uma vez.
+CREATE TABLE IF NOT EXISTS recovery_codes (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_hash  TEXT    NOT NULL,
+  used_at    INTEGER,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_recovery_user ON recovery_codes (user_id, code_hash);
+
+-- Desafio do login em dois passos: criado depois da senha correta, vale uma
+-- vez só e por pouco tempo. Só o hash do token fica aqui.
+CREATE TABLE IF NOT EXISTS login_challenges (
+  id         TEXT    PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  attempts   INTEGER NOT NULL DEFAULT 0,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_challenges_user ON login_challenges (user_id);
+
+-- Recuperação de senha por e-mail: só o SHA-256 do token fica aqui; vale uma
+-- vez e por pouco tempo.
+CREATE TABLE IF NOT EXISTS password_resets (
+  id         TEXT    PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at INTEGER NOT NULL,
+  used_at    INTEGER,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_resets_user ON password_resets (user_id);

@@ -1,33 +1,26 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Icon from '../../components/Icon.jsx';
-import EmptyState from '../../components/panel/EmptyState.jsx';
-import { useApi } from '../../hooks/useApi.js';
+import PanelIcon from '../../components/panel/PanelIcon.jsx';
+import PageHead from '../../components/panel/PageHead.jsx';
+import DataState from '../../components/panel/DataState.jsx';
+import LoadMore from '../../components/panel/LoadMore.jsx';
+import { formatarData, inicial, plural } from '../../components/panel/format.js';
+import { usePaged } from '../../hooks/useApi.js';
 import { api, withQuery } from '../../api/client.js';
 
-const formatarData = (ms) =>
-  new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    .format(new Date(Number(ms)));
+const TAMANHO = 24;
 
-const inicial = (nome = '?') => nome.trim().charAt(0).toUpperCase();
-
-/** "1 projeto" / "2 projetos" — plural correto em vez de "1 projeto(s)". */
-const plural = (quantidade, singular, plural_) =>
-  `${quantidade} ${quantidade === 1 ? singular : plural_}`;
-
-/**
- * Lista de clientes em cards.
- * A tabela anterior espremia contato, empresa e data em colunas estreitas;
- * o card mostra o que importa (quem é, como falar, o que já tem) e leva
- * direto para a ficha.
- */
+/** Lista de clientes: busca no servidor, "carregar mais" e card que leva à ficha. */
 export default function AdminClients() {
   const [busca, setBusca] = useState('');
   const [termo, setTermo] = useState('');
 
-  const { data, loading } = useApi(
-    () => api.get(withQuery('/admin/clients', { search: termo, limit: 50 })),
-    [termo]
+  const lista = usePaged(
+    async (page, limit) =>
+      (await api.get(withQuery('/admin/clients', { search: termo, limit, page }))).clients,
+    [termo],
+    TAMANHO
   );
 
   const buscar = (event) => {
@@ -40,31 +33,24 @@ export default function AdminClients() {
     setTermo('');
   };
 
-  const lista = data?.clients ?? [];
-
   return (
     <>
-      <header className="page-head">
-        <div>
-          <h1 className="page-title">Clientes</h1>
-          <p className="page-subtitle">
-            Quem tem conta na área do cliente. Clique em um card para vincular
-            projetos e ver as solicitações.
-          </p>
-        </div>
-      </header>
+      <PageHead
+        title="Clientes"
+        subtitle="Quem tem conta na área do cliente. Abra uma ficha para vincular projetos e ver as solicitações."
+      />
 
       <form className="search" onSubmit={buscar} role="search">
         <label className="sr-only" htmlFor="busca">
           Buscar cliente
         </label>
         <div className="search__field">
-          <Icon name="chat" size={16} />
+          <PanelIcon name="search" size={16} />
           <input
             id="busca"
             className="field__control"
             type="search"
-            placeholder="Buscar por nome, e-mail ou empresa…"
+            placeholder="Buscar por nome, e-mail ou empresa"
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
           />
@@ -73,33 +59,42 @@ export default function AdminClients() {
           Buscar
         </button>
         {termo ? (
-          <button type="button" className="btn btn--ghost btn--sm" onClick={limpar}>
+          <button type="button" className="btn btn--soft btn--sm" onClick={limpar}>
             Limpar
           </button>
         ) : null}
       </form>
 
-      {termo && !loading ? (
-        <p className="search__result">
-          {plural(lista.length, 'resultado', 'resultados')} para “{termo}”
+      {termo && !lista.loading && !lista.error ? (
+        <p className="search__result" role="status">
+          {plural(lista.items.length, 'resultado', 'resultados')} para “{termo}”
+          {lista.hasMore ? ' (há mais abaixo)' : ''}
         </p>
       ) : null}
 
-      {loading ? (
-        <p className="panel-loading">Carregando…</p>
-      ) : lista.length === 0 ? (
-        <EmptyState
-          icon="chat"
-          title={termo ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado ainda.'}
-          text={
-            termo
-              ? 'Tente outro nome, e-mail ou empresa.'
-              : 'Assim que alguém criar uma conta pelo site, aparece aqui.'
-          }
-        />
-      ) : (
+      <DataState
+        loading={lista.loading}
+        error={lista.error}
+        onRetry={lista.reload}
+        skeleton="cards"
+        skeletonCount={6}
+        errorTitle="Não foi possível carregar os clientes."
+        empty={lista.items.length === 0}
+        emptyProps={{
+          icon: 'users',
+          title: termo ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado ainda.',
+          text: termo
+            ? 'Tente outro nome, e-mail ou empresa.'
+            : 'Assim que alguém criar uma conta pelo site, aparece aqui.',
+          action: termo ? (
+            <button type="button" className="btn btn--ghost btn--sm" onClick={limpar}>
+              Limpar busca
+            </button>
+          ) : null,
+        }}
+      >
         <ul className="client-cards">
-          {lista.map((cliente) => (
+          {lista.items.map((cliente) => (
             <li key={cliente.id}>
               <Link className="client-card" to={`/admin/clientes/${cliente.id}`}>
                 <span className="client-card__top">
@@ -131,33 +126,29 @@ export default function AdminClients() {
                 </span>
 
                 <span className="client-card__stats">
-                  <span
-                    className={`client-pill${
-                      cliente.projects_count > 0 ? ' is-on' : ''
-                    }`}
-                  >
+                  <span className={`client-pill${cliente.projects_count > 0 ? ' is-on' : ''}`}>
                     <Icon name="layers" size={13} />
                     {plural(cliente.projects_count ?? 0, 'projeto', 'projetos')}
                   </span>
-
-                  <span
-                    className={`client-pill${
-                      cliente.requests_count > 0 ? ' is-on' : ''
-                    }`}
-                  >
+                  <span className={`client-pill${cliente.requests_count > 0 ? ' is-on' : ''}`}>
                     <Icon name="bolt" size={13} />
                     {plural(cliente.requests_count ?? 0, 'solicitação', 'solicitações')}
                   </span>
-
-                  <span className="client-card__since">
-                    desde {formatarData(cliente.created_at)}
-                  </span>
+                  <span className="client-card__since">desde {formatarData(cliente.created_at)}</span>
                 </span>
               </Link>
             </li>
           ))}
         </ul>
-      )}
+
+        <LoadMore
+          hasMore={lista.hasMore}
+          loading={lista.loadingMore}
+          error={lista.moreError}
+          onClick={lista.loadMore}
+          shown={lista.items.length}
+        />
+      </DataState>
     </>
   );
 }

@@ -8,6 +8,7 @@
    ========================================================================= */
 
 import { AUDIT_ACTIONS, LIMITS, ROLES } from '../config.js';
+import { tooManyRequests } from '../http/errors.js';
 import { createValidator, cleanText } from '../http/validation.js';
 
 export function messagesService(ctx, requests, attachments) {
@@ -79,6 +80,16 @@ export function messagesService(ctx, requests, attachments) {
       }
       validator.assert();
 
+      /* Cota por usuário (o admin responde a todos e fica de fora). */
+      if (viewer.role !== ROLES.ADMIN) {
+        const enviadas = await ctx.messages.countByAuthorSince(viewer.id, Date.now() - 60 * 60 * 1000);
+        if (enviadas >= LIMITS.MESSAGES_PER_HOUR) {
+          throw tooManyRequests(
+            `Você atingiu o limite de ${LIMITS.MESSAGES_PER_HOUR} mensagens por hora. Tente novamente mais tarde.`
+          );
+        }
+      }
+
       const id = await ctx.messages.create({
         requestId,
         authorId: viewer.id,
@@ -89,7 +100,7 @@ export function messagesService(ctx, requests, attachments) {
       let anexo = null;
       if (imagem) {
         try {
-          anexo = await attachments.anexarNaMensagem(id, imagem);
+          anexo = await attachments.anexarNaMensagem(id, imagem, viewer);
         } catch (problema) {
           await ctx.db.execute('DELETE FROM messages WHERE id = ?', [id]);
           throw problema;

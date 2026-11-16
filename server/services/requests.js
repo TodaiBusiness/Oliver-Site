@@ -7,7 +7,7 @@
    ========================================================================= */
 
 import { AUDIT_ACTIONS, LIMITS, REQUEST_STATUS, REQUEST_STATUS_VALUES, ROLES } from '../config.js';
-import { notFound } from '../http/errors.js';
+import { notFound, tooManyRequests } from '../http/errors.js';
 import { cleanText, createValidator } from '../http/validation.js';
 
 /** Tipos aceitos — os mesmos do funil do site. */
@@ -40,6 +40,16 @@ export function requestsService(ctx) {
         label: 'o prazo',
       });
       validator.assert();
+
+      if (
+        user.role !== ROLES.ADMIN &&
+        (await ctx.requests.countByUserSince(user.id, Date.now() - 24 * 60 * 60 * 1000)) >=
+          LIMITS.REQUESTS_PER_DAY
+      ) {
+        throw tooManyRequests(
+          `Você atingiu o limite de ${LIMITS.REQUESTS_PER_DAY} solicitações por dia. Tente novamente amanhã.`
+        );
+      }
 
       const id = await ctx.requests.create({
         userId: user.id,

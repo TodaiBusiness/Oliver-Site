@@ -1,41 +1,56 @@
 import { Link } from 'react-router-dom';
 import Icon from '../components/Icon.jsx';
-import { PRODUCT } from '../data/product.js';
 import { WHATSAPP_MESSAGES } from '../data/company.js';
 import { createWhatsAppLink, whatsappLinkProps } from '../utils/contact.js';
 import { EVENTS, track } from '../utils/analytics.js';
 
+/**
+ * Abertura da home. A coreografia da página mora aqui: as linhas do título
+ * sobem de trás de uma máscara, uma depois da outra, e a tela do sistema se
+ * abre da esquerda para a direita. Acontece uma vez, na chegada.
+ */
 export default function Hero() {
   return (
     <section className="hero" id="inicio">
       <div className="container hero__inner">
         <div className="hero__content">
-          <h1 className="hero__title">Estoque, caixa e vendas da sua loja num só sistema.</h1>
+          <h1 className="hero__title">
+            <span className="hero__line">
+              <span style={{ '--l': 0 }}>Software que cabe</span>
+            </span>
+            <span className="hero__line">
+              <span style={{ '--l': 1 }}>no jeito que o seu</span>
+            </span>
+            <span className="hero__line">
+              <span style={{ '--l': 2 }}>negócio funciona.</span>
+            </span>
+          </h1>
 
           <p className="hero__text">
-            O {PRODUCT.name} roda no Windows. Você compra pelo site, instala no
-            computador da loja e começa a vender no mesmo dia.
+            Temos o TODAI, um sistema pronto de estoque, caixa e vendas para lojas. E criamos landing pages,
+            sites e sistemas sob medida para o que ele não cobre.
           </p>
 
           <div className="hero__actions">
             <Link
               className="btn btn--primary"
-              to="/comprar"
-              onClick={() => track(EVENTS.HERO_CTA_CLICK, { cta: 'comprar' })}
+              to="/contato"
+              onClick={() => track(EVENTS.HERO_CTA_CLICK, { cta: 'orcamento' })}
             >
-              Comprar agora
+              Pedir orçamento
+              <Icon name="arrowRight" size={17} className="btn__icon" />
+            </Link>
+
+            <Link
+              className="btn btn--ghost"
+              to="/sistema"
+              onClick={() => track(EVENTS.HERO_CTA_CLICK, { cta: 'sistema' })}
+            >
+              Conhecer o TODAI
             </Link>
 
             <a
-              className="btn btn--ghost"
-              href="#sistema"
-              onClick={() => track(EVENTS.HERO_CTA_CLICK, { cta: 'sistema' })}
-            >
-              Ver as telas
-            </a>
-
-            <a
-              className="btn btn--ghost"
+              className="hero__whats"
               href={createWhatsAppLink(WHATSAPP_MESSAGES.default)}
               onClick={() => {
                 track(EVENTS.HERO_CTA_CLICK, { cta: 'whatsapp' });
@@ -44,7 +59,7 @@ export default function Hero() {
               {...whatsappLinkProps}
             >
               <Icon name="whatsapp" size={17} />
-              Tirar dúvidas
+              Tirar dúvidas no WhatsApp
             </a>
           </div>
         </div>

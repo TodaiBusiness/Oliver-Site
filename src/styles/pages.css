@@ -1,0 +1,819 @@
+/* =========================================================
+   Páginas públicas: abertura, serviços, comparação, preços
+   ========================================================= */
+
+/* ---------- Troca de página ---------- */
+.page {
+  animation: page-in 300ms var(--ease) both;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.site-main {
+  min-height: 60vh;
+}
+
+/* ---------- Texto corrido ---------- */
+.prose {
+  margin-top: 0.9rem;
+  max-width: 34rem;
+  color: var(--muted);
+}
+
+.prose strong {
+  color: var(--white);
+  font-weight: 600;
+}
+
+.prose--wide {
+  max-width: 44rem;
+  font-size: var(--fs-lead);
+}
+
+.inline-link {
+  color: var(--accent-400);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: color var(--t-fast);
+}
+
+.inline-link:hover {
+  color: var(--accent-300);
+  text-decoration-thickness: 2px;
+}
+
+.note {
+  margin-top: 1.25rem;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--border-strong);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.note strong {
+  color: var(--white);
+}
+
+.ticks {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1.1rem;
+}
+
+.ticks li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: start;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.ticks svg {
+  margin-top: 0.22rem;
+  color: var(--accent-400);
+}
+
+.split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1.75rem, 5vw, 4rem);
+  align-items: start;
+}
+
+.split--wide {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+}
+
+/* ---------- Abertura das páginas internas ---------- */
+.page-hero {
+  padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(1rem, 3vw, 2rem);
+}
+
+.page-hero__title {
+  max-width: 20ch;
+  font-size: var(--fs-display);
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+}
+
+.page-hero__lead {
+  margin-top: 1.1rem;
+  max-width: 38rem;
+  font-size: var(--fs-lead);
+  color: var(--muted);
+}
+
+.page-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 1.6rem;
+}
+
+/* ---------- Home: coreografia de chegada ---------- */
+.hero__title {
+  max-width: none;
+}
+
+.hero__line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+
+.hero__line > span {
+  display: block;
+  animation: line-rise 760ms var(--ease) calc(80ms + var(--l) * 110ms) both;
+}
+
+@keyframes line-rise {
+  from {
+    transform: translateY(105%);
+  }
+}
+
+.hero__text,
+.hero__actions {
+  animation: hero-fade 600ms var(--ease) 480ms both;
+}
+
+.hero__actions {
+  animation-delay: 580ms;
+}
+
+@keyframes hero-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.hero__visual {
+  animation: frame-open 1100ms var(--ease) 200ms both;
+}
+
+@keyframes frame-open {
+  from {
+    clip-path: inset(0 100% 0 0 round var(--r-lg));
+    opacity: 0.4;
+  }
+  to {
+    clip-path: inset(0 0 0 0 round var(--r-lg));
+  }
+}
+
+/* ---------- Índice de serviços (home) ---------- */
+.svc-index {
+  border-top: 1px solid var(--border);
+}
+
+.svc-index__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem 0.25rem;
+  border-bottom: 1px solid var(--border);
+  transition: padding-left var(--t-mid), background-color var(--t-mid);
+}
+
+.svc-index__row:hover {
+  padding-left: 1rem;
+  background: linear-gradient(90deg, var(--accent-soft), transparent 70%);
+}
+
+.svc-index__name {
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.6vw, 1.85rem);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  color: var(--white);
+}
+
+.svc-index__text {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  max-width: 34rem;
+}
+
+.svc-index__go {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--accent-300);
+  white-space: nowrap;
+}
+
+.svc-index__arrow {
+  transition: transform var(--t-mid);
+}
+
+.svc-index__row:hover .svc-index__arrow {
+  transform: translateX(5px);
+}
+
+/* ---------- Chamada do sistema (home) ---------- */
+.teaser {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: clamp(1.75rem, 5vw, 4rem);
+  align-items: center;
+}
+
+.teaser__price {
+  margin-top: 1rem;
+  color: var(--text);
+}
+
+.teaser__price strong {
+  color: var(--white);
+}
+
+/* ---------- Faixa de convite ---------- */
+.cta-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem 2.5rem;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-xl);
+  background: var(--bg-elev);
+}
+
+.cta-band__title {
+  max-width: 30ch;
+  font-size: clamp(1.4rem, 2.8vw, 2rem);
+}
+
+.cta-band__text {
+  margin-top: 0.6rem;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.cta-band__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.also {
+  margin-top: 1.25rem;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.also a {
+  color: var(--accent-400);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Processo de cada serviço ---------- */
+.flow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0;
+  margin-top: 1.5rem;
+  counter-reset: flow;
+  border-top: 1px solid var(--border-strong);
+}
+
+.flow__step {
+  position: relative;
+  padding: 1.1rem 1.25rem 0.5rem 0;
+  counter-increment: flow;
+}
+
+.flow__step::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent-400);
+}
+
+.flow__title {
+  font-size: 1.05rem;
+}
+
+.flow__text {
+  margin-top: 0.45rem;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+/* ---------- Exemplo de entrega ---------- */
+.delivery {
+  margin: 0;
+}
+
+.delivery__canvas {
+  padding: clamp(0.9rem, 2.5vw, 1.4rem);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  background: var(--bg-elev);
+}
+
+.delivery__caption {
+  margin-top: 0.7rem;
+  font-size: var(--fs-xs);
+  color: var(--muted-dim);
+}
+
+.delivery__page {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.delivery__block {
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-md);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  transition: border-color var(--t-fast), color var(--t-fast);
+}
+
+.delivery__block:hover {
+  border-color: var(--accent-line);
+  color: var(--white);
+}
+
+.delivery__block--lg {
+  min-height: 4.2rem;
+}
+
+.delivery__block--md {
+  min-height: 3.2rem;
+}
+
+.delivery__block--sm {
+  min-height: 2.4rem;
+}
+
+.delivery__block.is-accent {
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-300);
+  font-weight: 600;
+}
+
+.delivery__map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 0.6rem;
+}
+
+.delivery__node {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+}
+
+.delivery__node-title {
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--r-sm);
+  background: var(--accent-500);
+  color: var(--on-accent);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.delivery__leaf {
+  padding: 0.4rem 0.7rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-sm);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.delivery__parts {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.delivery__part {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.delivery__part-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--white);
+}
+
+.delivery__part-detail {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+/* ---------- FAQ ---------- */
+.faq {
+  border-top: 1px solid var(--border);
+  margin-top: 1rem;
+}
+
+.faq__item {
+  border-bottom: 1px solid var(--border);
+}
+
+.faq__q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0.25rem;
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: var(--white);
+  cursor: pointer;
+  list-style: none;
+}
+
+.faq__q::-webkit-details-marker {
+  display: none;
+}
+
+.faq__q:hover {
+  color: var(--accent-300);
+}
+
+.faq__icon {
+  flex: none;
+  color: var(--accent-400);
+  transition: transform var(--t-mid);
+}
+
+.faq__item[open] .faq__icon {
+  transform: rotate(135deg);
+}
+
+.faq__a {
+  padding: 0 0.25rem 1.1rem;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  max-width: 36rem;
+  animation: hero-fade 300ms var(--ease) both;
+}
+
+/* ---------- Comparação ---------- */
+.compare-wrap {
+  margin-top: 1.25rem;
+}
+
+.compare {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.compare th,
+.compare td {
+  padding: 0.95rem 1rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+  transition: background-color var(--t-mid);
+}
+
+.compare thead th {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.compare thead a {
+  color: var(--white);
+  transition: color var(--t-fast);
+}
+
+.compare thead a:hover {
+  color: var(--accent-300);
+}
+
+.compare tbody th {
+  width: 11rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.compare td {
+  color: var(--text);
+}
+
+.compare tbody tr:hover > * {
+  background: var(--surface);
+}
+
+.compare .is-picked {
+  background: var(--accent-soft);
+}
+
+.compare thead .is-picked a {
+  color: var(--accent-300);
+}
+
+/* Em telas estreitas a tabela vira uma lista: cada célula leva o nome do serviço. */
+@media (max-width: 760px) {
+  .compare,
+  .compare tbody,
+  .compare tr,
+  .compare th,
+  .compare td {
+    display: block;
+  }
+
+  .compare thead {
+    display: none;
+  }
+
+  .compare tr {
+    padding: 0.9rem 0;
+    border-bottom: 1px solid var(--border-strong);
+  }
+
+  .compare tbody th {
+    width: auto;
+    padding: 0 0 0.4rem;
+    border: 0;
+    font-weight: 600;
+    color: var(--white);
+  }
+
+  .compare td {
+    display: grid;
+    grid-template-columns: 7.2rem minmax(0, 1fr);
+    gap: 0.5rem;
+    padding: 0.35rem 0;
+    border: 0;
+  }
+
+  .compare td::before {
+    content: attr(data-label);
+    color: var(--muted-dim);
+    font-size: var(--fs-xs);
+    padding-top: 0.12rem;
+  }
+}
+
+/* ---------- Qual escolher ---------- */
+.chooser {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1.1rem;
+}
+
+.chooser__option {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  text-align: left;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  transition: border-color var(--t-fast), background-color var(--t-fast), transform var(--t-fast);
+}
+
+.chooser__option:hover {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.chooser__option:active {
+  transform: scale(0.99);
+}
+
+.chooser__option.is-on {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.chooser__dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  transition: border-color var(--t-fast), box-shadow var(--t-mid), background-color var(--t-fast);
+}
+
+.chooser__option.is-on .chooser__dot {
+  border-color: var(--accent-400);
+  background: var(--accent-400);
+  box-shadow: inset 0 0 0 3px var(--bg-elev);
+}
+
+.verdict {
+  position: sticky;
+  top: calc(var(--header-h) + 1.5rem);
+}
+
+.verdict__box {
+  padding: 1.5rem;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-lg);
+  background: var(--bg-elev);
+  animation: page-in 360ms var(--ease) both;
+}
+
+.verdict__box .btn {
+  margin-top: 1.25rem;
+}
+
+.verdict__label {
+  font-size: var(--fs-xs);
+  color: var(--accent-400);
+  font-weight: 600;
+}
+
+.verdict__title {
+  margin-top: 0.3rem;
+  font-size: 1.6rem;
+}
+
+.verdict__empty {
+  padding: 1.5rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-lg);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* ---------- Preços: serviços sob orçamento ---------- */
+.quote-list {
+  border-top: 1px solid var(--border);
+}
+
+.quote-list__item {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.5fr) auto;
+  gap: 1.5rem 2rem;
+  align-items: start;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.quote-list__name {
+  font-size: 1.35rem;
+}
+
+.quote-list__tag {
+  margin-top: 0.3rem;
+  font-size: var(--fs-xs);
+  color: var(--accent-400);
+  font-weight: 600;
+}
+
+.quote-list__item .ticks {
+  margin-top: 0;
+}
+
+/* ---------- Como funciona: etapas ---------- */
+.steps-table {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--border-strong);
+}
+
+.steps-table__row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) minmax(0, 1.2fr);
+  gap: 1rem 2rem;
+  padding: 1.3rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.steps-table__title {
+  font-size: 1.15rem;
+}
+
+.steps-table__who {
+  display: block;
+  margin-bottom: 0.15rem;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--accent-400);
+}
+
+/* ---------- Responsivo ---------- */
+@media (max-width: 900px) {
+  .split,
+  .split--wide,
+  .teaser {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .verdict {
+    position: static;
+  }
+
+  .svc-index__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem 1rem;
+  }
+
+  .svc-index__text {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .quote-list__item,
+  .steps-table__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-hero__actions .btn,
+  .cta-band__actions .btn {
+    width: 100%;
+  }
+
+  .cta-band__actions {
+    width: 100%;
+  }
+
+  .delivery__part {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.15rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero__visual {
+    clip-path: none;
+  }
+}
+
+/* ---------- Ajustes de abertura e listas ---------- */
+.hero__inner {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+}
+
+.hero__title {
+  font-size: clamp(2.1rem, 3.6vw, 3rem);
+}
+
+.demo__steps,
+.flow,
+.steps-table {
+  list-style: none;
+  padding: 0;
+}
+
+/* Hero: o WhatsApp é um caminho secundário, em linha própria e sem peso de botão. */
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem 1rem;
+}
+
+.hero__whats {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-basis: 100%;
+  width: fit-content;
+  padding-block: 0.4rem;
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 0.25em;
+  transition: color 160ms var(--ease), text-decoration-color 160ms var(--ease);
+}
+
+.hero__whats:hover,
+.hero__whats:focus-visible {
+  color: var(--text);
+  text-decoration-color: currentColor;
+}

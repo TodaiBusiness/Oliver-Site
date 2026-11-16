@@ -25,6 +25,22 @@ export function pick(source, allowedKeys) {
   return result;
 }
 
+/**
+ * Regra de força da senha — uma só, usada pelo cadastro, pela troca de senha e
+ * pelos scripts que criam o administrador. Devolve a mensagem ou `null`.
+ */
+export function passwordProblem(value) {
+  if (typeof value !== 'string' || !value) return 'Informe a senha.';
+  if (value.length < SECURITY.PASSWORD_MIN_LENGTH) {
+    return `A senha precisa ter ao menos ${SECURITY.PASSWORD_MIN_LENGTH} caracteres.`;
+  }
+  if (value.length > SECURITY.PASSWORD_MAX_LENGTH) return 'Senha longa demais.';
+  if (!/[a-zA-Z]/.test(value) || !/[0-9]/.test(value)) {
+    return 'A senha precisa misturar letras e números.';
+  }
+  return null;
+}
+
 /** Acumula erros por campo para a resposta apontar o que corrigir. */
 export function createValidator() {
   const errors = {};
@@ -77,22 +93,8 @@ export function createValidator() {
     },
 
     password(field, value) {
-      if (typeof value !== 'string' || !value) {
-        return api.fail(field, 'Informe a senha.');
-      }
-      if (value.length < SECURITY.PASSWORD_MIN_LENGTH) {
-        return api.fail(
-          field,
-          `A senha precisa ter ao menos ${SECURITY.PASSWORD_MIN_LENGTH} caracteres.`
-        );
-      }
-      if (value.length > SECURITY.PASSWORD_MAX_LENGTH) {
-        return api.fail(field, 'Senha longa demais.');
-      }
-      if (!/[a-zA-Z]/.test(value) || !/[0-9]/.test(value)) {
-        return api.fail(field, 'A senha precisa misturar letras e números.');
-      }
-      return api;
+      const problem = passwordProblem(value);
+      return problem ? api.fail(field, problem) : api;
     },
 
     oneOf(field, value, allowed, label = field) {

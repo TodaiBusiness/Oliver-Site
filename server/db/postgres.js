@@ -18,8 +18,9 @@ import { normalizeParams } from './normalize.js';
 const SCHEMA_PATH = resolve(import.meta.dirname, 'schema.postgres.sql');
 
 /* Tabelas sem coluna `id` — nelas o RETURNING id não existe e quebraria o
-   INSERT. O vínculo cliente ↔ projeto e as contagens de visitas, de chave composta. */
-const TABELAS_SEM_ID = new Set(['client_projects', 'site_visit_stats']);
+   INSERT. O vínculo cliente ↔ projeto e as contagens de visitas e o segundo
+   fator (a chave é o próprio user_id). */
+const TABELAS_SEM_ID = new Set(['client_projects', 'site_visit_stats', 'user_totp']);
 
 const INSERT_INTO = /^\s*insert\s+into\s+"?([a-z_][a-z0-9_]*)"?/i;
 

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { api } from '../api/client.js';
+import { api, SESSION_EXPIRED_EVENT } from '../api/client.js';
 
 /* =========================================================================
    Estado de autenticação no navegador.
@@ -36,15 +36,50 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  /* Qualquer 401 numa chamada autenticada = sessão acabou: volta ao login. */
+  useEffect(() => {
+    const expired = () => setUser(null);
+    window.addEventListener(SESSION_EXPIRED_EVENT, expired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, expired);
+  }, []);
+
+  /**
+   * Primeiro passo. Devolve o usuário, ou `{ twoFactorRequired: true, challenge }`
+   * quando a conta tem segundo fator: aí falta `completeTwoFactor`.
+   */
   const login = useCallback(async (email, password) => {
-    const { user: logged } = await api.post('/auth/login', { email, password });
+    const result = await api.post('/auth/login', { email, password });
+    if (result.twoFactorRequired) return { twoFactorRequired: true, challenge: result.challenge };
+    setUser(result.user);
+    return result.user;
+  }, []);
+
+  const completeTwoFactor = useCallback(async (challenge, code) => {
+    const { user: logged } = await api.post('/auth/login/2fa', { challenge, code });
     setUser(logged);
     return logged;
   }, []);
 
+  /** Recarrega o usuário (ex.: depois de ativar o 2FA). */
+  const refresh = useCallback(async () => {
+    const { user: current } = await api.get('/auth/me');
+    setUser(current);
+    return current;
+  }, []);
+
+  /** "Sair de todos os dispositivos": a sessão atual também cai. */
+  const logoutEverywhere = useCallback(async () => {
+    try {
+      await api.post('/auth/sessions/revoke-all');
+    } finally {
+      setUser(null);
+    }
+  }, []);
+
   const register = useCallback(async (data) => {
     await api.post('/auth/register', data);
-    return login(data.email, data.password);
+    const result = await login(data.email, data.password);
+    return result;
   }, [login]);
 
   const logout = useCallback(async () => {
@@ -57,8 +92,18 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, isAdmin: user?.role === 'ADMIN' }),
-    [user, loading, login, register, logout]
+    () => ({
+      user,
+      loading,
+      login,
+      completeTwoFactor,
+      refresh,
+      register,
+      logout,
+      logoutEverywhere,
+      isAdmin: user?.role === 'ADMIN',
+    }),
+    [user, loading, login, completeTwoFactor, refresh, register, logout, logoutEverywhere]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

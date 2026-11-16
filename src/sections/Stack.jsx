@@ -7,7 +7,7 @@ export default function Stack() {
       <div className="container">
         <div className="section-head section-head--row">
           <h2 className="section-head__title" id="stack-title">
-            Com o que construímos.
+            Escrevemos em C#, Python e JavaScript, sobre PostgreSQL.
           </h2>
         </div>
 

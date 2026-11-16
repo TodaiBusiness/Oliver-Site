@@ -3,6 +3,9 @@ import Icon from '../components/Icon.jsx';
 import Chat from '../components/chat/Chat.jsx';
 import StatusBadge from '../components/panel/StatusBadge.jsx';
 import EmptyState from '../components/panel/EmptyState.jsx';
+import DataState from '../components/panel/DataState.jsx';
+import PageHead from '../components/panel/PageHead.jsx';
+import { inicial } from '../components/panel/format.js';
 import { useApi } from '../hooks/useApi.js';
 import { api } from '../api/client.js';
 import { useAuth } from '../app/AuthContext.jsx';
@@ -25,8 +28,6 @@ function quando(ms) {
   ).format(data);
 }
 
-const inicial = (nome = '?') => nome.trim().charAt(0).toUpperCase();
-
 /**
  * Caixa de mensagens: lista de conversas à esquerda, conversa aberta à
  * direita. No celular vira uma tela de cada vez.
@@ -39,7 +40,7 @@ export default function Messages({ basePath }) {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
 
-  const { data, loading, reload } = useApi(() => api.get('/conversations'));
+  const { data, loading, error, reload } = useApi(() => api.get('/conversations?limit=100'));
   const conversas = data?.conversations ?? [];
 
   /* Quem dispara o recarregamento é a própria conversa, ao carregar ou enviar
@@ -49,30 +50,35 @@ export default function Messages({ basePath }) {
 
   return (
     <>
-      <header className="page-head">
-        <div>
-          <h1 className="page-title">Mensagens</h1>
-          <p className="page-subtitle">
-            {naoLidasTotal > 0
-              ? `Você tem ${naoLidasTotal} mensagem${naoLidasTotal > 1 ? 's' : ''} não lida${naoLidasTotal > 1 ? 's' : ''}.`
-              : 'Todas as conversas em um lugar só.'}
-          </p>
-        </div>
-      </header>
+      <PageHead
+        title="Mensagens"
+        subtitle={
+          naoLidasTotal > 0
+            ? `Você tem ${naoLidasTotal} mensagem${naoLidasTotal > 1 ? 's' : ''} não lida${naoLidasTotal > 1 ? 's' : ''}.`
+            : 'Todas as conversas em um lugar só.'
+        }
+      />
 
-      {loading && conversas.length === 0 ? (
-        <p className="panel-loading">Carregando conversas…</p>
-      ) : conversas.length === 0 ? (
-        <EmptyState
-          icon="chat"
-          title="Nenhuma conversa ainda."
-          text={
-            isAdmin
-              ? 'Quando um cliente abrir uma solicitação, a conversa aparece aqui.'
-              : 'Abra uma solicitação e a conversa começa por aqui.'
-          }
-        />
-      ) : (
+      <DataState
+        loading={loading && conversas.length === 0}
+        error={error && conversas.length === 0 ? error : null}
+        onRetry={reload}
+        skeleton="rows"
+        errorTitle="Não foi possível carregar as conversas."
+        empty={conversas.length === 0}
+        emptyProps={{
+          icon: 'chat',
+          title: 'Nenhuma conversa ainda.',
+          text: isAdmin
+            ? 'Quando um cliente abrir uma solicitação, a conversa aparece aqui.'
+            : 'Abra uma solicitação e a conversa começa por aqui.',
+          action: isAdmin ? null : (
+            <button type="button" className="btn btn--primary btn--sm" onClick={() => navigate('/cliente/solicitacoes')}>
+              Nova solicitação
+            </button>
+          ),
+        }}
+      >
         <div className={`inbox${id ? ' inbox--open' : ''}`}>
           {/* ---- Lista de conversas ---- */}
           <aside className="inbox__list" aria-label="Conversas">
@@ -203,7 +209,7 @@ export default function Messages({ basePath }) {
             )}
           </section>
         </div>
-      )}
+      </DataState>
     </>
   );
 }

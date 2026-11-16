@@ -7,7 +7,7 @@ export default function Capabilities() {
       <div className="container">
         <div className="section-head section-head--row">
           <h2 className="section-head__title" id="solucoes-title">
-            O que desenvolvemos.
+            Programamos sistemas, sites, automações e bancos de dados.
           </h2>
         </div>
 

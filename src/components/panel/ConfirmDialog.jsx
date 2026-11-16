@@ -1,4 +1,5 @@
 import { useDialog } from '../../hooks/useDialog.js';
+import { useStableCallback } from './useStableCallback.js';
 
 /**
  * Confirmação antes de ação destrutiva.
@@ -14,7 +15,7 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }) {
-  const { dialogRef, initialFocusRef } = useDialog(open, onCancel);
+  const { dialogRef, initialFocusRef } = useDialog(open, useStableCallback(onCancel));
 
   if (!open) return null;
 

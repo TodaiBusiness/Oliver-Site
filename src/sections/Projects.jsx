@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import Icon from '../components/Icon.jsx';
-import Reveal from '../components/Reveal.jsx';
 import ProjectModal from '../components/ProjectModal.jsx';
 import MockupTag from '../components/MockupTag.jsx';
 import ThemedShot from '../components/ThemedShot.jsx';
@@ -50,24 +49,11 @@ export default function Projects() {
     <section
       className="section section--lg projects"
       id="projetos"
-      aria-labelledby="projetos-title"
+      aria-label="Projetos"
     >
       <div className="container">
-        <Reveal className="section-head section-head--row">
-          <div>
-            <h2 className="section-head__title" id="projetos-title">
-              O que construímos.
-            </h2>
-          </div>
-
-          <p className="section-head__text">
-            Sistemas em uso e projetos em desenvolvimento. Clique para ver o
-            problema, a solução e as funcionalidades de cada um.
-          </p>
-        </Reveal>
-
         {/* ---------- Projeto em destaque ---------- */}
-        <Reveal className="featured">
+        <div className="featured">
           <button
             type="button"
             className="featured__media"
@@ -111,12 +97,12 @@ export default function Projects() {
               </span>
             </div>
           </div>
-        </Reveal>
+        </div>
 
         {/* ---------- Demais projetos ---------- */}
         <ul className="projects__grid">
           {otherProjects.map((project, index) => (
-            <Reveal as="li" key={project.id} delay={index * 70}>
+            <li key={project.id}>
               <button
                 type="button"
                 className="pcard"
@@ -144,7 +130,7 @@ export default function Projects() {
                   </span>
                 </span>
               </button>
-            </Reveal>
+            </li>
           ))}
         </ul>
       </div>

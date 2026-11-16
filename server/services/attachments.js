@@ -12,8 +12,8 @@
       como HTML/script.
    ========================================================================= */
 
-import { LIMITS } from '../config.js';
-import { badRequest, notFound } from '../http/errors.js';
+import { LIMITS, ROLES } from '../config.js';
+import { badRequest, notFound, tooManyRequests } from '../http/errors.js';
 import { validarImagemBase64 } from '../security/imageValidation.js';
 
 /** No máximo uma imagem por mensagem — mantém o payload previsível. */
@@ -22,7 +22,7 @@ const MAX_POR_MENSAGEM = 1;
 export function attachmentsService(ctx, requests) {
   return {
     /** Valida e grava a imagem de uma mensagem recém-criada. */
-    async anexarNaMensagem(messageId, imagem) {
+    async anexarNaMensagem(messageId, imagem, viewer = null) {
       if (!imagem) return null;
 
       if ((await ctx.attachments.countForMessage(messageId)) >= MAX_POR_MENSAGEM) {
@@ -38,6 +38,17 @@ export function attachmentsService(ctx, requests) {
       } catch (problema) {
         /* Mensagem do validador é escrita para o usuário final. */
         throw badRequest(problema.message);
+      }
+
+      /* Cota diária por usuário (quantidade e bytes): o anexo é BLOB no banco. */
+      if (viewer && viewer.role !== ROLES.ADMIN) {
+        const uso = await ctx.attachments.usageByAuthorSince(viewer.id, Date.now() - 24 * 60 * 60 * 1000);
+        if (
+          uso.count >= LIMITS.ATTACHMENTS_PER_DAY ||
+          uso.bytes + validada.size > LIMITS.ATTACHMENT_BYTES_PER_DAY
+        ) {
+          throw tooManyRequests('Você atingiu o limite diário de imagens enviadas. Tente novamente amanhã.');
+        }
       }
 
       const id = await ctx.attachments.create({

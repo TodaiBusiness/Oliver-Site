@@ -53,3 +53,9 @@ test('sem projetos públicos, lista inválida ou só itens sem título, usa a re
     assert.deepEqual(picked.others.map((p) => p.id), ['site']);
   }
 });
+
+test('os projetos do arquivo estático usam só status que existem no admin', async () => {
+  const { projects } = await import('../src/data/projects.js');
+  const validos = ['RASCUNHO', 'EM_DESENVOLVIMENTO', 'ENTREGUE'].map((status) => fromApi({ id: 'x', title: 'x', status }).status);
+  for (const projeto of projects) assert.ok(validos.includes(projeto.status), `${projeto.id}: "${projeto.status}"`);
+});
