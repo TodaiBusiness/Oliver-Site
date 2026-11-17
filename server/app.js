@@ -32,6 +32,7 @@ import { requestsService } from './services/requests.js';
 import { clientsService } from './services/clients.js';
 import { messagesService } from './services/messages.js';
 import { attachmentsService } from './services/attachments.js';
+import { panelProjectsService } from './services/panelProjects.js';
 import { panelConversationsService, parseServiceId } from './services/panelConversations.js';
 import { quoteRequestsService } from './services/quoteRequests.js';
 import { checkoutService } from './services/checkout.js';
@@ -170,6 +171,7 @@ export function createApp(
   const attachments = attachmentsService(ctx, requests);
   const messages = messagesService(ctx, requests, attachments);
   const panelConversations = panelConversationsService(ctx);
+  const panelProjects = panelProjectsService(ctx, projects);
   const clients = clientsService(ctx);
 
   const router = createRouter();
@@ -911,6 +913,69 @@ export function createApp(
       return {
         status: 200,
         raw: { buffer: arquivo.buffer, contentType: arquivo.mime, filename: arquivo.filename },
+      };
+    },
+    svc
+  );
+
+  /* Projetos do site (tela "Site" do Panel). Corpo ≤ 32 KB (o porteiro já limita a
+     leitura; aqui vale também para quem chama `handle` direto). */
+  const serviceProjectBody = (body) => {
+    if (Buffer.byteLength(JSON.stringify(body ?? {})) > LIMITS.SERVICE_MAX_BODY_BYTES) {
+      throw new AppError(413, 'CORPO_GRANDE_DEMAIS', 'O corpo da requisição passa do tamanho permitido.');
+    }
+    return body && typeof body === 'object' && !Array.isArray(body) ? body : {};
+  };
+
+  router.get(
+    '/api/service/projects',
+    async ({ query }) => ({
+      status: 200,
+      body: { projects: await panelProjects.list(parsePagination(query)) },
+    }),
+    svc
+  );
+
+  router.get(
+    '/api/service/projects/:id',
+    async ({ params }) => ({
+      status: 200,
+      body: { project: await panelProjects.get(requireServiceId(params.id)) },
+    }),
+    svc
+  );
+
+  router.post(
+    '/api/service/projects',
+    async ({ body }) => ({
+      status: 201,
+      body: { project: await panelProjects.create(serviceProjectBody(body)) },
+    }),
+    svc
+  );
+
+  router.put(
+    '/api/service/projects/:id',
+    async ({ params, body }) => {
+      const id = requireServiceId(params.id);
+      return { status: 200, body: { project: await panelProjects.update(id, serviceProjectBody(body)) } };
+    },
+    svc
+  );
+
+  router.delete(
+    '/api/service/projects/:id',
+    async ({ params, query }) => {
+      const result = await panelProjects.remove(requireServiceId(params.id), query);
+      if (!result.linked) return { status: 204 };
+      return {
+        status: 409,
+        body: {
+          error: 'PROJETO_VINCULADO',
+          code: 'PROJETO_VINCULADO',
+          message: 'Este projeto está ligado a clientes. Oculte-o em vez de excluir.',
+          clientCount: result.linked,
+        },
       };
     },
     svc

@@ -172,7 +172,7 @@ export function projectsService(ctx) {
       return toPublicProject(row);
     },
 
-    async create(admin, input) {
+    async create(admin, input, auditExtra = {}) {
       const data = await normalize(input);
       const id = await ctx.projects.create(data);
 
@@ -181,13 +181,13 @@ export function projectsService(ctx) {
         action: AUDIT_ACTIONS.PROJECT_CREATED,
         resourceType: 'project',
         resourceId: id,
-        details: { title: data.title },
+        details: { title: data.title, ...auditExtra },
       });
 
       return this.getById(id);
     },
 
-    async update(admin, id, input) {
+    async update(admin, id, input, auditExtra = {}) {
       const existing = await ctx.projects.findById(id);
       if (!existing) throw notFound('Projeto não encontrado.');
 
@@ -199,7 +199,7 @@ export function projectsService(ctx) {
         action: AUDIT_ACTIONS.PROJECT_UPDATED,
         resourceType: 'project',
         resourceId: id,
-        details: { title: data.title },
+        details: { title: data.title, ...auditExtra },
       });
 
       return this.getById(id);

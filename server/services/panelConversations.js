@@ -23,10 +23,10 @@ const MAX_LIMIT = 100;
 
 /* Id do administrador no Panel: bigint enviado como texto ("3"); aceita também guid. */
 const CLIENT_MESSAGE_ID = /^[A-Za-z0-9_-]{8,64}$/;
-const ADMIN_ID = /^[A-Za-z0-9_-]{1,64}$/;
+export const ADMIN_ID = /^[A-Za-z0-9_-]{1,64}$/;
 /* Nome exibido ao cliente: sem controle (quebra de linha, NUL...) e sem < > —
    o React já escapa, mas o nome também pode ir parar em e-mail, log, PDF. */
-const NAME_FORBIDDEN = /[\p{Cc}\p{Cf}<>]/u;
+export const NAME_FORBIDDEN = /[\p{Cc}\p{Cf}<>]/u;
 /* Nome do arquivo da imagem: sem controle, formatação (bidi/zero-width), < > e
    caracteres que o Windows não aceita em nome de arquivo. Acento e emoji ficam. */
 const FILENAME_FORBIDDEN = /[\p{Cc}\p{Cf}<>:"|?*]/gu;
@@ -62,7 +62,8 @@ const oneLine = (text) => String(text ?? '').replace(/\s+/g, ' ').trim();
 
 const iso = (ms) => new Date(Number(ms)).toISOString();
 
-export function panelConversationsService(ctx) {
+/** Resolve (uma vez) o id do usuário de sistema, recusando conta que não seja a de verdade. */
+export function createSystemUserResolver(ctx) {
   let systemUserId = null;
 
   /** Usuário de sistema (a migração já o cria; aqui é só a garantia). */
@@ -93,6 +94,12 @@ export function panelConversationsService(ctx) {
     systemUserId = row.id;
     return systemUserId;
   }
+
+  return getSystemUserId;
+}
+
+export function panelConversationsService(ctx) {
+  const getSystemUserId = createSystemUserResolver(ctx);
 
   async function requireRequest(requestId) {
     const request = await ctx.requests.findByIdWithUser(requestId);

@@ -171,6 +171,21 @@ subdomínios; `src/utils/checkoutUrl.js`).
     dois passos com compensação; um crash exatamente entre os dois deixaria uma mensagem de texto vazia (o reenvio com o mesmo
     `clientMessageId` devolveria essa mensagem sem imagem). Painel de admin do site sem cota de imagens: a cota diária do chat vale só para clientes.
 
+- **Projetos do site pelo Panel** (`/api/service/projects`: GET lista e GET `:id`, POST, PUT, DELETE; `server/services/panelProjects.js`).
+  - Mesmo porteiro dos demais `/api/service/*` (chave em tempo constante antes de rotear e de ler corpo, 503 sem chave, 403 com `Origin`, cookie ignorado,
+    rate limit por IP e por falha de chave). Corpo máx. 32 KB (também conferido na rota: 413). Independe de `SITE_ADMIN_ENABLED`.
+  - **Uma só regra de validação**: o service chama `projectsService.create/update` (os mesmos do antigo admin): título 1..160, tagline ≤255, textos ≤4000,
+    categoria ≤80, imagem ≤500, status na lista, listas cortadas em 30 itens, `pick` dos campos editáveis (id, slug, datas, `clientCount` e qualquer extra no corpo são
+    ignorados). PUT é objeto completo (campo omitido vira vazio/padrão). Erros: 400 `DADOS_INVALIDOS` com `details` por campo; slug repetido: 409; id não numérico: 400; inexistente: 404.
+  - **Link**: só `http:`/`https:`; qualquer outro valor (`javascript:`, `data:`, texto) vira `null` SEM erro (comportamento antigo mantido; evita XSS armazenado
+    no site público). `image` é só texto (URL), o servidor nunca a busca (sem SSRF); o front público a usa em `<img src>`.
+  - **Ator**: `actorId` `[A-Za-z0-9_-]{1,64}`, `actorName` 1..80 sem controle/`<`/`>` (no corpo; no DELETE, na query). Inválido: 400 antes de qualquer escrita. A auditoria
+    (`PROJETO_CRIADO/EDITADO/EXCLUIDO`) grava `userId` = usuário de sistema (mesma checagem de papel/hash do envio de mensagens) e `details` = `{ title, actorId, actorName }`, nunca a descrição.
+    Nenhuma resposta traz o e-mail do usuário de sistema nem colunas internas.
+  - **Exclusão**: `DELETE ... WHERE NOT EXISTS (client_projects)` num único comando (sem corrida com um vínculo novo). Com vínculo: 409 `{ error/code: "PROJETO_VINCULADO", message, clientCount }`
+    e nada é apagado (o `ON DELETE CASCADE` do banco nunca é acionado por aqui). O Panel oferece "Ocultar do site" (`isPublic=false`).
+  - Projeto `isPublic=false` (ou rascunho oculto) não sai em `/api/projects`; confirmado por teste. Rotas e front públicos não mudaram.
+
 ## Visitas do site
 
 Detalhes em `docs/VISITANTES.md`. Em resumo: `POST /api/analytics/collect` confere `Origin` e user agent, mas isso **só

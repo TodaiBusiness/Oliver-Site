@@ -22,7 +22,7 @@ export function projectsRepository(db) {
       return db.query(
         `SELECT ${FIELDS}
            FROM projects
-          ORDER BY featured DESC, created_at DESC
+          ORDER BY featured DESC, created_at DESC, id DESC
           LIMIT ? OFFSET ?`,
         [limit, offset]
       );
@@ -102,6 +102,32 @@ export function projectsRepository(db) {
       const { affectedRows } = await db.execute('DELETE FROM projects WHERE id = ?', [
         id,
       ]);
+      return affectedRows > 0;
+    },
+
+    /** Quantos clientes estão vinculados a cada projeto: Map(id → total). */
+    async clientCounts(ids) {
+      const map = new Map();
+      if (!ids.length) return map;
+      const rows = await db.query(
+        `SELECT project_id, COUNT(*) AS total
+           FROM client_projects
+          WHERE project_id IN (${ids.map(() => '?').join(', ')})
+          GROUP BY project_id`,
+        ids
+      );
+      for (const row of rows) map.set(Number(row.project_id), Number(row.total));
+      return map;
+    },
+
+    /** Apaga só se NÃO houver vínculo (checagem e DELETE num único comando, sem corrida). */
+    async deleteIfUnlinked(id) {
+      const { affectedRows } = await db.execute(
+        `DELETE FROM projects
+          WHERE id = ?
+            AND NOT EXISTS (SELECT 1 FROM client_projects WHERE project_id = ?)`,
+        [id, id]
+      );
       return affectedRows > 0;
     },
 
