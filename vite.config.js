@@ -7,7 +7,7 @@ const API_PORT = process.env.API_PORT ?? 8788;
    escrito à mão no index.html, porque ele muda: primeiro é o .onrender.com,
    depois virou o domínio próprio. O padrão é o domínio de produção, então um deploy sem VITE_SITE_URL ainda gera meta tags válidas
    em vez de uma URL de exemplo — que o Google indexaria como canonical. */
-const SITE_URL = (process.env.VITE_SITE_URL || 'https://todai.com.br')
+const SITE_URL = (process.env.VITE_SITE_URL || 'https://todaibusiness.com')
   .trim()
   .replace(/\/+$/, '');
 

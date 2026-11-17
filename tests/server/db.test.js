@@ -77,7 +77,10 @@ test('e-mail duplicado é barrado pela constraint UNIQUE', async () => {
       'o banco deve recusar e-mail repetido'
     );
 
-    const total = await db.queryOne('SELECT COUNT(*) AS total FROM users');
+    /* Fora o usuário de sistema que a migração cria. */
+    const total = await db.queryOne(
+      "SELECT COUNT(*) AS total FROM users WHERE email <> 'atendimento@sistema.todai.invalid'"
+    );
     assert.equal(Number(total.total), 1);
   } finally {
     close();
@@ -200,7 +203,9 @@ test('a transação desfaz tudo quando algo falha no meio', async () => {
       })
     );
 
-    const total = await db.queryOne('SELECT COUNT(*) AS total FROM users');
+    const total = await db.queryOne(
+      "SELECT COUNT(*) AS total FROM users WHERE email <> 'atendimento@sistema.todai.invalid'"
+    );
     assert.equal(Number(total.total), 0, 'o INSERT deveria ter sido revertido');
   } finally {
     close();

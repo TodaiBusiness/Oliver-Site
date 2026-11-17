@@ -6,7 +6,7 @@
    é cosmético — quem barra é este arquivo.
    ========================================================================= */
 
-import { AUDIT_ACTIONS, ROLES, SECURITY, config } from './config.js';
+import { AUDIT_ACTIONS, LIMITS, ROLES, SECURITY, config } from './config.js';
 import { createContext } from './context.js';
 import { createRouter } from './http/router.js';
 import {
@@ -23,6 +23,7 @@ import {
   unauthorized,
 } from './http/errors.js';
 import { clientAddress } from './http/clientAddress.js';
+import { createServiceAuth } from './http/serviceAuth.js';
 import { createRateLimiter, createWindowCounter } from './http/rateLimit.js';
 import { parsePagination, pick, toId } from './http/validation.js';
 import { authService } from './services/auth.js';
@@ -31,6 +32,7 @@ import { requestsService } from './services/requests.js';
 import { clientsService } from './services/clients.js';
 import { messagesService } from './services/messages.js';
 import { attachmentsService } from './services/attachments.js';
+import { panelConversationsService, parseServiceId } from './services/panelConversations.js';
 import { quoteRequestsService } from './services/quoteRequests.js';
 import { checkoutService } from './services/checkout.js';
 import { accountService } from './services/account.js';
@@ -82,6 +84,13 @@ const COLLECT_MAX_PER_IP = 30;
 const COLLECT_DAY_MS = 24 * 60 * 60 * 1000;
 const COLLECT_MAX_PER_IP_DAY = 1500;
 
+/* Endpoints de serviço (Panel → site): poucas chamadas, mas vindas de um único
+   IP (a API do Panel). Teto folgado para o uso normal (polling de 30 s) e um
+   teto bem menor só para chave errada. */
+const SERVICE_WINDOW_MS = 60 * 1000;
+const SERVICE_FAIL_WINDOW_MS = 10 * 60 * 1000;
+const SERVICE_FAIL_MAX_PER_IP = 20;
+
 /* O corpo legítimo tem poucas dezenas de bytes (a coleta grava numa única
    instrução). Teto próprio, bem abaixo do global (pensado para upload). */
 export const COLLECT_MAX_BODY_BYTES = 2048;
@@ -89,6 +98,7 @@ export const COLLECT_MAX_BODY_BYTES = 2048;
 /** Teto de corpo por caminho; `null` = vale o teto global do servidor. */
 export function bodyLimitFor(path) {
   if (path === '/api/analytics/collect') return COLLECT_MAX_BODY_BYTES;
+  if (typeof path === 'string' && path.startsWith('/api/service/')) return LIMITS.SERVICE_MAX_BODY_BYTES;
   /* Login, cadastro, 2FA, troca de senha: poucas dezenas de bytes. O teto
      global (feito para a imagem do chat) não faz sentido aqui. */
   if (typeof path === 'string' && path.startsWith('/api/auth/')) return SECURITY.AUTH_MAX_BODY_BYTES;
@@ -132,10 +142,14 @@ export function createApp(
     forgotMinMs = 1200,
     vault,
     analytics = analyticsService(db, { readKey: config.analytics.readKey, allowedOrigins }),
+    adminEnabled = config.siteAdminEnabled,
+    serviceKey = config.service.apiKey,
+    serviceRatePerMin = config.service.ratePerMin,
   } = {}
 ) {
   const ctx = createContext(db, vault ? { vault } : undefined);
-  const auth = authService(ctx);
+  const auth = authService(ctx, { adminEnabled });
+  const serviceAuth = createServiceAuth(serviceKey);
   const accountSecurity = accountSecurityService(ctx);
   const twoFactor = twoFactorService(ctx);
   const passwordReset = passwordResetService(ctx, { mailer, minDurationMs: forgotMinMs });
@@ -144,6 +158,7 @@ export function createApp(
   const requests = requestsService(ctx);
   const attachments = attachmentsService(ctx, requests);
   const messages = messagesService(ctx, requests, attachments);
+  const panelConversations = panelConversationsService(ctx);
   const clients = clientsService(ctx);
 
   const router = createRouter();
@@ -169,6 +184,11 @@ export function createApp(
   });
   const resetLimiter = createRateLimiter({ max: RESET_MAX_PER_IP, windowMs: AUTH_WINDOW_MS });
 
+  const serviceLimiter = createRateLimiter({ max: serviceRatePerMin, windowMs: SERVICE_WINDOW_MS });
+  const serviceFailLimiter = createRateLimiter({
+    max: SERVICE_FAIL_MAX_PER_IP,
+    windowMs: SERVICE_FAIL_WINDOW_MS,
+  });
   const collectLimiter = createRateLimiter({ max: COLLECT_MAX_PER_IP, windowMs: COLLECT_WINDOW_MS });
   /* Janela diária por IP: só um contador em memória, sem lista de instantes. */
   const collectDaily = createWindowCounter({ max: COLLECT_MAX_PER_IP_DAY, windowMs: COLLECT_DAY_MS });
@@ -185,6 +205,12 @@ export function createApp(
   }));
 
   router.get('/api/health', async () => ({ status: 200, body: { ok: true } }));
+
+  /* Só o que o front precisa saber para montar a navegação. Nada sensível. */
+  router.get('/api/config/public', async () => ({
+    status: 200,
+    body: { adminEnabled: adminEnabled === true },
+  }));
 
   /* Visitas do site (agregado, sem IP nem cookie — docs/VISITANTES.md). Não há
      CORS: só a própria origem do site pode chamar; sem `Origin` válido a
@@ -796,6 +822,84 @@ export function createApp(
     adminOnly
   );
 
+  /* ------------------------------------------------- serviço (API do Panel)
+
+     Chamado de servidor para servidor com X-Service-Key; nunca por navegador de
+     cliente (sem a chave, nada abre; cookie de sessão é ignorado). As rotas
+     marcadas `service: true` passam por `guardService` no despacho. */
+
+  const svc = { service: true };
+
+  /* Id de solicitação/anexo no caminho: só dígitos. */
+  const requireServiceId = (raw) => {
+    const id = parseServiceId(raw);
+    if (!id) throw badRequest('Identificador inválido.');
+    return id;
+  };
+
+  router.get(
+    '/api/service/conversations',
+    async ({ query }) => ({
+      status: 200,
+      body: { conversations: await panelConversations.listConversations(query) },
+    }),
+    svc
+  );
+
+  /* Declarada antes de /:id (o roteador casa o primeiro que servir). */
+  router.get(
+    '/api/service/conversations/unread',
+    async () => ({ status: 200, body: { count: await panelConversations.unreadCount() } }),
+    svc
+  );
+
+  router.get(
+    '/api/service/conversations/:id',
+    async ({ params }) => ({
+      status: 200,
+      body: await panelConversations.getConversation(requireServiceId(params.id)),
+    }),
+    svc
+  );
+
+  router.post(
+    '/api/service/conversations/:id/read',
+    async ({ params }) => {
+      await panelConversations.markRead(requireServiceId(params.id));
+      return { status: 204 };
+    },
+    svc
+  );
+
+  router.post(
+    '/api/service/conversations/:id/messages',
+    async ({ params, body }) => {
+      if (Buffer.byteLength(JSON.stringify(body ?? {})) > LIMITS.SERVICE_MAX_BODY_BYTES) {
+        throw new AppError(413, 'CORPO_GRANDE_DEMAIS', 'O corpo da requisição passa do tamanho permitido.');
+      }
+      const requestId = requireServiceId(params.id);
+      /* Só estes campos são lidos: autor, papel ou data no corpo não têm efeito. */
+      const input = pick(body, ['body', 'adminId', 'adminName', 'clientMessageId']);
+      return {
+        status: 201,
+        body: { message: await panelConversations.sendMessage(requestId, input) },
+      };
+    },
+    svc
+  );
+
+  router.get(
+    '/api/service/attachments/:id',
+    async ({ params }) => {
+      const arquivo = await panelConversations.downloadAttachment(requireServiceId(params.id));
+      return {
+        status: 200,
+        raw: { buffer: arquivo.buffer, contentType: arquivo.mime, filename: arquivo.filename },
+      };
+    },
+    svc
+  );
+
   /* ------------------------------------------------------------ execução */
 
   /**
@@ -815,10 +919,48 @@ export function createApp(
     );
   }
 
+  /**
+   * Porteiro dos endpoints de serviço. Ordem: limite por IP, chave configurada
+   * (503), pedido de navegador (403) e, por fim, a chave (401 sem detalhe).
+   */
+  function guardService(headers, remoteAddress) {
+    const ip = clientAddress(headers, remoteAddress);
+    if (!serviceLimiter.hit(ip)) throw tooManyRequests('Muitas requisições.');
+
+    if (!serviceAuth.enabled) {
+      throw new AppError(503, 'SERVICO_DESLIGADO', 'O serviço não está configurado.');
+    }
+
+    /* Navegador sempre manda Origin em POST e em fetch entre origens; a API do
+       Panel não. Quem manda é página web, e página web não é cliente deste serviço. */
+    if (headers.origin !== undefined) throw forbidden('Requisição não permitida.');
+
+    if (!serviceAuth.authorize(headers['x-service-key'])) {
+      if (!serviceFailLimiter.hit(ip)) throw tooManyRequests('Muitas requisições.');
+      throw unauthorized('Não autorizado.');
+    }
+  }
+
   async function dispatch(request, headers) {
     try {
       const method = String(request.method ?? 'GET').toUpperCase();
       const path = String(request.path ?? '');
+
+      /* Administração do site desligada: nada de /api/admin/*, nem para saber
+         se a rota existe. (A leitura de analytics fica em /api/analytics/report,
+         com a própria chave.) */
+      if (!adminEnabled && (path === '/api/admin' || path.startsWith('/api/admin/'))) {
+        throw new AppError(
+          410,
+          'ADMIN_DESATIVADO',
+          'A administração agora é feita no Panel TODAI. Esta área do site foi desativada.'
+        );
+      }
+
+      /* Qualquer caminho sob /api/service/ passa pelo porteiro ANTES do roteamento:
+         sem a chave nem a existência da rota é revelada. */
+      const isService = path.startsWith('/api/service/') || path === '/api/service';
+      if (isService) guardService(headers, request.remoteAddress);
 
       const found = router.match(method, path);
       if (!found) throw notFound('Rota não encontrada.');
@@ -827,6 +969,19 @@ export function createApp(
       }
 
       const { route, params } = found;
+
+      /* Serviço (já autenticado acima): nem cookie nem Origin entram na conta. */
+      if (route.options.service) {
+        const result = await route.handler({
+          params,
+          query: request.query ?? {},
+          body: request.body ?? {},
+          headers,
+          remoteAddress: request.remoteAddress,
+        });
+        if (result.raw) return respondRaw(result.status ?? 200, result.raw);
+        return respond(result.status ?? 200, result.body);
+      }
 
       /* CSRF: requisição que altera estado precisa vir da própria origem
          (Origin, ou Referer, ou Sec-Fetch-Site). Combinado com SameSite=Lax,

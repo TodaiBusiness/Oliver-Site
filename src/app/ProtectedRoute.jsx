@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext.jsx';
+import AdminDisabled from '../pages/AdminDisabled.jsx';
 
 /**
  * Esconde rotas de quem não deveria vê-las.
@@ -8,16 +9,22 @@ import { useAuth } from './AuthContext.jsx';
  * toda requisição — remover este componente não daria acesso a dado nenhum.
  */
 export default function ProtectedRoute({ children, requireAdmin = false }) {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, configLoading, isAdmin, adminEnabled } = useAuth();
   const location = useLocation();
 
-  if (loading) {
+  if (loading || configLoading) {
     return (
       <div className="panel-loading" role="status" aria-live="polite">
         <span className="panel-loading__dot" />
         Carregando…
       </div>
     );
+  }
+
+  /* Administração do site desligada: aviso para todos (logados ou não), sem
+     redirecionar para o login e sem montar nada do painel. */
+  if (requireAdmin && !adminEnabled) {
+    return <AdminDisabled />;
   }
 
   if (!user) {

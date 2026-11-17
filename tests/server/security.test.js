@@ -42,7 +42,7 @@ test('SQL injection no login não autentica nem quebra o banco', async () => {
     }
 
     /* A tabela continua de pé e o usuário existe. */
-    const usuarios = await ctx.db.query('SELECT id FROM users');
+    const usuarios = await ctx.db.query("SELECT id FROM users WHERE role = 'CLIENT'");
     assert.equal(usuarios.length, 1, 'nenhuma tabela pode ter sido destruída');
   } finally {
     close();
@@ -67,7 +67,7 @@ test('SQL injection na busca de clientes é tratada como texto', async () => {
       'a injeção não pode virar filtro verdadeiro'
     );
 
-    const usuarios = await ctx.db.query('SELECT id FROM users');
+    const usuarios = await ctx.db.query("SELECT id FROM users WHERE email <> 'atendimento@sistema.todai.invalid'");
     assert.equal(usuarios.length, 2, 'banco intacto');
   } finally {
     close();

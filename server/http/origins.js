@@ -7,8 +7,15 @@
    ========================================================================= */
 
 /* Origens de produção da TODAI. Valem fora do Render (sem RENDER_EXTERNAL_URL) com
-   NODE_ENV=production, para a VPS não depender de variável do Render. */
-const ORIGENS_PRODUCAO = ['https://todai.com.br', 'https://www.todai.com.br'];
+   NODE_ENV=production, para a VPS não depender de variável do Render.
+   O domínio oficial é todaibusiness.com; todai.com.br fica só como origem extra
+   (quem ainda chega pelo endereço antigo, enquanto o redirecionamento existir). */
+const ORIGENS_PRODUCAO = [
+  'https://todaibusiness.com',
+  'https://www.todaibusiness.com',
+  'https://todai.com.br',
+  'https://www.todai.com.br',
+];
 
 export function parseAllowedOrigins(env = process.env, { exigir = false } = {}) {
   const origens = [...(env.ALLOWED_ORIGINS ?? '').split(','), env.RENDER_EXTERNAL_URL ?? '',

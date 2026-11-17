@@ -14,6 +14,18 @@ export const ROLES = Object.freeze({
   ADMIN: 'ADMIN',
 });
 
+/* Usuário de sistema que assina, no banco do site, as mensagens enviadas pelo
+   Panel. Existe só para satisfazer a chave estrangeira de messages.author_id:
+   não tem senha utilizável (hash inválido), nunca autentica e não é cliente.
+   O nome de quem respondeu fica em messages.author_external_name. */
+export const SYSTEM_USER = Object.freeze({
+  NAME: 'TODAI Atendimento',
+  EMAIL: 'atendimento@sistema.todai.invalid',
+});
+
+/** Hash gravado no usuário de sistema: não é scrypt, então nenhuma senha confere. */
+export const LOGIN_DISABLED_HASH = '!login-desativado';
+
 /** Estados possíveis de uma solicitação. */
 export const REQUEST_STATUS = Object.freeze({
   NEW: 'NOVO',
@@ -45,6 +57,9 @@ const readEnv = (key, fallback = undefined) => {
 };
 
 /** Número positivo vindo do ambiente; o que não for vira o padrão. */
+/** Valor com espaços/quebras de linha das pontas removidos (a API do Panel também faz trim). */
+const readTrimmed = (key) => readEnv(key)?.trim() || undefined;
+
 const readPositive = (key, fallback) => {
   const value = Number(readEnv(key));
   return Number.isFinite(value) && value > 0 ? value : fallback;
@@ -76,6 +91,7 @@ export const AUDIT_ACTIONS = Object.freeze({
   SESSIONS_REVOKED_ALL: 'SESSOES_ENCERRADAS',
   PASSWORD_RESET_REQUESTED: 'SENHA_RECUPERACAO_PEDIDA',
   PASSWORD_RESET: 'SENHA_REDEFINIDA',
+  SERVICE_MESSAGE_SENT: 'MENSAGEM_PANEL_ENVIADA',
 });
 
 /* ------------------------------------------------------------ segurança */
@@ -149,6 +165,10 @@ export const LIMITS = Object.freeze({
   TITLE_MAX: 160,
   DESCRIPTION_MAX: 4000,
   MESSAGE_MAX: 4000,
+  SERVICE_ADMIN_NAME_MAX: 80,
+  /* 32 KB: o cliente C# escapa não-ASCII (\uXXXX), então 4000 caracteres acentuados
+     ou emoji passam fácil de 8 KB. */
+  SERVICE_MAX_BODY_BYTES: 32 * 1024,
   URL_MAX: 500,
   PAGE_SIZE: 20,
   PAGE_SIZE_MAX: 100,
@@ -241,13 +261,28 @@ export const config = Object.freeze({
     readKey: readEnv('ANALYTICS_READ_KEY'),
   }),
 
+  /* Administração dentro do site. Desligada por padrão: os administradores são os
+     do Panel (que responde as conversas por /api/service). Com `true` o /admin
+     do site volta a funcionar como antes (reserva/rollback). */
+  siteAdminEnabled: ['true', '1'].includes(String(readEnv('SITE_ADMIN_ENABLED', '')).toLowerCase()),
+
+  /* Chave dos endpoints de serviço (/api/service/*), usados pela API do Panel.
+     É a mesma string de SITE_SERVICE_API_KEY na API de licenciamento. Sem ela, ou
+     com menos de 32 caracteres, esses endpoints respondem 503. Nunca chega ao
+     navegador. */
+  service: Object.freeze({
+    apiKey: readTrimmed('SITE_SERVICE_API_KEY'),
+    /* Pedidos por minuto por IP. Todos os admins chegam pelo IP da API do Panel. */
+    ratePerMin: readPositive('SERVICE_RATE_LIMIT_PER_MIN', 1200),
+  }),
+
   /* API de licenças TODAI — a API central. Os orçamentos pedidos aqui não ficam no
      banco do site: são gravados lá, onde o Panel Desktop os lê. A chave é de
      serviço (não é sessão de administrador) e nunca chega ao navegador: quem
      chama é este servidor. */
   licensing: Object.freeze({
     baseUrl: readEnv('LICENSING_API_BASE_URL'),
-    serviceKey: readEnv('SITE_SERVICE_API_KEY'),
+    serviceKey: readTrimmed('SITE_SERVICE_API_KEY'),
 
     /* O plano gratuito do Render hiberna: o primeiro pedido depois da
        inatividade acorda o serviço e demora. Abaixo disso, um orçamento

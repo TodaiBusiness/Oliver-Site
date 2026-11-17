@@ -20,7 +20,7 @@ async function setup() {
       sent.push(mail);
     },
   };
-  const app = createApp(db, { mailer, forgotMinMs: 0 });
+  const app = createApp(db, { mailer, forgotMinMs: 0, adminEnabled: true });
   return { app, db, ctx: createContext(db), sent, close: () => db.close() };
 }
 
@@ -274,7 +274,7 @@ test('mailer: sem chave em dev só registra no console; com chave chama o Resend
   const calls = [];
   const live = createMailer({
     apiKey: 're_123',
-    from: 'TODAI <nao-responda@todai.com.br>',
+    from: 'TODAI <nao-responda@todaibusiness.com>',
     isProduction: true,
     fetchImpl: async (url, init) => {
       calls.push({ url, init });
@@ -286,7 +286,7 @@ test('mailer: sem chave em dev só registra no console; com chave chama o Resend
   assert.equal(calls[0].init.headers.Authorization, 'Bearer re_123');
   const payload = JSON.parse(calls[0].init.body);
   assert.deepEqual(payload.to, ['a@b.com']);
-  assert.equal(payload.from, 'TODAI <nao-responda@todai.com.br>');
+  assert.equal(payload.from, 'TODAI <nao-responda@todaibusiness.com>');
 
   const quebrado = createMailer({ apiKey: 'k', from: 'f@x.com', fetchImpl: async () => ({ ok: false, status: 500 }) });
   await assert.rejects(quebrado.send({ to: 'a@b.com', subject: 's', text: 't' }), /500/);

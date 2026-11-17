@@ -21,6 +21,14 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
   (`Panel-Desktop/deploy/hostinger`) ainda baixa `oliver-site`. Quando o Panel-Desktop passar a usar `todai-site` e isso
   estiver na VPS, apagar a segunda linha de `tags:` e, depois, o pacote `oliver-site` do GHCR.
 
+### Panel e administração
+
+- **P-090** · 2026-11-16 · **Etapa 2 do Panel: 2FA e telas de clientes/projetos/auditoria.** As conversas com clientes já são
+  respondidas pelo Panel (`/api/service/*`, etapa 1). Faltam no Panel o 2FA dos administradores (hoje só existe no /admin do site) e as
+  telas de clientes, projetos do site e auditoria. O `/admin` do site está **desligado por flag** (`SITE_ADMIN_ENABLED=false`, padrão):
+  só ligar de novo como reserva/rollback. Também: usuário de sistema "TODAI Atendimento" é criado pela migração; definir a mesma
+  `SITE_SERVICE_API_KEY` no site e na API do Panel.
+
 ### Segurança da conta
 
 - **P-019** · 2026-11-16 · **Fechar as pontas da segurança de contas (2FA, recuperação de senha, sessões).** O servidor já tem tudo

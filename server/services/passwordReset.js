@@ -16,7 +16,7 @@ import { randomBytes } from 'node:crypto';
 import { AUDIT_ACTIONS, SECURITY, config } from '../config.js';
 import { badRequest } from '../http/errors.js';
 import { createValidator, normalizeEmail } from '../http/validation.js';
-import { hashPassword } from '../security/password.js';
+import { hashPassword, isLoginDisabled } from '../security/password.js';
 import { hashToken } from '../security/tokens.js';
 
 export function passwordResetService(
@@ -62,10 +62,10 @@ export function passwordResetService(
         if (!(allowed && email && email.length <= 190)) return;
         try {
           const user = await ctx.db.queryOne(
-            'SELECT id, name, email FROM users WHERE email = ?',
+            'SELECT id, name, email, password_hash FROM users WHERE email = ?',
             [email]
           );
-          if (user) {
+          if (user && !isLoginDisabled(user.password_hash)) {
             await sendLink(user);
             await ctx.audit.log({
               userId: user.id,

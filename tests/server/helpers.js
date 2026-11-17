@@ -13,11 +13,13 @@ import { hashPassword } from '../../server/security/password.js';
 import { ROLES, SECURITY } from '../../server/config.js';
 
 /** Sobe uma aplicação limpa. */
-export async function createTestApp() {
+export async function createTestApp({ adminEnabled = true, ...options } = {}) {
   const db = await createTestDb();
   await db.init();
 
-  const app = createApp(db);
+  /* A administração do site vem DESLIGADA por padrão em produção; os testes
+     de admin ligam a flag aqui (e os de flag desligada passam adminEnabled: false). */
+  const app = createApp(db, { adminEnabled, ...options });
   const ctx = createContext(db);
 
   return { app, db, ctx, close: () => db.close() };
