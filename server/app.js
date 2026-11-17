@@ -33,6 +33,7 @@ import { clientsService } from './services/clients.js';
 import { messagesService } from './services/messages.js';
 import { attachmentsService } from './services/attachments.js';
 import { panelProjectsService } from './services/panelProjects.js';
+import { panelClientsService } from './services/panelClients.js';
 import { panelConversationsService, parseServiceId } from './services/panelConversations.js';
 import { quoteRequestsService } from './services/quoteRequests.js';
 import { checkoutService } from './services/checkout.js';
@@ -172,6 +173,7 @@ export function createApp(
   const messages = messagesService(ctx, requests, attachments);
   const panelConversations = panelConversationsService(ctx);
   const panelProjects = panelProjectsService(ctx, projects);
+  const panelClients = panelClientsService(ctx, requests);
   const clients = clientsService(ctx);
 
   const router = createRouter();
@@ -978,6 +980,44 @@ export function createApp(
         },
       };
     },
+    svc
+  );
+
+  /* Contas do site, status de solicitações e atividade (telas do Panel). */
+  router.get(
+    '/api/service/clients',
+    async ({ query }) => ({
+      status: 200,
+      body: { clients: await panelClients.listClients(query) },
+    }),
+    svc
+  );
+
+  router.get(
+    '/api/service/clients/:id',
+    async ({ params }) => ({
+      status: 200,
+      body: await panelClients.getClient(requireServiceId(params.id)),
+    }),
+    svc
+  );
+
+  router.post(
+    '/api/service/requests/:id/status',
+    async ({ params, body }) => {
+      const id = requireServiceId(params.id);
+      const input = pick(serviceProjectBody(body), ['status', 'actorId', 'actorName']);
+      return { status: 200, body: { request: await panelClients.setRequestStatus(id, input) } };
+    },
+    svc
+  );
+
+  router.get(
+    '/api/service/audit',
+    async ({ query }) => ({
+      status: 200,
+      body: { entries: await panelClients.listAudit(query) },
+    }),
     svc
   );
 

@@ -55,6 +55,41 @@ export function auditRepository(db) {
       );
     },
 
+    /**
+     * Leitura do Panel. Só colunas que podem sair (sem user_agent). `term` já
+     * escapado (escapeLike, ESCAPE '!'); busca em ação, recurso, nome do usuário
+     * e no nome do ator gravado em details (nunca no resto do details).
+     */
+    async listForService({ action = null, term = null, limit, offset }) {
+      const like = db.dialect === 'postgres' ? 'ILIKE' : 'LIKE';
+      const where = [];
+      const params = [];
+      if (action) {
+        where.push('a.action = ?');
+        params.push(action);
+      }
+      if (term) {
+        const pattern = `%${term}%`;
+        where.push(
+          `(a.action ${like} ? ESCAPE '!' OR a.resource_type ${like} ? ESCAPE '!'
+            OR a.resource_id ${like} ? ESCAPE '!' OR u.name ${like} ? ESCAPE '!'
+            OR a.details ${like} ? ESCAPE '!')`
+        );
+        params.push(pattern, pattern, pattern, pattern, `%"actorName":"%${term}%`);
+      }
+      params.push(limit, offset);
+      return db.query(
+        `SELECT a.id, a.action, a.resource_type, a.resource_id, a.details,
+                a.created_at, a.ip, u.name AS user_name
+           FROM audit_logs a
+           LEFT JOIN users u ON u.id = a.user_id
+          ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+          ORDER BY a.id DESC
+          LIMIT ? OFFSET ?`,
+        params
+      );
+    },
+
     async deleteOlderThan(timestamp) {
       const { affectedRows } = await db.execute(
         'DELETE FROM audit_logs WHERE created_at <= ?',

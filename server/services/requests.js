@@ -93,7 +93,7 @@ export function requestsService(ctx) {
     },
 
     /** Só o admin chega aqui (garantido pelo router). */
-    async updateStatus(admin, requestId, status) {
+    async updateStatus(admin, requestId, status, auditExtra = {}) {
       const validator = createValidator();
       validator.oneOf('status', status, REQUEST_STATUS_VALUES, 'Status');
       validator.assert();
@@ -108,7 +108,7 @@ export function requestsService(ctx) {
         action: AUDIT_ACTIONS.REQUEST_STATUS_CHANGED,
         resourceType: 'request',
         resourceId: requestId,
-        details: { de: existing.status, para: status },
+        details: { de: existing.status, para: status, ...auditExtra },
       });
 
       return ctx.requests.findByIdWithUser(requestId);

@@ -330,7 +330,7 @@ export function panelConversationsService(ctx) {
         action: AUDIT_ACTIONS.SERVICE_MESSAGE_SENT,
         resourceType: 'message',
         resourceId: id,
-        details: { requestId, adminId, imagem: Boolean(imagem) },
+        details: { requestId, adminId, imagem: Boolean(imagem), actorName: adminName },
       });
 
       return shapeById(id);

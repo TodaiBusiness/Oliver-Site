@@ -80,6 +80,21 @@ export function requestsRepository(db) {
       );
     },
 
+    /** Solicitações de um cliente + não lidas (mensagens de CLIENTE ainda não lidas). */
+    async listForClientService(userId, limit = 200) {
+      return db.query(
+        `SELECT r.id, r.type, r.description, r.status, r.created_at,
+                (SELECT COUNT(*) FROM messages m
+                   JOIN users a ON a.id = m.author_id
+                  WHERE m.request_id = r.id AND m.is_read = 0 AND a.role = 'CLIENT') AS unread
+           FROM project_requests r
+          WHERE r.user_id = ?
+          ORDER BY r.created_at DESC, r.id DESC
+          LIMIT ?`,
+        [userId, limit]
+      );
+    },
+
     async updateStatus(id, status) {
       const { affectedRows } = await db.execute(
         'UPDATE project_requests SET status = ?, updated_at = ? WHERE id = ?',

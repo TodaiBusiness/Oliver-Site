@@ -145,6 +145,12 @@ export const cleanText = (value) => {
   return trimmed === '' ? null : trimmed;
 };
 
+/**
+ * Termo de busca para LIKE: `%`, `_` e o próprio escape perdem o poder de
+ * curinga. Use com `ESCAPE '!'` no SQL.
+ */
+export const escapeLike = (value) => String(value).replace(/[!%_]/g, '!$&');
+
 /** Converte para inteiro positivo ou null. */
 export const toId = (value) => {
   const number = Number(value);

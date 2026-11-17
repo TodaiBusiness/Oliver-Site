@@ -8,6 +8,16 @@ import { ROLES } from '../config.js';
 /** Campos públicos. `password_hash` nunca sai daqui. */
 const PUBLIC_FIELDS = 'id, name, company, email, phone, role, created_at';
 
+/* Subconsultas correlacionadas (sem JOIN: dois JOINs inflariam as contagens). */
+const SERVICE_CLIENT_COLUMNS = `
+  u.id, u.name, u.company, u.email, u.phone, u.created_at,
+  (SELECT COUNT(*) FROM project_requests r WHERE r.user_id = u.id) AS request_count,
+  (SELECT COUNT(*) FROM client_projects cp WHERE cp.user_id = u.id) AS project_count,
+  (SELECT MAX(r.updated_at) FROM project_requests r WHERE r.user_id = u.id) AS last_request_at,
+  (SELECT MAX(m.created_at) FROM messages m
+     JOIN project_requests r ON r.id = m.request_id
+    WHERE r.user_id = u.id) AS last_message_at`;
+
 export function usersRepository(db) {
   return {
     /** Uso interno da autenticação — único lugar que lê o hash. */
@@ -101,6 +111,37 @@ export function usersRepository(db) {
           ORDER BY u.created_at DESC
           LIMIT ? OFFSET ?`,
         [ROLES.CLIENT, limit, offset]
+      );
+    },
+
+    /* ------------------------------------------------ endpoints de serviço
+       (Panel). Só role CLIENT; nunca password_hash. `term` já vem escapado
+       (escapeLike) e usa ESCAPE '!'. Ordem estável: created_at desc, id desc. */
+
+    async listClientsForService({ term = null, limit, offset }) {
+      const like = db.dialect === 'postgres' ? 'ILIKE' : 'LIKE';
+      const params = [ROLES.CLIENT];
+      let filtro = '';
+      if (term) {
+        const pattern = `%${term}%`;
+        filtro = `AND (u.name ${like} ? ESCAPE '!' OR u.email ${like} ? ESCAPE '!' OR u.company ${like} ? ESCAPE '!')`;
+        params.push(pattern, pattern, pattern);
+      }
+      params.push(limit, offset);
+      return db.query(
+        `SELECT ${SERVICE_CLIENT_COLUMNS}
+           FROM users u
+          WHERE u.role = ? ${filtro}
+          ORDER BY u.created_at DESC, u.id DESC
+          LIMIT ? OFFSET ?`,
+        params
+      );
+    },
+
+    async findClientForService(id) {
+      return db.queryOne(
+        `SELECT ${SERVICE_CLIENT_COLUMNS} FROM users u WHERE u.role = ? AND u.id = ?`,
+        [ROLES.CLIENT, id]
       );
     },
 

@@ -18,26 +18,26 @@ import { ADMIN_ID, NAME_FORBIDDEN, createSystemUserResolver } from './panelConve
 
 const iso = (ms) => new Date(Number(ms)).toISOString();
 
+/** Valida o autor (actorId/actorName) e devolve só o que vai para a auditoria. */
+export function actorOf(input) {
+  const validator = createValidator();
+  if (typeof input?.actorId !== 'string' || !ADMIN_ID.test(input.actorId)) {
+    validator.fail('actorId', 'Identificador do administrador inválido.');
+  }
+  validator.text('actorName', input?.actorName, {
+    min: 1,
+    max: LIMITS.SERVICE_ADMIN_NAME_MAX,
+    label: 'o nome do administrador',
+  });
+  if (typeof input?.actorName === 'string' && NAME_FORBIDDEN.test(input.actorName)) {
+    validator.fail('actorName', 'O nome do administrador tem caracteres não permitidos.');
+  }
+  validator.assert();
+  return { actorId: input.actorId, actorName: input.actorName.trim() };
+}
+
 export function panelProjectsService(ctx, projects) {
   const getSystemUserId = createSystemUserResolver(ctx);
-
-  /** Valida o autor e devolve só o que vai para a auditoria. */
-  function actorOf(input) {
-    const validator = createValidator();
-    if (typeof input?.actorId !== 'string' || !ADMIN_ID.test(input.actorId)) {
-      validator.fail('actorId', 'Identificador do administrador inválido.');
-    }
-    validator.text('actorName', input?.actorName, {
-      min: 1,
-      max: LIMITS.SERVICE_ADMIN_NAME_MAX,
-      label: 'o nome do administrador',
-    });
-    if (typeof input?.actorName === 'string' && NAME_FORBIDDEN.test(input.actorName)) {
-      validator.fail('actorName', 'O nome do administrador tem caracteres não permitidos.');
-    }
-    validator.assert();
-    return { actorId: input.actorId, actorName: input.actorName.trim() };
-  }
 
   /** Formato do contrato: id string, camelCase, datas ISO, clientCount. */
   function shape(row, clientCount) {

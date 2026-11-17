@@ -186,6 +186,24 @@ subdomínios; `src/utils/checkoutUrl.js`).
     e nada é apagado (o `ON DELETE CASCADE` do banco nunca é acionado por aqui). O Panel oferece "Ocultar do site" (`isPublic=false`).
   - Projeto `isPublic=false` (ou rascunho oculto) não sai em `/api/projects`; confirmado por teste. Rotas e front públicos não mudaram.
 
+- **Contas do site, status e atividade pelo Panel** (`GET /api/service/clients`, `GET /api/service/clients/:id`, `POST /api/service/requests/:id/status`,
+  `GET /api/service/audit`; `server/services/panelClients.js`). Mesmo porteiro dos demais `/api/service/*` (401/503/403, cookie ignorado, rate limit, corpo ≤ 32 KB),
+  independente de `SITE_ADMIN_ENABLED`. Testes: `tests/server/serviceClients.test.js`.
+  - **Contas**: só `role = CLIENT` (admin e usuário de sistema nunca aparecem; id deles dá 404). Colunas escolhidas uma a uma: nunca `password_hash`, sessões, tokens, 2FA.
+    O e-mail do cliente sai aqui (contrato) e só aqui. Busca `q` (≤100 caracteres, sem controle) em nome/e-mail/empresa com `LIKE ... ESCAPE '!'` (`%`, `_` literais; valor sempre parâmetro).
+    `limit` 1..100 (padrão 50), `page` 1..100000, valor inválido cai no padrão; ordem `created_at desc, id desc` (estável). Detalhe: até 200 solicitações com `unreadCount`
+    (mensagens de CLIENTE não lidas) e os projetos vinculados (`id`, `title`, `status`). Id não numérico estrito: 400; inexistente: 404.
+  - **Status**: reaproveita `requestsService.updateStatus` (mesma validação contra `REQUEST_STATUS_VALUES` e mesma auditoria `SOLICITACAO_STATUS_ALTERADO` do antigo admin; não há
+    e-mail/efeito colateral nesse fluxo). `userId` = usuário de sistema, ator (`actorId`, `actorName`, validados como no envio de mensagens) em `details` ao lado de `de`/`para`.
+    Inválido: 400 `DADOS_INVALIDOS` com `details` por campo, sem gravar nada; solicitação inexistente: 404.
+  - **Auditoria (leitura)**: resposta montada campo a campo, nunca `details` cru nem `user_agent`. `actorName` = `details.actorName` (admins do Panel) ou nome do usuário do evento
+    (null se não houver, ex.: login de e-mail inexistente). `summary` sai de uma **allowlist de chaves** (`title`, `projeto`, `projectId`, `projetoId`, `requestId`, `de`, `para`, `status`, `rota`,
+    `papel`, `operacao`, `motivo`, `restantes`, `sessoesEncerradas`, `imagem`), só valores primitivos, sem controle/bidi, ≤80 caracteres cada e ≤240 no total. Ficam de fora `ref`
+    (referência opaca do e-mail de login falho), `cliente` (e-mail), `adminId`, e qualquer chave nova até ser incluída de propósito. Filtro `action` exato (`[A-Za-z0-9_]{1,60}`, senão 400);
+    `q` busca em ação, tipo/id do recurso, nome do usuário e **só o `actorName`** dentro de `details` (a busca não serve de oráculo para o resto do `details`). Ordem `id desc`.
+  - **Risco residual**: o `ip` da auditoria é o do cliente HTTP daquele evento; nas ações do Panel é o IP da API do Panel, não o do admin (o admin está em `actorName`). A auditoria
+    de envio de mensagem do Panel passou a gravar também `actorName` (sem o texto).
+
 ## Visitas do site
 
 Detalhes em `docs/VISITANTES.md`. Em resumo: `POST /api/analytics/collect` confere `Origin` e user agent, mas isso **só
