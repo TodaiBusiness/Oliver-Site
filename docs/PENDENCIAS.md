@@ -29,6 +29,11 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
   só ligar de novo como reserva/rollback. Também: usuário de sistema "TODAI Atendimento" é criado pela migração; definir a mesma
   `SITE_SERVICE_API_KEY` no site e na API do Panel.
 
+- **P-091** · 2026-11-17 · **Projetos do site no Panel: upload de imagem e ordenação manual.** A tela "Site" do Panel
+  gerencia projetos por `/api/service/projects`, mas `image` é só uma URL de texto (sem upload/armazenamento de imagem de projeto) e a
+  ordem é fixa (destaque, depois mais recente). Falta: upload de imagem validado por conteúdo (como o do chat) e ordem manual.
+  Detalhe: link inválido vira `null` sem erro (regra antiga mantida); `image` e `link` vazios vêm como `null` na resposta.
+
 ### Segurança da conta
 
 - **P-019** · 2026-11-16 · **Fechar as pontas da segurança de contas (2FA, recuperação de senha, sessões).** O servidor já tem tudo

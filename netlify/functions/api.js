@@ -11,7 +11,7 @@
 
 import { assertProductionConfig } from '../../server/config.js';
 import { getDb } from '../../server/db/index.js';
-import { bodyLimitFor, createApp } from '../../server/app.js';
+import { createApp } from '../../server/app.js';
 import { parseAllowedOrigins } from '../../server/http/origins.js';
 import { normalizeApiPath } from '../../server/http/path.js';
 
@@ -43,11 +43,15 @@ export default async function handler(request) {
     const url = new URL(request.url);
 
     /* O corpo pode vir vazio ou malformado — não pode derrubar a função. */
+    const politica = app.bodyPolicy({
+      path: normalizeApiPath(url.pathname),
+      headers: Object.fromEntries(request.headers),
+    });
     let body = {};
-    if (request.method !== 'GET' && request.method !== 'HEAD') {
+    if (!politica.reject && request.method !== 'GET' && request.method !== 'HEAD') {
       try {
         const raw = await request.text();
-        const limite = bodyLimitFor(normalizeApiPath(url.pathname));
+        const limite = politica.limit;
         if (limite !== null && Buffer.byteLength(raw) > limite) {
           return json(413, {
             error: 'CORPO_GRANDE_DEMAIS',
