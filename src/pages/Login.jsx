@@ -19,6 +19,8 @@ export default function Login() {
 
   /* Passo 2 (só para contas com 2FA): desafio devolvido pelo servidor. */
   const [challenge, setChallenge] = useState(null);
+  const [expiresAt, setExpiresAt] = useState(null);
+  const [secondsLeft, setSecondsLeft] = useState(null);
   const [useRecovery, setUseRecovery] = useState(false);
   const [code, setCode] = useState('');
   const codeRef = useRef(null);
@@ -27,6 +29,25 @@ export default function Login() {
   useEffect(() => {
     if (challenge) codeRef.current?.focus();
   }, [challenge, useRecovery]);
+
+  /* Contagem do desafio: ao zerar, volta para a senha com uma explicação. */
+  useEffect(() => {
+    if (!challenge || !expiresAt) return undefined;
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      setSecondsLeft(left);
+      if (left === 0) {
+        setChallenge(null);
+        setCode('');
+        setUseRecovery(false);
+        setForm((current) => ({ ...current, password: '' }));
+        setError('A verificação expirou. Entre com e-mail e senha novamente.');
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [challenge, expiresAt]);
 
   if (user) {
     return <Navigate to={isAdmin ? '/admin' : '/cliente'} replace />;
@@ -42,6 +63,7 @@ export default function Login() {
 
   const backToPassword = (message = null) => {
     setChallenge(null);
+    setExpiresAt(null);
     setCode('');
     setUseRecovery(false);
     setForm((current) => ({ ...current, password: '' }));
@@ -57,6 +79,7 @@ export default function Login() {
       const result = await login(form.email, form.password);
       if (result.twoFactorRequired) {
         setChallenge(result.challenge);
+        setExpiresAt(result.expiresAt ?? null);
         setCode('');
         return;
       }
@@ -97,7 +120,7 @@ export default function Login() {
   /* Código do app: só dígitos, e envia sozinho ao completar 6. */
   const changeCode = (event) => {
     if (useRecovery) {
-      setCode(event.target.value.toUpperCase());
+      setCode(event.target.value.toUpperCase().slice(0, 24));
       return;
     }
     const digits = event.target.value.replace(/\D/g, '').slice(0, 6);
@@ -156,7 +179,7 @@ export default function Login() {
               autoComplete="one-time-code"
               autoCapitalize="characters"
               spellCheck="false"
-              maxLength={useRecovery ? 20 : 6}
+              maxLength={useRecovery ? 24 : 14}
               placeholder={useRecovery ? 'XXXX-XXXX-XXXX' : '000000'}
               className="field__control sec-code"
               value={code}
@@ -164,6 +187,12 @@ export default function Login() {
               disabled={sending}
               required
             />
+            {secondsLeft !== null ? (
+              <p className="sec-hint" aria-live="off">
+                Esta verificação vale por mais {Math.floor(secondsLeft / 60)}:
+                {String(secondsLeft % 60).padStart(2, '0')}.
+              </p>
+            ) : null}
 
             <button
               type="submit"

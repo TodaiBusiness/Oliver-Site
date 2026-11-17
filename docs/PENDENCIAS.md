@@ -84,6 +84,10 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
   `/obrigado`, `/baixar`, `/termos` e `/privacidade` (ver `docs/LOJA_E_COMPRA.md`). A área do comprador também existe
   (`/minha-licenca`, P-009). Falta a prova da compra de ponta a ponta com o Mercado Pago (P-005 e `docs/COMPRA_AUTOMATICA.md`).
 
+- **P-020** · aberta em 17/11/2026 · Cliente que perdeu o celular e os códigos de recuperação do 2FA não tem autoatendimento (não há
+  e-mail de reset, de propósito). Hoje a equipe roda `scripts/admin-2fa-reset.mjs <e-mail>`; falta um botão de reset no Panel
+  (com identificação do cliente e auditoria).
+
 ## Resolvidas
 
 - **P-016** · aberta em 2026-11-05 · resolvida em 2026-11-05 · **Oliver vira TODAI também por dentro, e a paleta passa a ser

@@ -160,3 +160,49 @@
     letter-spacing: 0.2em;
   }
 }
+
+/* Sugestão discreta no painel do cliente (dispensável). */
+.sec-nudge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md, 0.5rem);
+  background: rgba(var(--ink), 0.02);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.sec-nudge__text {
+  margin: 0;
+}
+
+.sec-nudge__text a {
+  color: var(--accent-300);
+}
+
+.sec-nudge__close {
+  flex: none;
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.sec-nudge__close:hover {
+  color: inherit;
+}
+
+@media (max-width: 520px) {
+  .sec-nudge {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}

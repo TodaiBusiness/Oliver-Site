@@ -71,7 +71,7 @@ export function AuthProvider({ children }) {
    */
   const login = useCallback(async (email, password) => {
     const result = await api.post('/auth/login', { email, password });
-    if (result.twoFactorRequired) return { twoFactorRequired: true, challenge: result.challenge };
+    if (result.twoFactorRequired) return { twoFactorRequired: true, challenge: result.challenge, expiresAt: result.expiresAt };
     setUser(result.user);
     return result.user;
   }, []);

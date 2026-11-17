@@ -21,7 +21,7 @@ bugs que achou e corrigiu os itens marcados com a data, e de novo em 16/11/2026 
 
 ## Contas, sessões e segundo fator (16/11/2026)
 
-### Segundo fator (TOTP) para ADMIN
+### Segundo fator (TOTP) para ADMIN e CLIENT
 
 - RFC 6238 só com `node:crypto` (`server/security/totp.js`; testado com os vetores da RFC): SHA-1, 6 dígitos, 30 s, tolerância de ±1 passo.
 - Ativar: `POST /api/auth/2fa/setup` (exige a **senha**) sorteia o segredo e o guarda pendente; `POST /api/auth/2fa/enable` confirma com um
@@ -39,6 +39,13 @@ bugs que achou e corrigiu os itens marcados com a data, e de novo em 16/11/2026 
   segredos 2FA já cadastrados e os códigos de recuperação** (a chave do HMAC também muda). Saída: `node scripts/admin-2fa-reset.mjs <e-mail>`
   (exige acesso ao banco; apaga segredo, códigos e sessões da conta).
 - Admin **sem** 2FA continua entrando só com senha: ativar é opcional por enquanto (ver pendências).
+- **Clientes (CLIENT)**: o 2FA vale também para o cliente, sempre **opcional** (`required: false` no status). Ele ativa em
+  `/cliente/seguranca`; o login usa o mesmo passo do admin. A trava antiga era só o `requireAdmin` em `server/services/twoFactor.js`
+  (e `isAdmin` na tela); o login em dois passos nunca olhou o papel. Agora só ADMIN e CLIENT passam, e conta com login desligado
+  (usuário de sistema "TODAI Atendimento") é recusada com 403. Todas as proteções acima valem igual para o cliente.
+- **Limitação (sem e-mail de reset de 2FA)**: quem perde o celular **e** os códigos de recuperação não consegue se recuperar sozinho;
+  precisa falar com a equipe, que remove o 2FA direto no banco (`scripts/admin-2fa-reset.mjs <e-mail>`; reset pelo Panel fica para depois).
+  Pendência registrada em `docs/PENDENCIAS.md` (P-020).
 
 ### Senha, sessões e inatividade
 

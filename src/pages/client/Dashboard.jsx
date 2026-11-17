@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Icon from '../../components/Icon.jsx';
 import PanelIcon from '../../components/panel/PanelIcon.jsx';
@@ -78,6 +79,39 @@ function Linha({ status }) {
   );
 }
 
+const AVISO_2FA = 'todai.aviso2fa.dispensado';
+
+/** Sugestão discreta de ativar a verificação em duas etapas; dispensável. */
+function AvisoSeguranca({ user }) {
+  const [oculto, setOculto] = useState(() => {
+    try {
+      return localStorage.getItem(AVISO_2FA) === '1';
+    } catch {
+      return false;
+    }
+  });
+  if (oculto || !user || user.twoFactorEnabled) return null;
+  const dispensar = () => {
+    setOculto(true);
+    try {
+      localStorage.setItem(AVISO_2FA, '1');
+    } catch {
+      /* sem armazenamento: o aviso some só nesta visita */
+    }
+  };
+  return (
+    <aside className="sec-nudge" aria-label="Sugestão de segurança">
+      <p className="sec-nudge__text">
+        Quer proteger melhor a sua conta? Ative a verificação em duas etapas.{' '}
+        <Link to="/cliente/seguranca">Ver como ativar</Link>
+      </p>
+      <button type="button" className="sec-nudge__close" onClick={dispensar} aria-label="Dispensar sugestão">
+        Dispensar
+      </button>
+    </aside>
+  );
+}
+
 export default function ClientDashboard() {
   const { user } = useAuth();
 
@@ -111,6 +145,8 @@ export default function ClientDashboard() {
         titleText="Painel"
         subtitle="Seus projetos, solicitações e conversas em um lugar."
       />
+
+      <AvisoSeguranca user={user} />
 
       <DataState
         loading={carregando}
