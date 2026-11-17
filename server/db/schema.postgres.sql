@@ -108,6 +108,9 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS author_external_name VARCHAR(80) N
 
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS client_message_id    VARCHAR(64) NULL;
 
+-- Aviso por e-mail quando a equipe responde (1 = recebe; o cliente desliga em Conta > Segurança).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_email SMALLINT NOT NULL DEFAULT 1;
+
 CREATE INDEX IF NOT EXISTS ix_messages_unread ON messages (is_read, request_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_messages_client_id
   ON messages (request_id, author_external_id, client_message_id)

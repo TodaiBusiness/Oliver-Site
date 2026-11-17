@@ -15,6 +15,7 @@ import { LIMITS } from '../server/config.js';
 import { getDb } from '../server/db/index.js';
 import { createApp } from '../server/app.js';
 import { lerCorpo } from '../server/http/static.js';
+import { isEventStreamRequest, serveEventStream } from '../server/http/sse.js';
 
 const PORT = Number(process.env.API_PORT ?? 8788);
 
@@ -36,6 +37,11 @@ const app = createApp(db, {
 const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, `http://localhost:${PORT}`);
+    if (isEventStreamRequest(request, url.pathname)) {
+      await serveEventStream(app, request, response);
+      return;
+    }
+
     const politica = app.bodyPolicy({ path: url.pathname, headers: request.headers });
 
     /* /api/service/* sem chave válida: corpo não é lido; o porteiro responde. */

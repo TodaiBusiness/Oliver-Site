@@ -110,6 +110,25 @@ Ver `docs/PENDENCIAS.md`, P-019: telas ainda sem rota no `App.jsx`; `netlify/fun
 opcional (obrigar só depois de todo admin ativar); sem QR code; SQL novo testado só em SQLite; limite por IP e por e-mail em memória (por
 instância); sem verificação de e-mail no cadastro.
 
+## Chat em tempo real e aviso por e-mail ao cliente (17/11/2026)
+
+**Stream de eventos: `GET /api/events` (Server-Sent Events).**
+- Autenticado só pelo cookie de sessão (sem sessão: 401). Resposta `text/event-stream` com `Cache-Control: no-cache, no-transform` e `X-Accel-Buffering: no`; não lê corpo e não usa o limite de corpo. Se há `ALLOWED_ORIGINS`/origens configuradas e a requisição traz `Origin`, ele precisa estar na lista.
+- Eventos: `ready` (ao abrir), `message` `{"requestId":n,"id":n}` e `read` `{"requestId":n,"by":"client"|"team"}`. Nunca levam texto de mensagem nem nome: o navegador busca o conteúdo pela API, que confere a autorização de novo. Batimento `: ping` a cada 25 s.
+- Só o DONO da solicitação recebe os eventos dela (o destinatário é escolhido no servidor, pelo `user_id` da solicitação). Admin não recebe eventos de conversas de clientes por este canal.
+- Disparam em qualquer criação de mensagem (cliente, admin do site, resposta do Panel via serviço) e quando mensagens são lidas (leitura pelo cliente, ou "lida" pelo Panel/admin). O gancho é único: `createMessageHooks` (`server/services/messageEvents.js`), chamado por `messages.js` e `panelConversations.js`; erro no gancho nunca falha a mensagem.
+- Limites: 3 conexões por usuário e 500 no processo (`429` com mensagem clara). O servidor encerra a conexão no logout e, a cada batimento, quando a sessão venceu ou passou do limite de inatividade (sem renovar a sessão: o stream não mantém ninguém logado). `server.js` fecha todas as conexões ao receber SIGTERM.
+- **Limitação: hub em memória, por processo.** Com mais de uma instância o evento só chega a quem está conectado na MESMA instância que gravou a mensagem; o front tem polling de segurança (30 s sem stream, 2 min com stream) e ressincroniza ao reconectar. Para várias instâncias, trocar `publish` por Redis pub/sub ou LISTEN/NOTIFY.
+- **Netlify:** função com tempo limite não sustenta SSE. `/api/events` responde `501 STREAM_INDISPONIVEL` e o front cai para polling (nada quebra). Em produção real (Render/VPS, `server.js`) o SSE funciona.
+- **Proxy reverso:** nginx precisa de `proxy_buffering off;` (e `proxy_read_timeout` maior que 25 s) em `/api/events`; Caddy, `flush_interval -1`. O servidor já manda `X-Accel-Buffering: no`.
+- Fora de escopo por decisão: "digitando…" e presença online.
+
+**Aviso por e-mail quando a equipe responde (`server/services/messageNotify.js`).**
+- Coluna `users.notify_email` (padrão 1; migração idempotente em SQLite e Postgres). O cliente liga/desliga com `PATCH /api/me/notifications` `{"notifyEmail":boolean}` (sessão obrigatória, corpo estrito: só essa chave, só booleano); `GET /api/me/notifications` devolve o valor atual. Componente: `src/components/NotifyEmailToggle.jsx` (já na lista de mensagens; falta incluir em Conta > Segurança).
+- Só para mensagem de autor ADMIN (admin do site ou Panel). Um e-mail por rajada: não envia se já existe outra mensagem da equipe NÃO LIDA da mesma solicitação nos últimos 15 min (regra por `id` menor, então duas respostas simultâneas geram um só aviso). Cliente que lê tudo volta a ser avisado na próxima resposta.
+- Corpo curto SEM o texto da mensagem: aviso + link `SITE_PUBLIC_URL/cliente/mensagens/{id}` (exige login) + rodapé "Para parar de receber estes avisos, desligue em Conta > Segurança.". Assunto: "Você recebeu uma resposta da TODAI". `SITE_PUBLIC_URL` precisa ser https, sem usuário/senha e, havendo origens permitidas, estar entre elas; senão não envia (registra uma vez). Nome do cliente entra como primeiro nome e é escapado no HTML.
+- Só com `RESEND_API_KEY` + `MAIL_FROM` (`mailer.live`); sem eles registra "e-mail desligado" uma vez e segue. O envio roda em segundo plano (sem `await`): falha, lentidão ou ausência do provedor nunca falham nem atrasam a mensagem; o log de erro não traz endereço nem texto.
+
 ## Erros da API de licenciamento
 
 Compra e orçamento não repassam ao navegador o texto que a API devolve: a mensagem geral é fixa e, dos erros por

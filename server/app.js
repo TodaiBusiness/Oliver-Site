@@ -46,6 +46,13 @@ import { twoFactorService } from './services/twoFactor.js';
 import { passwordResetService } from './services/passwordReset.js';
 import { maintenanceService } from './services/maintenance.js';
 import { createMailer } from './services/mailer.js';
+import {
+  EVENT_STREAM_HEADERS,
+  createMessageEvents,
+  createMessageHooks,
+  sessionAliveChecker,
+} from './services/messageEvents.js';
+import { messageNotifyService } from './services/messageNotify.js';
 import { runWithRequest } from './http/requestContext.js';
 import { clipUserAgent } from './http/userAgent.js';
 import { normalizeEmail } from './http/validation.js';
@@ -160,6 +167,8 @@ export function createApp(
     adminEnabled = config.siteAdminEnabled,
     serviceKey = config.service.apiKey,
     serviceRatePerMin = config.service.ratePerMin,
+    eventsOptions = {},
+    notifyOptions = {},
   } = {}
 ) {
   const ctx = createContext(db, vault ? { vault } : undefined);
@@ -172,8 +181,12 @@ export function createApp(
   const projects = projectsService(ctx);
   const requests = requestsService(ctx);
   const attachments = attachmentsService(ctx, requests);
-  const messages = messagesService(ctx, requests, attachments);
-  const panelConversations = panelConversationsService(ctx);
+  /* Tempo real (SSE) e aviso por e-mail: ver services/messageEvents.js e messageNotify.js. */
+  const events = createMessageEvents({ isSessionAlive: sessionAliveChecker(ctx), ...eventsOptions });
+  const notify = messageNotifyService(ctx, { mailer, allowedOrigins, ...notifyOptions });
+  const messageHooks = createMessageHooks({ events, notify });
+  const messages = messagesService(ctx, requests, attachments, messageHooks);
+  const panelConversations = panelConversationsService(ctx, messageHooks);
   const panelInbox = panelInboxService(ctx);
   const panelProjects = panelProjectsService(ctx, projects);
   const panelClients = panelClientsService(ctx, requests);
@@ -446,6 +459,7 @@ export function createApp(
     '/api/auth/logout',
     async ({ token, user }) => {
       await auth.logout(token, user?.id);
+      events.closeSession(user?.sessionId);
       return { status: 200, body: { ok: true }, cookies: [serializeClearedSessionCookie()] };
     },
     { auth: true }
@@ -609,6 +623,29 @@ export function createApp(
         },
       },
     }),
+    { auth: true }
+  );
+
+  /* Aviso por e-mail quando a equipe responde (liga/desliga na própria conta). */
+  router.get(
+    '/api/me/notifications',
+    async ({ user }) => ({
+      status: 200,
+      body: { notifyEmail: (await ctx.users.getNotifyEmail(user.id)) !== false },
+    }),
+    { auth: true }
+  );
+
+  router.patch(
+    '/api/me/notifications',
+    async ({ user, body }) => {
+      const keys = Object.keys(body ?? {});
+      if (keys.length !== 1 || keys[0] !== 'notifyEmail' || typeof body.notifyEmail !== 'boolean') {
+        throw badRequest('Envie apenas notifyEmail (verdadeiro ou falso).');
+      }
+      await ctx.users.setNotifyEmail(user.id, body.notifyEmail);
+      return { status: 200, body: { notifyEmail: body.notifyEmail } };
+    },
     { auth: true }
   );
 
@@ -1238,7 +1275,38 @@ export function createApp(
     }
   }
 
-  return { handle, bodyPolicy, ctx, maintenance, services: { auth, projects, requests, messages } };
+  /**
+   * GET /api/events (SSE). Não passa por `handle`: a resposta não termina.
+   * Devolve { status, headers, body } para erro (JSON, como `handle`) ou, em
+   * caso de sucesso, { status: 200, headers, stream: attach(sink) }, onde
+   * `attach` registra o sink {write,end,pendingBytes} e devolve o "detach"
+   * que o adaptador HTTP chama quando o socket fecha. Sem corpo, sem limite
+   * de corpo; auth só por cookie de sessão (CSRF não se aplica a GET).
+   */
+  async function openEventStream({ headers: rawHeaders, remoteAddress }) {
+    try {
+      const headers = normalizeHeaders(rawHeaders);
+      if (headers.origin !== undefined && allowedOrigins.length && !allowedOrigins.includes(headers.origin)) {
+        throw forbidden('Origem não autorizada.');
+      }
+      const token = parseCookies(headers.cookie)[SECURITY.SESSION_COOKIE] ?? null;
+      const user = await runWithRequest(
+        { ip: clientAddress(headers, remoteAddress), userAgent: clipUserAgent(headers['user-agent']) },
+        () => auth.resolveSession(token)
+      );
+      if (!user) throw unauthorized();
+      events.assertCanOpen(user.id); // 429 como resposta normal, antes do 200
+      return {
+        status: 200,
+        headers: EVENT_STREAM_HEADERS,
+        stream: (sink) => events.open({ userId: user.id, sessionId: user.sessionId }, sink),
+      };
+    } catch (error) {
+      return toErrorResponse(error);
+    }
+  }
+
+  return { handle, bodyPolicy, openEventStream, events, ctx, maintenance, services: { auth, projects, requests, messages } };
 }
 
 /* ------------------------------------------------------------- helpers */

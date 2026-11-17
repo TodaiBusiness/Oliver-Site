@@ -30,6 +30,8 @@ const COLUNAS_NOVAS = [
   /* Arquivar conversa (Panel) e marca de mudança para o feed /conversations/changes. */
   ['project_requests', 'archived_at', 'INTEGER'],
   ['project_requests', 'panel_changed_at', 'INTEGER'],
+  /* Aviso por e-mail quando a equipe responde (1 = recebe; o cliente desliga em Conta > Segurança). */
+  ['users', 'notify_email', 'INTEGER NOT NULL DEFAULT 1'],
 ];
 
 export function aplicarMigracoesSqlite(db) {

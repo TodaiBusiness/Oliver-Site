@@ -7,8 +7,11 @@ import DataState from '../../components/panel/DataState.jsx';
 import StatusBadge from '../../components/panel/StatusBadge.jsx';
 import { tempoRelativo } from '../../components/panel/format.js';
 import { useApi } from '../../hooks/useApi.js';
+import { useEventStream } from '../../hooks/useEventStream.js';
+import { debounce } from '../../hooks/eventStreamCore.js';
 import { api } from '../../api/client.js';
 import { useAuth } from '../../app/AuthContext.jsx';
+import { useEffect, useRef } from 'react';
 
 const primeiroNome = (nome = '') => nome.trim().split(' ')[0];
 
@@ -119,6 +122,21 @@ export default function ClientDashboard() {
   const projetos = useApi(() => api.get('/me/projects'));
   const solicitacoes = useApi(() => api.get('/me/requests'));
   const conversas = useApi(() => api.get('/conversations'));
+
+  /* Mensagem nova ou lida: o aviso de "mensagens para ler" atualiza na hora. */
+  const refazerMensagens = useRef(null);
+  refazerMensagens.current = () => {
+    resumo.reload();
+    conversas.reload();
+  };
+  const agendar = useRef(null);
+  agendar.current ??= debounce(() => refazerMensagens.current(), 300);
+  useEventStream({
+    onMessage: () => agendar.current(),
+    onRead: () => agendar.current(),
+    onResync: () => agendar.current(),
+  });
+  useEffect(() => () => agendar.current.cancel(), []);
 
   const carregando = resumo.loading || projetos.loading || solicitacoes.loading;
   const erro = resumo.error || projetos.error || solicitacoes.error;

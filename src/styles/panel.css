@@ -1590,7 +1590,7 @@ a.contact-chip:hover {
   }
 
   /* Sobra pouca largura: a dica de atalho sai e fica só o contador. */
-  .chat-form__foot span:first-child {
+  .chat-form__foot > span:first-child {
     display: none;
   }
 }
@@ -3455,5 +3455,212 @@ fieldset.switches {
 
   .inbox__sub {
     white-space: normal;
+  }
+}
+
+/* =========================================================
+   Chat em tempo real: indicador, aviso de novas e aviso por e-mail
+   ========================================================= */
+.chat__wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chat--inbox .chat__wrap {
+  flex: 1;
+}
+
+.chat--inbox .chat__stream {
+  min-height: 0;
+}
+
+/* "Novas mensagens": aparece só quando a pessoa subiu para reler e chegou
+   algo; um toque leva ao fim. */
+.chat__novas {
+  position: absolute;
+  left: 50%;
+  bottom: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-pill);
+  background: var(--bg-elev-2);
+  color: var(--accent-300);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  transform: translateX(-50%);
+  box-shadow: 0 10px 24px -12px rgba(var(--shadow-rgb), calc(0.9 * var(--shadow-k)));
+}
+
+.chat__novas:hover {
+  background: var(--accent-soft);
+}
+
+.chat__novas:focus-visible {
+  outline: 2px solid var(--accent-400);
+  outline-offset: 2px;
+}
+
+.chat__novas-icon {
+  transform: rotate(90deg);
+}
+
+.msg__seen {
+  color: var(--accent-300);
+}
+
+.chat-form__foot-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+/* Indicador discreto de como a conversa se atualiza. */
+.chat-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.chat-live__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted-dim);
+}
+
+.chat-live--conectado .chat-live__dot {
+  background: #22c55e;
+}
+
+.chat-live--reconectando .chat-live__dot,
+.chat-live--conectando .chat-live__dot {
+  background: #f59e0b;
+  animation: chat-live-pulso 1.4s ease-in-out infinite;
+}
+
+@keyframes chat-live-pulso {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-live__dot {
+    animation: none !important;
+  }
+
+  .chat__novas {
+    transition: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .chat-form__foot {
+    justify-content: flex-end;
+  }
+}
+
+/* ---- Aviso por e-mail (interruptor) ---- */
+.notify-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.notify-toggle__switch {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 24px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  background: rgba(var(--ink), 0.08);
+  cursor: pointer;
+  transition: background var(--t-fast, 0.15s), border-color var(--t-fast, 0.15s);
+}
+
+.notify-toggle__switch[aria-checked='true'] {
+  border-color: var(--accent-500);
+  background: var(--accent-500);
+}
+
+.notify-toggle__switch:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.notify-toggle__switch:focus-visible {
+  outline: 2px solid var(--accent-400);
+  outline-offset: 2px;
+}
+
+.notify-toggle__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform var(--t-fast, 0.15s);
+}
+
+.notify-toggle__switch[aria-checked='true'] .notify-toggle__knob {
+  transform: translateX(16px);
+}
+
+.notify-toggle__label {
+  cursor: pointer;
+}
+
+.notify-toggle__help {
+  flex-basis: 100%;
+  max-width: 52ch;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.notify-toggle__error {
+  flex-basis: 100%;
+  font-size: var(--fs-xs);
+  color: var(--danger-fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notify-toggle__switch,
+  .notify-toggle__knob {
+    transition: none;
+  }
+}
+
+/* Caixa de mensagens: o painel tem altura própria e só a lista de mensagens
+   rola; o campo de envio fica sempre à vista e a mensagem nova não vai parar
+   fora da tela. */
+.inbox__panel {
+  height: clamp(460px, calc(100dvh - 17.5rem), 760px);
+  min-height: 0;
+}
+
+.chat--inbox {
+  min-height: 0;
+}
+
+.chat--inbox .chat__stream {
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .inbox__panel {
+    height: clamp(420px, calc(100dvh - 17rem), 760px);
+    min-height: 0;
   }
 }

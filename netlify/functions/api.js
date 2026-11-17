@@ -42,6 +42,12 @@ export default async function handler(request) {
     const app = await getApp();
     const url = new URL(request.url);
 
+    /* SSE (/api/events) não cabe numa função com tempo limite: o front cai
+       para o polling ao receber este 501. Ver docs/SEGURANCA.md. */
+    if (normalizeApiPath(url.pathname) === '/api/events') {
+      return json(501, { error: 'STREAM_INDISPONIVEL', message: 'Tempo real indisponível neste ambiente.' });
+    }
+
     /* O corpo pode vir vazio ou malformado — não pode derrubar a função. */
     const politica = app.bodyPolicy({
       path: normalizeApiPath(url.pathname),

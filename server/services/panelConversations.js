@@ -18,6 +18,7 @@ import { cleanText, createValidator } from '../http/validation.js';
 import { validarImagemBase64 } from '../security/imageValidation.js';
 import { panelInboxRepository } from '../repositories/panelInbox.js';
 import { parseInboxFilters } from './panelInboxQuery.js';
+import { NO_HOOKS } from './messageEvents.js';
 
 const PREVIEW_MAX = 140;
 const DEFAULT_LIMIT = 50;
@@ -100,7 +101,7 @@ export function createSystemUserResolver(ctx) {
   return getSystemUserId;
 }
 
-export function panelConversationsService(ctx) {
+export function panelConversationsService(ctx, hooks = NO_HOOKS) {
   const getSystemUserId = createSystemUserResolver(ctx);
   const inbox = panelInboxRepository(ctx.db);
 
@@ -199,8 +200,9 @@ export function panelConversationsService(ctx) {
     },
 
     async markRead(requestId) {
-      await requireRequest(requestId);
-      await ctx.messages.markClientMessagesRead(requestId);
+      const request = await requireRequest(requestId);
+      const lidas = await ctx.messages.markClientMessagesRead(requestId);
+      if (lidas > 0) hooks.messagesRead({ requestId, ownerId: request.user_id, by: 'team' });
     },
 
     /**
@@ -270,7 +272,7 @@ export function panelConversationsService(ctx) {
         imagem.filename = cleanAttachmentName(bruto.name, imagem.ext);
       }
 
-      await requireRequest(requestId);
+      const request = await requireRequest(requestId);
 
       const authorId = await getSystemUserId();
       const adminName = cleanText(input.adminName);
@@ -329,6 +331,8 @@ export function panelConversationsService(ctx) {
           throw problema;
         }
       }
+
+      hooks.messageCreated({ requestId, messageId: id, ownerId: request.user_id, fromTeam: true });
 
       /* Sem o texto da mensagem no log (só quem e onde). */
       await ctx.audit.log({

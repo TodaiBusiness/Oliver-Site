@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Icon from '../components/Icon.jsx';
 import Chat from '../components/chat/Chat.jsx';
@@ -6,7 +7,10 @@ import EmptyState from '../components/panel/EmptyState.jsx';
 import DataState from '../components/panel/DataState.jsx';
 import PageHead from '../components/panel/PageHead.jsx';
 import { inicial } from '../components/panel/format.js';
+import NotifyEmailToggle from '../components/NotifyEmailToggle.jsx';
 import { useApi } from '../hooks/useApi.js';
+import { useEventStream } from '../hooks/useEventStream.js';
+import { debounce, intervaloDePolling } from '../hooks/eventStreamCore.js';
 import { api } from '../api/client.js';
 import { useAuth } from '../app/AuthContext.jsx';
 
@@ -43,6 +47,26 @@ export default function Messages({ basePath }) {
   const { data, loading, error, reload } = useApi(() => api.get('/conversations?limit=100'));
   const conversas = data?.conversations ?? [];
 
+  /* Tempo real: a lista (prévia, não lidas, ordem) acompanha o servidor. Sem o
+     stream, uma recarga por minuto. */
+  const reloadRef = useRef(reload);
+  reloadRef.current = reload;
+  const agendar = useRef(null);
+  agendar.current ??= debounce(() => reloadRef.current(), 300);
+  const status = useEventStream({
+    enabled: !isAdmin, // o stream é só do dono (cliente)
+    onMessage: () => agendar.current(),
+    onRead: () => agendar.current(),
+    onResync: () => agendar.current(),
+  });
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (document.visibilityState !== 'hidden') reloadRef.current();
+    }, intervaloDePolling(status, { rapido: 60_000, lento: 300_000 }));
+    return () => clearInterval(t);
+  }, [status]);
+  useEffect(() => () => agendar.current.cancel(), []);
+
   /* Quem dispara o recarregamento é a própria conversa, ao carregar ou enviar
      mensagem (`onSent`) — recarregar aqui na troca de id fazia a lista piscar. */
   const aberta = conversas.find((c) => String(c.requestId) === String(id));
@@ -57,6 +81,7 @@ export default function Messages({ basePath }) {
             ? `Você tem ${naoLidasTotal} mensagem${naoLidasTotal > 1 ? 's' : ''} não lida${naoLidasTotal > 1 ? 's' : ''}.`
             : 'Todas as conversas em um lugar só.'
         }
+        actions={isAdmin ? null : <NotifyEmailToggle compact />}
       />
 
       <DataState

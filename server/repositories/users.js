@@ -45,6 +45,24 @@ export function usersRepository(db) {
       );
     },
 
+    /* Aviso por e-mail de resposta da equipe (coluna notify_email, padrão 1). */
+    async findNotifyTarget(id) {
+      return db.queryOne('SELECT id, name, email, role, notify_email FROM users WHERE id = ?', [id]);
+    },
+
+    async getNotifyEmail(id) {
+      const row = await db.queryOne('SELECT notify_email FROM users WHERE id = ?', [id]);
+      return row ? Boolean(Number(row.notify_email)) : null;
+    },
+
+    async setNotifyEmail(id, enabled) {
+      await db.execute('UPDATE users SET notify_email = ?, updated_at = ? WHERE id = ?', [
+        enabled ? 1 : 0,
+        Date.now(),
+        id,
+      ]);
+    },
+
     async existsByEmail(email) {
       const row = await db.queryOne('SELECT 1 AS found FROM users WHERE email = ?', [
         email,

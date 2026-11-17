@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Icon from './Icon.jsx';
 import { api } from '../api/client.js';
 import { useAuth } from '../app/AuthContext.jsx';
+import { useEventStream } from '../hooks/useEventStream.js';
+import { debounce, intervaloDePolling } from '../hooks/eventStreamCore.js';
 
 /* Verifica de tempos em tempos. 45s é frequente o bastante para parecer
    instantâneo sem transformar o site num gerador de requisições. */
-const INTERVALO = 45_000;
+const INTERVALO = { rapido: 45_000, lento: 180_000 };
 
 /**
  * Avisa que chegou mensagem nova, em qualquer página do site — inclusive na
@@ -20,6 +22,25 @@ export default function MessageNotifier() {
   const { user, isAdmin } = useAuth();
   const [aviso, setAviso] = useState(null);
   const anterior = useRef(null);
+  const verificarRef = useRef(null);
+  const local = useLocation();
+  const localRef = useRef(local.pathname);
+  localRef.current = local.pathname;
+
+  /* Tempo real: mensagem nova atualiza o aviso na hora. Se a pessoa está com
+     essa conversa aberta, quem avisa é o próprio chat (que a lê na hora) —
+     senão o aviso piscaria para uma mensagem que ela já está vendo. */
+  const agendar = useRef(null);
+  agendar.current ??= debounce(() => verificarRef.current?.(), 300);
+  const status = useEventStream({
+    enabled: Boolean(user) && !isAdmin,
+    onMessage: (d) => {
+      const aberta = localRef.current.endsWith(`/${d.requestId}`) && document.visibilityState === 'visible';
+      if (!aberta) agendar.current();
+    },
+    onRead: () => agendar.current(),
+    onResync: () => agendar.current(),
+  });
 
   useEffect(() => {
     if (!user) {
@@ -51,8 +72,9 @@ export default function MessageNotifier() {
       }
     };
 
+    verificarRef.current = verificar;
     verificar();
-    const timer = setInterval(verificar, INTERVALO);
+    const timer = setInterval(verificar, intervaloDePolling(status, INTERVALO));
     window.addEventListener('mensagens:mudou', verificar);
 
     return () => {
@@ -60,7 +82,7 @@ export default function MessageNotifier() {
       clearInterval(timer);
       window.removeEventListener('mensagens:mudou', verificar);
     };
-  }, [user]);
+  }, [user, status]);
 
   if (!aviso) return null;
 

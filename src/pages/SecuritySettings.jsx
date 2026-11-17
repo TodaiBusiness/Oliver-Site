@@ -4,6 +4,7 @@ import Icon from '../components/Icon.jsx';
 import Field from '../components/panel/Field.jsx';
 import { api } from '../api/client.js';
 import { useAuth } from '../app/AuthContext.jsx';
+import NotifyEmailToggle from '../components/NotifyEmailToggle.jsx';
 
 /* =========================================================================
    Segurança da conta: trocar senha, verificação em duas etapas e sessões.
@@ -477,12 +478,17 @@ export default function SecuritySettings() {
       <header className="page-head">
         <div>
           <h1 className="page-title">Segurança</h1>
-          <p className="page-subtitle">Senha, verificação em duas etapas e aparelhos conectados.</p>
+          <p className="page-subtitle">Senha, verificação em duas etapas, avisos por e-mail e aparelhos conectados.</p>
         </div>
       </header>
 
       <PasswordSection />
       <TwoFactorSection />
+      {isAdmin ? null : (
+        <section className="sec-card">
+          <NotifyEmailToggle />
+        </section>
+      )}
       <SessionsSection />
     </div>
   );
