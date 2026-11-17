@@ -54,6 +54,14 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
 
 ### Depende do dono
 
+- **P-092** · 2026-11-17 · **Prazos de guarda e revisão jurídica da política de privacidade.** A página `/privacidade` (versão de
+  17/11/2026) passou a listar com exatidão cookies, armazenamento do navegador e dados de segurança. Valores reais do código:
+  estatísticas 400 dias; sessão até 8 h (ociosidade 30 min cliente / 15 min admin); tentativas de login 15 min; auditoria com IP e user
+  agent 365 dias (`AUDIT_RETENTION_DAYS`). **A definir pelo dono, com assessoria jurídica:** prazo de guarda do cadastro, pedidos de
+  orçamento, mensagens do chat (e imagens) e dados de compra; a página diz "a definir" nesses itens. O texto também precisa de revisão
+  por profissional jurídico (não afirma base legal nem conformidade). Quando a política mudar de forma que afete cookies, subir
+  `CONSENT_VERSION` em `src/utils/consent.js` (a faixa volta a perguntar).
+
 - **P-018** · 2026-11-05 · **Nome do repositório no GitHub.** O repositório ainda se chama `Oliver-Site`
   (`TodaiBusiness/Oliver-Site`); o código e a documentação já são TODAI. Renomear é no GitHub (**Settings → General →
   Repository name**) e só o dono pode decidir e fazer: o GitHub redireciona o endereço antigo, mas o guia da Hostinger, o

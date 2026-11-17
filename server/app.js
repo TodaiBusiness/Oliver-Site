@@ -11,6 +11,7 @@ import { createContext } from './context.js';
 import { createRouter } from './http/router.js';
 import {
   parseCookies,
+  analyticsConsented,
   serializeClearedSessionCookie,
   serializeSessionCookie,
 } from './http/cookies.js';
@@ -227,13 +228,15 @@ export function createApp(
     body: { adminEnabled: adminEnabled === true },
   }));
 
-  /* Visitas do site (agregado, sem IP nem cookie — docs/VISITANTES.md). Não há
+  /* Visitas do site (agregado, sem IP nem cookie — docs/VISITANTES.md; só com consentimento). Não há
      CORS: só a própria origem do site pode chamar; sem `Origin` válido a
      requisição é recusada. Bot, DNT e Sec-GPC respondem 202 sem registrar. */
   router.post('/api/analytics/collect', async ({ body, headers, remoteAddress }) => {
     if (allowedOrigins.length && !allowedOrigins.includes(headers.origin)) {
       throw forbidden('Origem não autorizada.');
     }
+    /* Sem o aceite das estatísticas (cookie todai_consent) nada é gravado. */
+    if (!analyticsConsented(headers.cookie)) return { status: 204 };
     const collectIp = clientAddress(headers, remoteAddress);
     if (!collectLimiter.hit(collectIp) || !collectDaily.hit(collectIp)) {
       throw tooManyRequests('Muitas requisições.');

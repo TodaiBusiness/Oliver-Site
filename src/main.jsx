@@ -12,6 +12,7 @@ import './styles/panel.css';
 import './styles/store.css';
 import './styles/sistema.css';
 import './styles/security.css';
+import './styles/consent.css';
 
 import App from './App.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
