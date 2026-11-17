@@ -16,6 +16,8 @@ import { AUDIT_ACTIONS, LIMITS, LOGIN_DISABLED_HASH, ROLES, SYSTEM_USER } from '
 import { AppError, badRequest, notFound } from '../http/errors.js';
 import { cleanText, createValidator } from '../http/validation.js';
 import { validarImagemBase64 } from '../security/imageValidation.js';
+import { panelInboxRepository } from '../repositories/panelInbox.js';
+import { parseInboxFilters } from './panelInboxQuery.js';
 
 const PREVIEW_MAX = 140;
 const DEFAULT_LIMIT = 50;
@@ -100,6 +102,7 @@ export function createSystemUserResolver(ctx) {
 
 export function panelConversationsService(ctx) {
   const getSystemUserId = createSystemUserResolver(ctx);
+  const inbox = panelInboxRepository(ctx.db);
 
   async function requireRequest(requestId) {
     const request = await ctx.requests.findByIdWithUser(requestId);
@@ -146,7 +149,9 @@ export function panelConversationsService(ctx) {
         Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_LIMIT) : DEFAULT_LIMIT;
       const page = Number.isInteger(rawPage) && rawPage > 0 ? Math.min(rawPage, 100000) : 1;
 
-      const rows = await ctx.messages.listConversationsForService({
+      const filters = parseInboxFilters(query);
+      const rows = await inbox.list({
+        ...filters,
         limit,
         offset: (page - 1) * limit,
       });
@@ -167,12 +172,13 @@ export function panelConversationsService(ctx) {
           lastAuthorName: row.last_author_name,
           lastAuthorRole: row.last_author_role === ROLES.ADMIN ? 'ADMIN' : 'CLIENT',
           unreadCount: Number(row.unread ?? 0),
+          archived: row.archived_at !== null && row.archived_at !== undefined,
         };
       });
     },
 
     async unreadCount() {
-      return ctx.messages.countUnreadForService();
+      return inbox.countUnread();
     },
 
     async getConversation(requestId) {

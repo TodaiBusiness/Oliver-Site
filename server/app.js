@@ -36,6 +36,7 @@ import { attachmentsService } from './services/attachments.js';
 import { panelProjectsService } from './services/panelProjects.js';
 import { panelClientsService } from './services/panelClients.js';
 import { panelConversationsService, parseServiceId } from './services/panelConversations.js';
+import { panelInboxService } from './services/panelInbox.js';
 import { quoteRequestsService } from './services/quoteRequests.js';
 import { checkoutService } from './services/checkout.js';
 import { accountService } from './services/account.js';
@@ -173,6 +174,7 @@ export function createApp(
   const attachments = attachmentsService(ctx, requests);
   const messages = messagesService(ctx, requests, attachments);
   const panelConversations = panelConversationsService(ctx);
+  const panelInbox = panelInboxService(ctx);
   const panelProjects = panelProjectsService(ctx, projects);
   const panelClients = panelClientsService(ctx, requests);
   const clients = clientsService(ctx);
@@ -861,6 +863,69 @@ export function createApp(
       status: 200,
       body: { conversations: await panelConversations.listConversations(query) },
     }),
+    svc
+  );
+
+  /* Feed de mudanças, arquivar e modelos de resposta (Panel). Declarada antes de /:id. */
+  router.get(
+    '/api/service/conversations/changes',
+    async ({ query }) => ({ status: 200, body: await panelInbox.changes(query) }),
+    svc
+  );
+
+  router.post(
+    '/api/service/conversations/:id/archive',
+    async ({ params, body }) => {
+      await panelInbox.archive(requireServiceId(params.id), pick(serviceProjectBody(body), ['actorId', 'actorName']));
+      return { status: 204 };
+    },
+    svc
+  );
+
+  router.post(
+    '/api/service/conversations/:id/unarchive',
+    async ({ params, body }) => {
+      await panelInbox.unarchive(requireServiceId(params.id), pick(serviceProjectBody(body), ['actorId', 'actorName']));
+      return { status: 204 };
+    },
+    svc
+  );
+
+  router.get(
+    '/api/service/templates',
+    async () => ({ status: 200, body: { templates: await panelInbox.listTemplates() } }),
+    svc
+  );
+
+  router.post(
+    '/api/service/templates',
+    async ({ body }) => ({
+      status: 201,
+      body: {
+        template: await panelInbox.createTemplate(
+          pick(serviceProjectBody(body), ['title', 'body', 'actorId', 'actorName'])
+        ),
+      },
+    }),
+    svc
+  );
+
+  router.put(
+    '/api/service/templates/:id',
+    async ({ params, body }) => {
+      const id = requireServiceId(params.id);
+      const input = pick(serviceProjectBody(body), ['title', 'body', 'actorId', 'actorName']);
+      return { status: 200, body: { template: await panelInbox.updateTemplate(id, input) } };
+    },
+    svc
+  );
+
+  router.delete(
+    '/api/service/templates/:id',
+    async ({ params, query }) => {
+      await panelInbox.deleteTemplate(requireServiceId(params.id), query);
+      return { status: 204 };
+    },
     svc
   );
 

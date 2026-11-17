@@ -211,6 +211,24 @@ subdomínios; `src/utils/checkoutUrl.js`).
   - **Risco residual**: o `ip` da auditoria é o do cliente HTTP daquele evento; nas ações do Panel é o IP da API do Panel, não o do admin (o admin está em `actorName`). A auditoria
     de envio de mensagem do Panel passou a gravar também `actorName` (sem o texto).
 
+- **Caixa de conversas do Panel: busca, arquivar, mudanças e modelos** (`server/services/panelInbox.js`, `panelInboxQuery.js`, `server/repositories/panelInbox.js`;
+  rotas `GET /api/service/conversations?filter&status&q`, `POST .../:id/archive|unarchive`, `GET .../conversations/changes?since`, `GET|POST|PUT|DELETE /api/service/templates`).
+  Mesmo porteiro dos demais `/api/service/*` (chave em tempo constante antes de rotear/ler corpo, 401 sem detalhe, 503 sem chave, 403 com `Origin`, cookie ignorado, rate limit,
+  corpo ≤ 32 KB). Testes: `tests/server/serviceInbox.test.js`.
+  - **Busca (`q`)**: ≤100 caracteres, controle e formatação Unicode viram espaço, `LIKE`/`ILIKE ... ESCAPE '!'` (`%`, `_`, `!` literais) e valor SEMPRE parâmetro. Procura em nome e e-mail do
+    cliente, tipo/descrição (o "título") e no texto das mensagens (`EXISTS`, então a conversa não duplica). `filter` ∈ `all` (não arquivadas) | `unread` | `archived`, `status` ∈ `REQUEST_STATUS_VALUES`;
+    valor inválido: 400 `DADOS_INVALIDOS` com `details`. Ordem `last_at desc, id desc` (paginação estável). O e-mail do cliente só sai na lista/detalhe de conversa (contrato), nunca em `changes`/modelos.
+  - **Arquivar**: coluna `project_requests.archived_at` (+ `panel_changed_at`, marca interna do feed; nenhuma das duas sai em resposta nenhuma, nem no site do cliente — as rotas do cliente não mudaram).
+    Idempotente (repetir = 204 sem nova auditoria). Auditoria `CONVERSA_ARQUIVADA`/`CONVERSA_DESARQUIVADA` com `userId` = usuário de sistema e `details` `{requestId, actorId, actorName}`.
+    Mensagem nova de CLIENTE desarquiva sozinha (uma instrução em `messagesRepository.create`, o único ponto de criação); resposta da equipe não. Conversa arquivada não conta em
+    `/conversations/unread` nem no `unreadCount` de `changes` (a mensagem continua não lida no banco).
+  - **Feed `changes`**: cursor opaco (base64url de `c1.<ms>`; inválido: 400). Três faixas indexadas (`ix_messages_created`, `ix_requests_panel_changed`, `ix_requests_updated`) mais a contagem de não
+    lidas (`ix_messages_unread`); medido: ~3 ms com 5.000 mensagens (SQLite e Postgres). O cursor devolvido é `agora - 2 s` (sobreposição contra commit tardio/relógio: ids podem repetir, nunca faltar).
+    Máx. 200 ids por chamada, do mais antigo; se passar, o cursor para logo antes da última e a próxima continua dali. O cursor não carrega dado nenhum (só um instante) e não dá acesso a nada além do que a chave já dá.
+  - **Modelos** (`reply_templates`): título 1..60 (sem controle), texto 1..2000 (só tab/quebra de linha entre os controles), máx. 50 (409 `LIMITE_DE_MODELOS`, checado dentro do `INSERT`), PUT exige objeto completo
+    (400 com todos os campos ruins de uma vez, inclusive `actorId/actorName`). Texto puro: guardado e devolvido sem interpretação (HTML fica como caracteres; o site nunca o renderiza, o Panel mostra como texto).
+    Auditoria `MODELO_RESPOSTA_CRIADO/EDITADO/EXCLUIDO` com `{title, actorId, actorName}`, nunca o texto do modelo. Modelos são compartilhados por toda a equipe (sem dono).
+
 ## Visitas do site
 
 Detalhes em `docs/VISITANTES.md`. Em resumo: `POST /api/analytics/collect` confere `Origin` e user agent, mas isso **só

@@ -23,6 +23,8 @@
 -- `npm run db:seed-admin`.
 -- ===========================================================================
 
+DROP TABLE IF EXISTS reply_templates CASCADE;
+
 DROP TABLE IF EXISTS attachments CASCADE;
 
 DROP TABLE IF EXISTS audit_logs CASCADE;
@@ -96,3 +98,5 @@ SELECT * FROM login_attempts;
 SELECT * FROM audit_logs;
 
 SELECT * FROM attachments;
+
+SELECT * FROM reply_templates;

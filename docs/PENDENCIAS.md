@@ -34,6 +34,15 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
   ordem é fixa (destaque, depois mais recente). Falta: upload de imagem validado por conteúdo (como o do chat) e ordem manual.
   Detalhe: link inválido vira `null` sem erro (regra antiga mantida); `image` e `link` vazios vêm como `null` na resposta.
 
+- **P-092** · 2026-11-17 · **Caixa de conversas do Panel: busca, arquivar, feed de mudanças e modelos (`site-svc`).** Implementado em
+  `/api/service/*` (ver `docs/SEGURANCA.md`). Limites conhecidos: (a) a busca de texto é `LIKE '%termo%'` (varre as mensagens; ok para
+  dezenas de milhares, depois pedir índice trigram/full-text) e no SQLite de desenvolvimento `LIKE` só ignora caixa de letras ASCII,
+  enquanto no Postgres (`ILIKE`) também ignora caixa de acentuadas; nenhum dos dois ignora acento (`acao` não acha `ação`); (b) o feed
+  `changes` usa cursor de tempo (ms) com sobreposição de 2 s, então o mesmo id pode repetir (o Panel deve tratar como idempotente), e com
+  200+ mudanças no mesmo milissegundo (só em carga sintética) o excedente é perdido; (c) o limite de 50 modelos é conferido na própria
+  instrução `INSERT`, mas no Postgres duas criações simultâneas no limite podem passar de 50 em 1; (d) variáveis `{nome}`/`{assunto}` dos
+  modelos são só texto para o site (o Panel as substitui). A mensagem nova do cliente desarquiva sozinha (`messages.create`).
+
 ### Segurança da conta
 
 - **P-019** · 2026-11-16 · **Fechar as pontas da segurança de contas (2FA, recuperação de senha, sessões).** O servidor já tem tudo

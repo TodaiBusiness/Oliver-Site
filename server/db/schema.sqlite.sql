@@ -191,3 +191,12 @@ CREATE TABLE IF NOT EXISTS password_resets (
 );
 
 CREATE INDEX IF NOT EXISTS ix_resets_user ON password_resets (user_id);
+
+-- Modelos de resposta rápida da equipe (Panel): compartilhados, texto puro.
+CREATE TABLE IF NOT EXISTS reply_templates (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  title           TEXT    NOT NULL,
+  body            TEXT    NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  updated_by_name TEXT    NOT NULL
+);
