@@ -51,7 +51,17 @@ async function request(method, path, body) {
     /* Sessão que caiu (inatividade, troca de senha em outro aparelho, "sair de
        todos"): avisa o AuthContext para voltar ao login em vez de deixar a tela
        cheia de erros. As rotas de entrada têm o seu próprio 401. */
-    if (response.status === 401 && !path.startsWith('/auth/login') && path !== '/auth/me') {
+    /* Senha ou código errado em ações de segurança (ativar/desativar 2FA, trocar
+       a senha) também volta 401, mas a sessão está viva: só mostra o erro no
+       formulário, sem mandar a pessoa de volta ao login. */
+    const erroDeCredencialNoFormulario =
+      method !== 'GET' && (path.startsWith('/auth/2fa') || path === '/auth/password');
+    if (
+      response.status === 401 &&
+      !path.startsWith('/auth/login') &&
+      path !== '/auth/me' &&
+      !erroDeCredencialNoFormulario
+    ) {
       window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
     }
     throw new ApiError(

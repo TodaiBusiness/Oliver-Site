@@ -10,6 +10,8 @@
 import { ROLES } from '../config.js';
 
 export const TEMPLATES_MAX = 50;
+/* Identificador da trava de consulta (Postgres) que serializa a criação de modelos. */
+const TEMPLATES_LOCK_ID = 7400501;
 
 /**
  * Mensagem nova do CLIENTE desarquiva a conversa (chamado por messages.create).
@@ -155,13 +157,22 @@ export function panelInboxRepository(db) {
 
     /** Insere só se ainda houver vaga (o limite vai na própria instrução). Devolve o id ou null. */
     async createTemplate({ title, body, updatedByName }) {
-      const { insertId, affectedRows } = await db.execute(
-        `INSERT INTO reply_templates (title, body, updated_at, updated_by_name)
-         SELECT CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS BIGINT), CAST(? AS TEXT)
-          WHERE (SELECT COUNT(*) FROM reply_templates) < ?`,
-        [title, body, Date.now(), updatedByName, TEMPLATES_MAX]
-      );
-      return affectedRows > 0 ? insertId : null;
+      const inserir = async (conn) => {
+        const { insertId, affectedRows } = await conn.execute(
+          `INSERT INTO reply_templates (title, body, updated_at, updated_by_name)
+           SELECT CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS BIGINT), CAST(? AS TEXT)
+            WHERE (SELECT COUNT(*) FROM reply_templates) < ?`,
+          [title, body, Date.now(), updatedByName, TEMPLATES_MAX]
+        );
+        return affectedRows > 0 ? insertId : null;
+      };
+      /* SQLite tem uma conexão só (as instruções já são seriais). No Postgres, dois pedidos ao mesmo tempo contariam o
+         mesmo total antes de gravar e passariam de 50: a trava de consulta (liberada ao fim da transação) serializa. */
+      if (db.dialect !== 'postgres') return inserir(db);
+      return db.transaction(async (conn) => {
+        await conn.query('SELECT pg_advisory_xact_lock(CAST(? AS BIGINT))', [TEMPLATES_LOCK_ID]);
+        return inserir(conn);
+      });
     },
 
     async updateTemplate(id, { title, body, updatedByName }) {
