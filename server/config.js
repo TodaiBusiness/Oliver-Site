@@ -169,6 +169,9 @@ export const LIMITS = Object.freeze({
   /* 32 KB: o cliente C# escapa não-ASCII (\uXXXX), então 4000 caracteres acentuados
      ou emoji passam fácil de 8 KB. */
   SERVICE_MAX_BODY_BYTES: 32 * 1024,
+  /* Só o POST de mensagem com chave de serviço VÁLIDA: 3 MB de imagem em base64
+     (~4 MB) + JSON + escapes. */
+  SERVICE_IMAGE_MAX_BODY_BYTES: 4800 * 1024,
   URL_MAX: 500,
   PAGE_SIZE: 20,
   PAGE_SIZE_MAX: 100,

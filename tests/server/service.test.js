@@ -657,3 +657,335 @@ test('a chave de serviço lida do ambiente passa por trim', async () => {
     else process.env.SITE_SERVICE_API_KEY = antes;
   }
 });
+
+/* ------------------------------------------------------ imagem do admin (Panel) */
+
+const enviarMsg = (app, id, extra) =>
+  svc(app, 'POST', `/api/service/conversations/${id}/messages`, {
+    body: { adminId: ADMIN_GUID, adminName: 'Kaique', ...extra },
+  });
+const contaAnexos = async (ctx) => Number((await ctx.db.queryOne('SELECT COUNT(*) AS n FROM attachments')).n);
+const contaMsgs = async (ctx) => Number((await ctx.db.queryOne('SELECT COUNT(*) AS n FROM messages')).n);
+
+test('imagem válida com texto: 201, anexo ligado, cliente baixa, chat e listagem refletem', async () => {
+  const { app, ctx, close } = await createTestApp({ serviceKey: KEY });
+  try {
+    const cliente = await createClient(app);
+    const outro = await createClient(app);
+    const id = await conversa(app, cliente);
+
+    const r = await enviarMsg(app, id, {
+      body: 'Segue o layout',
+      attachment: { name: 'layout.png', contentType: 'image/png', dataBase64: PNG_1X1 },
+    });
+    assert.equal(r.status, 201);
+    const m = r.body.message;
+    assert.equal(m.body, 'Segue o layout');
+    assert.equal(m.authorRole, 'ADMIN');
+    assert.equal(m.authorName, 'Kaique');
+    assert.equal(m.attachment.name, 'layout.png');
+    assert.equal(m.attachment.contentType, 'image/png');
+    assert.equal(m.attachment.size, Buffer.from(PNG_1X1, 'base64').length);
+    assert.ok(m.attachment.id);
+
+    /* Cliente dono baixa pelo site; outro cliente não (IDOR). */
+    const baixa = await request(app, 'GET', `/api/attachments/${m.attachment.id}`, { token: cliente.token });
+    assert.equal(baixa.status, 200);
+    assert.equal(baixa.headers['Content-Type'], 'image/png');
+    assert.equal(baixa.headers['X-Content-Type-Options'], 'nosniff');
+    assert.deepEqual(baixa.buffer, Buffer.from(PNG_1X1, 'base64'));
+    const alheio = await request(app, 'GET', `/api/attachments/${m.attachment.id}`, { token: outro.token });
+    assert.equal(alheio.status, 404);
+    const semLogin = await request(app, 'GET', `/api/attachments/${m.attachment.id}`);
+    assert.equal(semLogin.status, 401);
+
+    /* Pelo serviço também. */
+    const viaSvc = await svc(app, 'GET', `/api/service/attachments/${m.attachment.id}`);
+    assert.equal(viaSvc.status, 200);
+    assert.equal(viaSvc.headers['Cache-Control'], 'private, no-store');
+
+    /* GET da conversa e chat do cliente enxergam o anexo. */
+    const conv = await svc(app, 'GET', `/api/service/conversations/${id}`);
+    assert.equal(conv.body.messages.at(-1).attachment.id, m.attachment.id);
+    const chat = await request(app, 'GET', `/api/requests/${id}/messages`, { token: cliente.token });
+    const doAdmin = chat.body.messages.at(-1);
+    assert.equal(doAdmin.author_external_name, 'Kaique');
+    assert.equal(doAdmin.attachments[0].filename, 'layout.png');
+  } finally {
+    close();
+  }
+});
+
+test('só imagem (sem texto): prévia [Imagem] na listagem', async () => {
+  const { app, close } = await createTestApp({ serviceKey: KEY });
+  try {
+    const cliente = await createClient(app);
+    const id = await conversa(app, cliente);
+    for (const body of [undefined, '', '   ']) {
+      const r = await enviarMsg(app, id, {
+        body,
+        attachment: { name: 'a.png', contentType: 'image/png', dataBase64: PNG_1X1 },
+      });
+      assert.equal(r.status, 201, JSON.stringify(body));
+      assert.equal(r.body.message.body, '');
+      assert.ok(r.body.message.attachment);
+    }
+    const lista = await svc(app, 'GET', '/api/service/conversations');
+    assert.equal(lista.body.conversations[0].lastMessagePreview, '[Imagem]');
+    assert.equal(lista.body.conversations[0].lastAuthorRole, 'ADMIN');
+  } finally {
+    close();
+  }
+});
+
+test('sem body e sem attachment: 400', async () => {
+  const { app, ctx, close } = await createTestApp({ serviceKey: KEY });
+  try {
+    const cliente = await createClient(app);
+    const id = await conversa(app, cliente);
+    const antes = await contaMsgs(ctx);
+    for (const extra of [{}, { body: '  ' }, { attachment: null, body: '' }]) {
+      const r = await enviarMsg(app, id, extra);
+      assert.equal(r.status, 400, JSON.stringify(extra));
+    }
+    assert.equal(await contaMsgs(ctx), antes);
+  } finally {
+    close();
+  }
+});
+
+test('o conteúdo manda: HTML/SVG/texto com contentType image/png é recusado, sem mensagem órfã', async () => {
+  const { app, ctx, close } = await createTestApp({ serviceKey: KEY });
+  try {
+    const cliente = await createClient(app);
+    const id = await conversa(app, cliente);
+    const antes = await contaMsgs(ctx);
+    const falsos = [
+      '<html><script>alert(1)</script></html>',
+      '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+      'GIF',
+      'texto qualquer',
+    ];
+    for (const conteudo of falsos) {
+      const r = await enviarMsg(app, id, {
+        body: 'oi',
+        attachment: {
+          name: 'x.png',
+          contentType: 'image/png',
+          dataBase64: Buffer.from(conteudo).toString('base64'),
+        },
+      });
+      assert.equal(r.status, 400, conteudo);
+      assert.match(r.body.message, /Formato não aceito/);
+    }
+    assert.equal(await contaMsgs(ctx), antes);
+    assert.equal(await contaAnexos(ctx), 0);
+
+    /* contentType divergente mas conteúdo PNG: grava o tipo detectado. */
+    const ok = await enviarMsg(app, id, {
+      attachment: { name: 'foto.jpg', contentType: 'text/html', dataBase64: PNG_1X1 },
+    });
+    assert.equal(ok.status, 201);
+    assert.equal(ok.body.message.attachment.contentType, 'image/png');
+  } finally {
+    close();
+  }
+});
+
+test('imagem acima de 3 MB: 413 claro; base64 inválido e vazio: 400; nada gravado', async () => {
+  const { app, ctx, close } = await createTestApp({ serviceKey: KEY });
+  try {
+    const cliente = await createClient(app);
+    const id = await conversa(app, cliente);
+    const antes = await contaMsgs(ctx);
+
+    const grande = Buffer.concat([Buffer.from(PNG_1X1, 'base64'), Buffer.alloc(3 * 1024 * 1024)]);
+    const r = await enviarMsg(app, id, {
+      attachment: { name: 'g.png', contentType: 'image/png', dataBase64: grande.toString('base64') },
+    });
+    assert.equal(r.status, 413);
+    assert.match(r.body.message, /3 MB/);
+
+    for (const ruim of ['isso não é base64!!', '', '%%%', 'AAA=AAA', 123, null, ['x']]) {
+      const x = await enviarMsg(app, id, { body: 'oi', attachment: { name: 'a.png', dataBase64: ruim } });
+      assert.equal(x.status, 400, String(ruim));
+    }
+    for (const attachment of ['texto', 5, ['x']]) {
+      const x = await enviarMsg(app, id, { body: 'oi', attachment });
+      assert.equal(x.status, 400);
+    }
+    assert.equal(await contaMsgs(ctx), antes);
+    assert.equal(await contaAnexos(ctx), 0);
+  } finally {
+    close();
+  }
+});
+
+test('nome de arquivo malicioso é limpo (caminho, controle, <>, máx. 120)', async () => {
+  const { app, close } = await createTestApp({ serviceKey: KEY });
+  try {
+    const cliente = await createClient(app);
+    const id = await conversa(app, cliente);
+    const casos = [
+      ['../../etc/passwd.png', 'passwd.png'],
+      ['C:\\Users\\x\\foto.png', 'foto.png'],
+      ['<img src=x onerror=alert(1)>.png', 'img src=x onerror=alert(1).png'],
+      ['a\r\nb\u0000c\u202e.png', 'abc.png'],
+      ['', 'imagem.png'],
+      ['..', 'imagem.png'],
+      ['São João 🙂.png', 'São João 🙂.png'],
+      [undefined, 'imagem.png'],
+      [{ x: 1 }, 'imagem.png'],
+    ];
+    for (const [name, esperado] of casos) {
+      const r = await enviarMsg(app, id, { attachment: { name, dataBase64: PNG_1X1 } });
+      assert.equal(r.status, 201, String(name));
+      assert.equal(r.body.message.attachment.name, esperado, String(name));
+      /* Nome com emoji/acento não pode derrubar o download (cabeçalho Latin-1). */
+      const d = await svc(app, 'GET', `/api/service/attachments/${r.body.message.attachment.id}`);
+      assert.equal(d.status, 200);
+      assert.match(d.headers['Content-Disposition'], /^inline; filename="[\x20-\x7e]*"/);
+    }
+    const longo = await enviarMsg(app, id, { attachment: { name: `${'a'.repeat(300)}.png`, dataBase64: PNG_1X1 } });
+    assert.ok(Array.from(longo.body.message.attachment.name).length <= 120);
+    assert.ok(longo.body.message.attachment.name.endsWith('.png'));
+  } finally {
+    close();
+  }
+});
+
+test('texto continua limitado a 4000 com imagem; campos extras do anexo são ignorados', async () => {
+  const { app, close } = await createTestApp({ serviceKey: KEY });
+  try {
+    const cliente = await createClient(app);
+    const id = await conversa(app, cliente);
+    const r = await enviarMsg(app, id, {
+      body: 'a'.repeat(4001),
+      attachment: { name: 'a.png', dataBase64: PNG_1X1 },
+    });
+    assert.equal(r.status, 400);
+    assert.ok(r.body.details.body);
+  } finally {
+    close();
+  }
+});
+
+test('limite de corpo: 4,8 MB só no POST de mensagem com chave VÁLIDA; o resto continua pequeno', async () => {
+  const { app, close } = await createTestApp({ serviceKey: KEY });
+  try {
+    const grande = 4 * 1024 * 1024;
+    const msg = '/api/service/conversations/1/messages';
+    const com = (path, headers) => app.bodyPolicy({ path, headers });
+
+    /* Sem chave, chave errada, com Origin ou sem nada: o corpo nem é lido. */
+    for (const headers of [{}, { 'x-service-key': 'errada' }, { 'X-Service-Key': `${KEY}x` }, { 'x-service-key': KEY, origin: 'https://x.exemplo' }]) {
+      const p = com(msg, headers);
+      assert.equal(p.reject, true, JSON.stringify(headers));
+      assert.ok(p.limit < grande);
+    }
+
+    /* Chave válida: teto maior, apenas nesse POST. */
+    const ok = com(msg, { 'X-Service-Key': KEY });
+    assert.equal(ok.reject, false);
+    assert.ok(ok.limit >= grande + 512 * 1024 && ok.limit <= 5 * 1024 * 1024);
+    for (const outro of [
+      '/api/service/conversations',
+      '/api/service/conversations/1',
+      '/api/service/conversations/1/read',
+      '/api/service/conversations/1/messages/extra',
+      '/api/service/attachments/1',
+    ]) {
+      const p = com(outro, { 'x-service-key': KEY });
+      assert.equal(p.reject, false);
+      assert.equal(p.limit, 32 * 1024, outro);
+    }
+    assert.equal(com('/api/auth/login', {}).limit, bodyLimitFor('/api/auth/login'));
+    assert.equal(com('/api/auth/login', {}).reject, false);
+    assert.equal(bodyLimitFor(msg), 32 * 1024, 'sem a informação de chave válida o teto é o pequeno');
+
+    /* Serviço desligado: reject (503 vem do porteiro). */
+    const off = await createTestApp({ serviceKey: undefined });
+    try {
+      assert.equal(off.app.bodyPolicy({ path: msg, headers: { 'x-service-key': KEY } }).reject, true);
+    } finally {
+      off.close();
+    }
+
+    /* Sem chave, o handle responde 401 mesmo se alguém empurrar um corpo enorme. */
+    const r = await svc(app, 'POST', msg, { key: null, body: { adminName: 'x', attachment: { dataBase64: 'A'.repeat(grande) } } });
+    assert.equal(r.status, 401);
+
+    /* Com chave, corpo sem imagem acima de 32 KB segue 413. */
+    const cliente = await createClient(app);
+    const id = await conversa(app, cliente);
+    const longo = await enviarMsg(app, id, { body: 'a'.repeat(40000) });
+    assert.equal(longo.status, 413);
+  } finally {
+    close();
+  }
+});
+
+test('idempotência com imagem: reenvio (e corrida) devolve a mesma mensagem e grava o anexo uma vez', async () => {
+  const { app, ctx, close } = await createTestApp({ serviceKey: KEY });
+  try {
+    const cliente = await createClient(app);
+    const id = await conversa(app, cliente);
+    const envio = (cmid) =>
+      enviarMsg(app, id, {
+        body: 'com foto',
+        clientMessageId: cmid,
+        attachment: { name: 'f.png', contentType: 'image/png', dataBase64: PNG_1X1 },
+      });
+
+    const a = await envio('imagem-0001');
+    const b = await envio('imagem-0001');
+    assert.equal(a.status, 201);
+    assert.equal(b.status, 201);
+    assert.equal(b.body.message.id, a.body.message.id);
+    assert.equal(b.body.message.attachment.id, a.body.message.attachment.id);
+    assert.equal(await contaAnexos(ctx), 1);
+
+    const [c, d] = await Promise.all([envio('imagem-0002'), envio('imagem-0002')]);
+    assert.equal(c.status, 201);
+    assert.equal(d.status, 201);
+    assert.equal(c.body.message.id, d.body.message.id);
+    assert.ok(c.body.message.attachment);
+    assert.ok(d.body.message.attachment);
+    assert.equal(c.body.message.attachment.id, d.body.message.attachment.id);
+    assert.equal(await contaAnexos(ctx), 2);
+
+    /* Imagem recusada com clientMessageId: nada fica, e o reenvio correto funciona. */
+    const ruim = await enviarMsg(app, id, {
+      clientMessageId: 'imagem-0003',
+      attachment: { name: 'x.png', dataBase64: Buffer.from('<html>').toString('base64') },
+    });
+    assert.equal(ruim.status, 400);
+    const bom = await envio('imagem-0003');
+    assert.equal(bom.status, 201);
+    assert.equal(await contaAnexos(ctx), 3);
+  } finally {
+    close();
+  }
+});
+
+test('falha ao gravar o anexo desfaz a mensagem (sem órfã)', async () => {
+  const { app, ctx, close } = await createTestApp({ serviceKey: KEY });
+  try {
+    const cliente = await createClient(app);
+    const id = await conversa(app, cliente);
+    const antes = await contaMsgs(ctx);
+    const original = app.ctx.attachments.create;
+    app.ctx.attachments.create = async () => {
+      throw new Error('disco cheio');
+    };
+    try {
+      const r = await enviarMsg(app, id, { attachment: { name: 'a.png', dataBase64: PNG_1X1 } });
+      assert.equal(r.status, 500);
+    } finally {
+      app.ctx.attachments.create = original;
+    }
+    assert.equal(await contaMsgs(ctx), antes);
+  } finally {
+    close();
+  }
+});

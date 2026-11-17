@@ -13,7 +13,7 @@ import { createServer } from 'node:http';
 import './env.mjs'; // precisa vir antes de config.js
 import { LIMITS } from '../server/config.js';
 import { getDb } from '../server/db/index.js';
-import { bodyLimitFor, createApp } from '../server/app.js';
+import { createApp } from '../server/app.js';
 import { lerCorpo } from '../server/http/static.js';
 
 const PORT = Number(process.env.API_PORT ?? 8788);
@@ -36,10 +36,24 @@ const app = createApp(db, {
 const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, `http://localhost:${PORT}`);
-    const { body: raw, tooLarge } = await lerCorpo(
-      request,
-      bodyLimitFor(url.pathname) ?? MAX_BODY_BYTES
-    );
+    const politica = app.bodyPolicy({ path: url.pathname, headers: request.headers });
+
+    /* /api/service/* sem chave válida: corpo não é lido; o porteiro responde. */
+    if (politica.reject) {
+      const negado = await app.handle({
+        method: request.method,
+        path: url.pathname,
+        query: Object.fromEntries(url.searchParams),
+        headers: request.headers,
+        remoteAddress: request.socket.remoteAddress,
+        body: {},
+      });
+      response.writeHead(negado.status, { ...negado.headers, Connection: 'close' });
+      response.end(JSON.stringify(negado.body));
+      return;
+    }
+
+    const { body: raw, tooLarge } = await lerCorpo(request, politica.limit ?? MAX_BODY_BYTES);
 
     if (tooLarge) {
       response.writeHead(413, { 'Content-Type': 'application/json', Connection: 'close' });

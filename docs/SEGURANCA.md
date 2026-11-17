@@ -152,6 +152,24 @@ subdomínios; `src/utils/checkoutUrl.js`).
   nome 1..80 sem controle nem `<`/`>`). O cliente só recebe `author_external_name`, exibido como "Nome · TODAI"; nunca o id externo
   nem o e-mail do usuário de sistema. Auditoria `MENSAGEM_PANEL_ENVIADA` (requisição e admin, sem o texto).
 - "Lida" no Panel = `is_read` das mensagens de CLIENTE da solicitação (vale para todos os admins).
+- **Imagem enviada pelo Panel** (`POST /api/service/conversations/:id/messages` com `attachment: {name, contentType, dataBase64}`;
+  `body` passa a ser opcional se houver imagem, máx. 4000):
+  - **Corpo grande só com chave válida.** O teto do corpo é 32 KB em todo `/api/service/*`; sobe para 4,8 MB (`SERVICE_IMAGE_MAX_BODY_BYTES`)
+    apenas nesse POST. A chave (e a ausência de `Origin`) é conferida em `app.bodyPolicy` ANTES de ler o corpo (`server.js`,
+    `scripts/dev-api.mjs`, função Netlify): sem chave, chave errada, serviço desligado ou com `Origin`, o corpo não é lido, a resposta
+    é 401/503/403 (`Connection: close`) e o teto grande nunca vale. `/api/auth/*` e demais rotas mantêm seus tetos.
+  - **O conteúdo manda.** Mesma validação do chat (`validarImagemBase64`): PNG/JPEG/GIF/WebP por magic bytes, ≤ 3 MB decodificado
+    (413 se passar), base64 estrito. O `contentType` informado é ignorado; grava-se e devolve-se o tipo detectado (HTML/SVG com
+    `image/png` é 400). Validação ANTES de gravar; se o anexo falhar depois, a mensagem é apagada (sem órfã).
+  - **Nome limpo**: sem caminho, controles, formatação Unicode (bidi/zero-width), `< > : " | ? *`, máx. 120 (mantém a extensão);
+    vazio vira `imagem.<ext>`. O `Content-Disposition` do download usa nome ASCII + `filename*` UTF-8 (nome com emoji não quebra o cabeçalho).
+  - **Entrega**: download só pelo dono da conversa no site (`/api/attachments/:id`, 404 para outro cliente) e por `/api/service/attachments/:id`;
+    `Content-Type` do tipo validado, `nosniff`, `Cache-Control: private, no-store`, `CORP: same-origin`.
+  - **Idempotência**: `clientMessageId` vale com imagem (reenvio e corrida devolvem a mesma mensagem e o mesmo anexo, uma única linha em
+    `attachments`; o índice único decide e quem perde espera o anexo do vencedor). Auditoria registra só que havia imagem, não o conteúdo.
+  - **Risco residual**: sem transação (SQLite de dev e pool do Postgres não compartilham o modelo), mensagem e anexo são gravados em
+    dois passos com compensação; um crash exatamente entre os dois deixaria uma mensagem de texto vazia (o reenvio com o mesmo
+    `clientMessageId` devolveria essa mensagem sem imagem). Painel de admin do site sem cota de imagens: a cota diária do chat vale só para clientes.
 
 ## Visitas do site
 

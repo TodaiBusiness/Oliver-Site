@@ -15,6 +15,7 @@
 import { AUDIT_ACTIONS, LIMITS, LOGIN_DISABLED_HASH, ROLES, SYSTEM_USER } from '../config.js';
 import { AppError, badRequest, notFound } from '../http/errors.js';
 import { cleanText, createValidator } from '../http/validation.js';
+import { validarImagemBase64 } from '../security/imageValidation.js';
 
 const PREVIEW_MAX = 140;
 const DEFAULT_LIMIT = 50;
@@ -26,6 +27,25 @@ const ADMIN_ID = /^[A-Za-z0-9_-]{1,64}$/;
 /* Nome exibido ao cliente: sem controle (quebra de linha, NUL...) e sem < > —
    o React já escapa, mas o nome também pode ir parar em e-mail, log, PDF. */
 const NAME_FORBIDDEN = /[\p{Cc}\p{Cf}<>]/u;
+/* Nome do arquivo da imagem: sem controle, formatação (bidi/zero-width), < > e
+   caracteres que o Windows não aceita em nome de arquivo. Acento e emoji ficam. */
+const FILENAME_FORBIDDEN = /[\p{Cc}\p{Cf}<>:"|?*]/gu;
+const FILENAME_MAX = 120;
+
+/** Nome do arquivo para exibição: sem caminho, sem controle, sem <>, máx. 120. */
+export function cleanAttachmentName(raw, ext) {
+  const fallback = `imagem.${ext}`;
+  if (typeof raw !== 'string') return fallback;
+  let name = raw.split(/[\\/]/).pop().replace(FILENAME_FORBIDDEN, '').trim();
+  if (!name || /^\.+$/.test(name)) return fallback;
+  const chars = Array.from(name);
+  if (chars.length > FILENAME_MAX) {
+    const dot = name.lastIndexOf('.');
+    const tail = dot > 0 && name.length - dot <= 10 ? name.slice(dot) : '';
+    name = chars.slice(0, FILENAME_MAX - Array.from(tail).length).join('') + tail;
+  }
+  return name.trim() || fallback;
+}
 
 /** Id numérico estrito: "12" sim; "1e3", " 5", "0x10", "-1", "1.5" não. */
 export function parseServiceId(raw) {
@@ -96,6 +116,12 @@ export function panelConversationsService(ctx) {
           }
         : null,
     };
+  }
+
+  async function shapeById(id) {
+    const row = await ctx.messages.findById(id);
+    const metas = await ctx.attachments.listMetaForMessages([id]);
+    return shapeMessage(row, metas[0] ?? null);
   }
 
   async function attachmentsByMessage(rows) {
@@ -172,11 +198,20 @@ export function panelConversationsService(ctx) {
     async sendMessage(requestId, rawInput) {
       let input = rawInput;
       const validator = createValidator();
-      validator.text('body', input.body, {
-        min: 1,
-        max: LIMITS.MESSAGE_MAX,
-        label: 'a mensagem',
-      });
+      const hasAttachment = input.attachment !== undefined && input.attachment !== null;
+      if (hasAttachment && (typeof input.attachment !== 'object' || Array.isArray(input.attachment))) {
+        validator.fail('attachment', 'Imagem inválida.');
+      }
+      /* Texto OU imagem: a legenda é opcional quando há imagem. */
+      if (hasAttachment) {
+        validator.optionalText('body', input.body, { max: LIMITS.MESSAGE_MAX, label: 'a mensagem' });
+      } else {
+        validator.text('body', input.body, {
+          min: 1,
+          max: LIMITS.MESSAGE_MAX,
+          label: 'a mensagem',
+        });
+      }
       validator.text('adminName', input.adminName, {
         min: 1,
         max: LIMITS.SERVICE_ADMIN_NAME_MAX,
@@ -201,13 +236,34 @@ export function panelConversationsService(ctx) {
       }
       validator.assert();
 
+      /* Imagem validada ANTES de gravar qualquer coisa (nada de mensagem órfã):
+         o conteúdo manda; contentType e extensão informados são ignorados. */
+      let imagem = null;
+      if (hasAttachment) {
+        const bruto = input.attachment;
+        try {
+          imagem = validarImagemBase64({
+            dataBase64: typeof bruto.dataBase64 === 'string' ? bruto.dataBase64 : '',
+            filename: undefined,
+          });
+        } catch (problema) {
+          const grande = /passa do limite/.test(problema.message);
+          throw new AppError(
+            grande ? 413 : 400,
+            grande ? 'IMAGEM_GRANDE_DEMAIS' : 'IMAGEM_INVALIDA',
+            problema.message
+          );
+        }
+        imagem.filename = cleanAttachmentName(bruto.name, imagem.ext);
+      }
+
       await requireRequest(requestId);
 
       const authorId = await getSystemUserId();
       const adminName = cleanText(input.adminName);
       const adminId = input.adminId;
-      const body = cleanText(input.body);
-      if (!body) throw badRequest('Informe a mensagem.');
+      const body = cleanText(input.body) ?? '';
+      if (!body && !imagem) throw badRequest('Informe a mensagem.');
 
       const clientMessageId = input.clientMessageId ?? null;
       const jaGravada = async () =>
@@ -217,7 +273,7 @@ export function panelConversationsService(ctx) {
 
       /* Reenvio com o mesmo clientMessageId devolve a mensagem já gravada. */
       const repetida = await jaGravada();
-      if (repetida) return shapeMessage(await ctx.messages.findById(repetida.id), null);
+      if (repetida) return shapeById(repetida.id);
 
       let id;
       try {
@@ -236,7 +292,29 @@ export function panelConversationsService(ctx) {
         );
         const existente = duplicada ? await jaGravada() : null;
         if (!existente) throw error;
-        return shapeMessage(await ctx.messages.findById(existente.id), null);
+        /* A vencedora grava o anexo logo após a mensagem: espera um instante
+           para o reenvio ver a mensagem já completa. */
+        for (let i = 0; imagem && i < 10; i += 1) {
+          if ((await ctx.attachments.countForMessage(existente.id)) > 0) break;
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+        return shapeById(existente.id);
+      }
+
+      if (imagem) {
+        try {
+          await ctx.attachments.create({
+            messageId: id,
+            filename: imagem.filename,
+            mime: imagem.mime,
+            size: imagem.size,
+            content: imagem.buffer,
+          });
+        } catch (problema) {
+          /* Sem a imagem a mensagem não existe: nada de órfã (o reenvio pode tentar de novo). */
+          await ctx.db.execute('DELETE FROM messages WHERE id = ?', [id]);
+          throw problema;
+        }
       }
 
       /* Sem o texto da mensagem no log (só quem e onde). */
@@ -245,11 +323,10 @@ export function panelConversationsService(ctx) {
         action: AUDIT_ACTIONS.SERVICE_MESSAGE_SENT,
         resourceType: 'message',
         resourceId: id,
-        details: { requestId, adminId },
+        details: { requestId, adminId, imagem: Boolean(imagem) },
       });
 
-      const row = await ctx.messages.findById(id);
-      return shapeMessage(row, null);
+      return shapeById(id);
     },
 
     /** Bytes da imagem, no mesmo formato que o download do site usa. */

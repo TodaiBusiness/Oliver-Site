@@ -24,7 +24,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 import { LIMITS, assertProductionConfig } from './server/config.js';
 import { getDb } from './server/db/index.js';
-import { bodyLimitFor, createApp } from './server/app.js';
+import { createApp } from './server/app.js';
 import { normalizeApiPath } from './server/http/path.js';
 import { parseAllowedOrigins } from './server/http/origins.js';
 import { SECURITY_HEADERS } from './server/http/securityHeaders.js';
@@ -115,10 +115,26 @@ const server = createServer(async (request, response) => {
 
     /* ------------------------------------------------------------------ API */
     if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-      const { body: bruto, tooLarge } = await lerCorpo(
-        request,
-        bodyLimitFor(normalizeApiPath(url.pathname)) ?? MAX_BODY_BYTES
-      );
+      const apiPath = normalizeApiPath(url.pathname);
+      const politica = app.bodyPolicy({ path: apiPath, headers: request.headers });
+
+      /* /api/service/* sem chave válida: o corpo NÃO é lido (nem 1 byte); o
+         porteiro responde 401/503/403/429 e a conexão é encerrada. */
+      if (politica.reject) {
+        const negado = await app.handle({
+          method: request.method,
+          path: apiPath,
+          query: Object.fromEntries(url.searchParams),
+          headers: request.headers,
+          remoteAddress: request.socket.remoteAddress,
+          body: {},
+        });
+        response.writeHead(negado.status, { ...SEGURANCA, ...negado.headers, Connection: 'close' });
+        response.end(JSON.stringify(negado.body));
+        return;
+      }
+
+      const { body: bruto, tooLarge } = await lerCorpo(request, politica.limit ?? MAX_BODY_BYTES);
 
       if (tooLarge) {
         response.writeHead(413, {

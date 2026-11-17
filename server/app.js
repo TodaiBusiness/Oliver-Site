@@ -95,10 +95,21 @@ const SERVICE_FAIL_MAX_PER_IP = 20;
    instrução). Teto próprio, bem abaixo do global (pensado para upload). */
 export const COLLECT_MAX_BODY_BYTES = 2048;
 
-/** Teto de corpo por caminho; `null` = vale o teto global do servidor. */
-export function bodyLimitFor(path) {
+/* POST de resposta do Panel: o único endpoint de serviço que aceita imagem. */
+const SERVICE_MESSAGE_PATH = /^\/api\/service\/conversations\/[^/]+\/messages$/;
+
+/**
+ * Teto de corpo por caminho; `null` = vale o teto global do servidor.
+ * `serviceAuthorized`: a chave de serviço já foi conferida ANTES de ler o corpo;
+ * só então o POST de mensagem ganha o teto maior (imagem em base64).
+ */
+export function bodyLimitFor(path, { serviceAuthorized = false } = {}) {
   if (path === '/api/analytics/collect') return COLLECT_MAX_BODY_BYTES;
-  if (typeof path === 'string' && path.startsWith('/api/service/')) return LIMITS.SERVICE_MAX_BODY_BYTES;
+  if (typeof path === 'string' && path.startsWith('/api/service/')) {
+    return serviceAuthorized && SERVICE_MESSAGE_PATH.test(path)
+      ? LIMITS.SERVICE_IMAGE_MAX_BODY_BYTES
+      : LIMITS.SERVICE_MAX_BODY_BYTES;
+  }
   /* Login, cadastro, 2FA, troca de senha: poucas dezenas de bytes. O teto
      global (feito para a imagem do chat) não faz sentido aqui. */
   if (typeof path === 'string' && path.startsWith('/api/auth/')) return SECURITY.AUTH_MAX_BODY_BYTES;
@@ -874,12 +885,17 @@ export function createApp(
   router.post(
     '/api/service/conversations/:id/messages',
     async ({ params, body }) => {
-      if (Buffer.byteLength(JSON.stringify(body ?? {})) > LIMITS.SERVICE_MAX_BODY_BYTES) {
+      /* Sem imagem vale o teto pequeno; com imagem, o do POST autenticado. */
+      const limite = body?.attachment ? LIMITS.SERVICE_IMAGE_MAX_BODY_BYTES : LIMITS.SERVICE_MAX_BODY_BYTES;
+      if (Buffer.byteLength(JSON.stringify(body ?? {})) > limite) {
         throw new AppError(413, 'CORPO_GRANDE_DEMAIS', 'O corpo da requisição passa do tamanho permitido.');
       }
       const requestId = requireServiceId(params.id);
       /* Só estes campos são lidos: autor, papel ou data no corpo não têm efeito. */
-      const input = pick(body, ['body', 'adminId', 'adminName', 'clientMessageId']);
+      const input = pick(body, ['body', 'adminId', 'adminName', 'clientMessageId', 'attachment']);
+      if (input.attachment && typeof input.attachment === 'object') {
+        input.attachment = pick(input.attachment, ['name', 'contentType', 'dataBase64']);
+      }
       return {
         status: 201,
         body: { message: await panelConversations.sendMessage(requestId, input) },
@@ -939,6 +955,25 @@ export function createApp(
       if (!serviceFailLimiter.hit(ip)) throw tooManyRequests('Muitas requisições.');
       throw unauthorized('Não autorizado.');
     }
+  }
+
+  /**
+   * Antes de ler o corpo (server.js/netlify): decide o teto de leitura.
+   * Em /api/service/* a chave é conferida AQUI, sem ler nada; sem chave válida
+   * devolve `reject: true` e o corpo nem é lido (quem chamar responde via
+   * `handle` com corpo vazio, que devolve 401/503/403/429 pelo porteiro normal).
+   * Não consome limite de taxa: quem consome é o `handle` da mesma requisição.
+   */
+  function bodyPolicy({ path, headers: rawHeaders = {} }) {
+    const normalized = normalizeHeaders(rawHeaders);
+    const limit = bodyLimitFor(path);
+    if (!(path.startsWith('/api/service/') || path === '/api/service')) return { limit, reject: false };
+    const ok =
+      serviceAuth.enabled &&
+      normalized.origin === undefined &&
+      serviceAuth.authorize(normalized['x-service-key']);
+    if (!ok) return { limit: 0, reject: true };
+    return { limit: bodyLimitFor(path, { serviceAuthorized: true }), reject: false };
   }
 
   async function dispatch(request, headers) {
@@ -1030,7 +1065,7 @@ export function createApp(
     }
   }
 
-  return { handle, ctx, maintenance, services: { auth, projects, requests, messages } };
+  return { handle, bodyPolicy, ctx, maintenance, services: { auth, projects, requests, messages } };
 }
 
 /* ------------------------------------------------------------- helpers */
@@ -1064,11 +1099,18 @@ function respondRaw(status, { buffer, contentType, filename }) {
       'Content-Type': contentType,
       'Content-Length': String(buffer.length),
       'X-Content-Type-Options': 'nosniff',
-      'Content-Disposition': `inline; filename="${filename.replace(/"/g, '')}"`,
+      'Content-Disposition': contentDisposition(filename),
       'Cache-Control': 'private, no-store',
       'Cross-Origin-Resource-Policy': 'same-origin',
     },
   };
+}
+
+/** Cabeçalho só aceita Latin-1: nome ASCII de reserva + `filename*` (UTF-8) para o resto. */
+function contentDisposition(filename) {
+  const ascii = String(filename).replace(/[^\x20-\x7e]|["\\;]/g, '_').slice(0, 120) || 'imagem';
+  const utf8 = encodeURIComponent(String(filename)).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `inline; filename="${ascii}"; filename*=UTF-8''${utf8}`;
 }
 
 function respond(status, body, cookies) {
