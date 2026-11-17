@@ -1,4 +1,5 @@
 import { horaDaMensagem } from './datas.js';
+import { autorDaEquipe } from './autor.js';
 
 const inicial = (nome = '?') => nome.trim().charAt(0).toUpperCase();
 
@@ -6,15 +7,17 @@ const inicial = (nome = '?') => nome.trim().charAt(0).toUpperCase();
  * Uma mensagem da conversa.
  * `agrupada` = mensagem seguida do mesmo autor: repete só o balão, sem
  * cabeçalho nem avatar, para a leitura não ficar poluída.
+ * `visto` = a última mensagem minha, já lida pela outra parte.
  */
-export default function ChatMessage({ mensagem, minha, agrupada }) {
+export default function ChatMessage({ mensagem, minha, agrupada, visto = false }) {
   const daEquipe = mensagem.author_role === 'ADMIN';
   /* Resposta vinda do Panel: "<nome> · TODAI" (o nome de quem respondeu). As
      antigas, de admins do site, seguem com o nome do usuário e a etiqueta TODAI. */
   const respostaDoPanel = Boolean(mensagem.author_external_name);
+  const equipe = daEquipe && !minha ? autorDaEquipe(mensagem) : null;
   const nomeExibido = respostaDoPanel
     ? `${mensagem.author_external_name} · TODAI`
-    : mensagem.author_name;
+    : (equipe?.nome ?? mensagem.author_name);
 
   return (
     <div
@@ -25,7 +28,7 @@ export default function ChatMessage({ mensagem, minha, agrupada }) {
           className={`msg__avatar${daEquipe ? ' msg__avatar--team' : ''}`}
           aria-hidden="true"
         >
-          {agrupada ? '' : inicial(respostaDoPanel ? mensagem.author_external_name : mensagem.author_name)}
+          {agrupada ? '' : inicial(equipe ? equipe.inicial : mensagem.author_name)}
         </span>
       ) : null}
 
@@ -35,9 +38,7 @@ export default function ChatMessage({ mensagem, minha, agrupada }) {
             <span className="msg__author">
               {minha ? 'Você' : nomeExibido}
             </span>
-            {daEquipe && !minha && !respostaDoPanel ? (
-              <span className="msg__tag">TODAI</span>
-            ) : null}
+            {equipe?.etiqueta ? <span className="msg__tag">TODAI</span> : null}
           </span>
         ) : null}
 
@@ -61,6 +62,7 @@ export default function ChatMessage({ mensagem, minha, agrupada }) {
           {mensagem.body ? <p className="msg__text">{mensagem.body}</p> : null}
           <time className="msg__time" dateTime={new Date(Number(mensagem.created_at)).toISOString()}>
             {horaDaMensagem(mensagem.created_at)}
+            {visto ? <span className="msg__seen"> · Visto pela equipe</span> : null}
           </time>
         </div>
       </div>

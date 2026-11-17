@@ -27,6 +27,11 @@ const COLUNAS_NOVAS = [
   ['messages', 'author_external_name', 'TEXT'],
   /* Idempotência do envio pelo Panel (reenvio com o mesmo id não duplica). */
   ['messages', 'client_message_id', 'TEXT'],
+  /* Arquivar conversa (Panel) e marca de mudança para o feed /conversations/changes. */
+  ['project_requests', 'archived_at', 'INTEGER'],
+  ['project_requests', 'panel_changed_at', 'INTEGER'],
+  /* Aviso por e-mail quando a equipe responde (1 = recebe; o cliente desliga em Conta > Segurança). */
+  ['users', 'notify_email', 'INTEGER NOT NULL DEFAULT 1'],
 ];
 
 export function aplicarMigracoesSqlite(db) {
@@ -51,6 +56,12 @@ export function aplicarMigracoesSqlite(db) {
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_messages_client_id
              ON messages (request_id, author_external_id, client_message_id)
              WHERE client_message_id IS NOT NULL`);
+  /* Feed de mudanças do Panel: consultas por faixa de tempo, sem varrer a tabela. */
+  db.exec('CREATE INDEX IF NOT EXISTS ix_messages_created ON messages (created_at)');
+  if (temTabela('project_requests')) {
+    db.exec('CREATE INDEX IF NOT EXISTS ix_requests_panel_changed ON project_requests (panel_changed_at)');
+    db.exec('CREATE INDEX IF NOT EXISTS ix_requests_updated ON project_requests (updated_at)');
+  }
 }
 
 export function createSqliteDriver({ file = ':memory:' } = {}) {

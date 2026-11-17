@@ -4,9 +4,10 @@ import Icon from '../components/Icon.jsx';
 import Field from '../components/panel/Field.jsx';
 import { api } from '../api/client.js';
 import { useAuth } from '../app/AuthContext.jsx';
+import NotifyEmailToggle from '../components/NotifyEmailToggle.jsx';
 
 /* =========================================================================
-   Segurança da conta: trocar senha, 2FA (só administrador) e sessões.
+   Segurança da conta: trocar senha, verificação em duas etapas e sessões.
    Rota sugerida: /cliente/seguranca e /admin/seguranca, sem props. Quem
    decide o que aparece é o `useAuth()`; quem autoriza é o servidor.
    ========================================================================= */
@@ -162,7 +163,7 @@ function RecoveryCodes({ codes, onDone }) {
 }
 
 function TwoFactorSection() {
-  const { refresh } = useAuth();
+  const { refresh, isAdmin } = useAuth();
   const [status, setStatus] = useState(null);
   const [loadError, setLoadError] = useState(null);
 
@@ -378,8 +379,9 @@ function TwoFactorSection() {
       ) : (
         <>
           <p className="sec-card__text">
-            Proteja o painel administrativo: além da senha, o login passa a pedir um código gerado no
-            seu celular. Recomendado para toda conta de administrador.
+            {isAdmin
+              ? 'Proteja o painel administrativo: além da senha, o login passa a pedir um código gerado no seu celular. Recomendado para toda conta de administrador.'
+              : 'É opcional. Com a verificação ativa, o login pede um código do app autenticador no seu celular, além da senha. Se perder o celular, os códigos de recuperação garantem o acesso.'}
           </p>
           <div className="sec-actions">
             <button type="button" className="btn btn--primary btn--sm" disabled={!status.available} onClick={() => setStep('password')}>
@@ -476,12 +478,17 @@ export default function SecuritySettings() {
       <header className="page-head">
         <div>
           <h1 className="page-title">Segurança</h1>
-          <p className="page-subtitle">Senha, verificação em duas etapas e aparelhos conectados.</p>
+          <p className="page-subtitle">Senha, verificação em duas etapas, avisos por e-mail e aparelhos conectados.</p>
         </div>
       </header>
 
       <PasswordSection />
-      {isAdmin ? <TwoFactorSection /> : null}
+      <TwoFactorSection />
+      {isAdmin ? null : (
+        <section className="sec-card">
+          <NotifyEmailToggle />
+        </section>
+      )}
       <SessionsSection />
     </div>
   );

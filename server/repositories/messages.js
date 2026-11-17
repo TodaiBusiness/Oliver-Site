@@ -4,6 +4,7 @@
    ========================================================================= */
 
 import { ROLES } from '../config.js';
+import { unarchiveOnClientMessage } from './panelInbox.js';
 
 export function messagesRepository(db) {
   return {
@@ -15,6 +16,8 @@ export function messagesRepository(db) {
          VALUES (?, ?, ?, 0, ?, ?, ?, ?)`,
         [requestId, authorId, body, Date.now(), externalId, externalName, clientMessageId]
       );
+      /* Mensagem nova do cliente tira a conversa do arquivo (Panel). */
+      await unarchiveOnClientMessage(db, requestId, authorId);
       return insertId;
     },
 
@@ -162,44 +165,6 @@ export function messagesRepository(db) {
        (Panel). "Não lida" aqui = mensagem de CLIENTE com is_read = 0; vale para
        todos os admins (um só sinalizador por mensagem). Mensagem do Panel e dos
        admins do site nunca contam. */
-
-    /** Conversas (solicitações com ao menos uma mensagem), da mais recente para a mais antiga. */
-    async listConversationsForService({ limit, offset }) {
-      const ultima = (coluna) => `(SELECT ${coluna} FROM messages m WHERE m.request_id = r.id
-          ORDER BY m.created_at DESC, m.id DESC LIMIT 1)`;
-
-      return db.query(
-        `SELECT * FROM (
-           SELECT r.id, r.type, r.description, r.status,
-                  u.name AS client_name, u.email AS client_email,
-                  ${ultima('m.created_at')} AS last_at,
-                  ${ultima('m.body')} AS last_body,
-                  ${ultima('COALESCE(m.author_external_name, (SELECT a.name FROM users a WHERE a.id = m.author_id))')} AS last_author_name,
-                  ${ultima('(SELECT a.role FROM users a WHERE a.id = m.author_id)')} AS last_author_role,
-                  (SELECT COUNT(*) FROM attachments t WHERE t.message_id = ${ultima('m.id')}) AS last_attachments,
-                  (SELECT COUNT(*) FROM messages m
-                    JOIN users a ON a.id = m.author_id
-                   WHERE m.request_id = r.id AND m.is_read = 0 AND a.role = '${ROLES.CLIENT}') AS unread
-             FROM project_requests r
-             JOIN users u ON u.id = r.user_id
-            WHERE EXISTS (SELECT 1 FROM messages m WHERE m.request_id = r.id)
-         ) AS conversas
-         ORDER BY last_at DESC, id DESC
-         LIMIT ? OFFSET ?`,
-        [limit, offset]
-      );
-    },
-
-    async countUnreadForService() {
-      const row = await db.queryOne(
-        `SELECT COUNT(*) AS total
-           FROM messages m
-           JOIN users a ON a.id = m.author_id
-          WHERE m.is_read = 0 AND a.role = ?`,
-        [ROLES.CLIENT]
-      );
-      return Number(row?.total ?? 0);
-    },
 
     /** Marca como lidas as mensagens de CLIENTE da solicitação. */
     async markClientMessagesRead(requestId) {

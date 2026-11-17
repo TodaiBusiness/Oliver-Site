@@ -1,5 +1,5 @@
 /* =========================================================================
-   Segundo fator (TOTP) para ADMIN: ativar, conferir, desativar e códigos de
+   Segundo fator (TOTP) para ADMIN e CLIENT (opcional para o cliente): ativar, conferir, desativar e códigos de
    recuperação.
 
    · O segredo é sorteado aqui, cifrado (AES-GCM) antes de ir ao banco e só
@@ -15,7 +15,7 @@
 import { randomInt } from 'node:crypto';
 import { AUDIT_ACTIONS, ROLES, SECURITY } from '../config.js';
 import { AppError, badRequest, conflict, forbidden, unauthorized } from '../http/errors.js';
-import { verifyPassword } from '../security/password.js';
+import { isLoginDisabled, verifyPassword } from '../security/password.js';
 import { generateTotpSecret, otpauthUrl, stepAt, verifyTotp } from '../security/totp.js';
 import { createLoginGuard } from './loginGuard.js';
 
@@ -68,8 +68,15 @@ export async function verifySecondFactor(ctx, userId, code, { now = Date.now() }
 export function twoFactorService(ctx, { now = () => Date.now() } = {}) {
   const guard = createLoginGuard(ctx, { now });
 
-  const requireAdmin = (user) => {
-    if (user.role !== ROLES.ADMIN) throw forbidden('O segundo fator é exigido só dos administradores.');
+  /* Só ADMIN e CLIENT têm 2FA. Conta de sistema (login desligado, como o
+     "TODAI Atendimento") nunca configura nem usa. Para o cliente é opcional. */
+  const ELIGIBLE = new Set([ROLES.ADMIN, ROLES.CLIENT]);
+  const requireEligible = async (user) => {
+    if (!ELIGIBLE.has(user.role)) throw forbidden('Esta conta não pode usar a verificação em duas etapas.');
+    const account = await ctx.users.findByIdWithHash(user.id);
+    if (!account || isLoginDisabled(account.password_hash)) {
+      throw forbidden('Esta conta não pode usar a verificação em duas etapas.');
+    }
   };
 
   const requireVault = () => {
@@ -132,7 +139,7 @@ export function twoFactorService(ctx, { now = () => Date.now() } = {}) {
     async status(user) {
       const row = await ctx.twoFactor.get(user.id);
       return {
-        available: user.role === ROLES.ADMIN && ctx.vault.available,
+        available: ELIGIBLE.has(user.role) && ctx.vault.available,
         required: user.role === ROLES.ADMIN,
         enabled: Boolean(row?.enabled),
         recoveryCodesRemaining: row?.enabled ? await ctx.twoFactor.countUnusedRecoveryCodes(user.id) : 0,
@@ -141,7 +148,7 @@ export function twoFactorService(ctx, { now = () => Date.now() } = {}) {
 
     /** Sorteia o segredo e o guarda PENDENTE. Nada vale até `enable`. */
     async setup(user, { password }, { ip } = {}) {
-      requireAdmin(user);
+      await requireEligible(user);
       requireVault();
       await assertPassword(user, password, ip);
 
@@ -159,7 +166,7 @@ export function twoFactorService(ctx, { now = () => Date.now() } = {}) {
 
     /** Confirma com um código do app, liga o 2FA e entrega os códigos de recuperação. */
     async enable(user, { code }, { ip } = {}) {
-      requireAdmin(user);
+      await requireEligible(user);
       requireVault();
 
       const row = await ctx.twoFactor.get(user.id);
@@ -203,7 +210,7 @@ export function twoFactorService(ctx, { now = () => Date.now() } = {}) {
 
     /** Desliga o 2FA. Exige senha E código (do app ou de recuperação). */
     async disable(user, { password, code }, { ip } = {}) {
-      requireAdmin(user);
+      await requireEligible(user);
       const row = await ctx.twoFactor.get(user.id);
       if (!row?.enabled) throw badRequest('O segundo fator não está ativo.');
 
@@ -222,7 +229,7 @@ export function twoFactorService(ctx, { now = () => Date.now() } = {}) {
 
     /** Gera 10 códigos novos e invalida os antigos. Exige senha + código do app. */
     async regenerateRecoveryCodes(user, { password, code }, { ip } = {}) {
-      requireAdmin(user);
+      await requireEligible(user);
       requireVault();
       const row = await ctx.twoFactor.get(user.id);
       if (!row?.enabled) throw badRequest('O segundo fator não está ativo.');

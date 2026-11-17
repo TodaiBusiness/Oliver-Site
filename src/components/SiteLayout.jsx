@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Header from '../sections/Header.jsx';
 import Footer from '../sections/Footer.jsx';
 import FloatingWhatsApp from './FloatingWhatsApp.jsx';
+import CookieConsent from './CookieConsent.jsx';
 
 /**
  * Casca do site público: navbar, rodapé e a página da rota dentro de <Outlet/>.
@@ -32,6 +33,7 @@ export default function SiteLayout() {
       <a className="skip-link" href="#conteudo">
         Pular para o conteúdo
       </a>
+      <CookieConsent />
       <Header />
       <main id="conteudo" ref={mainRef} tabIndex={-1} className="site-main">
         {/* A chave refaz a página a cada rota: dispara a entrada suave. */}

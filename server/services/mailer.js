@@ -31,12 +31,12 @@ export function createMailer({
     configured: live || !isProduction,
     live,
 
-    async send({ to, subject, text }) {
+    async send({ to, subject, text, html }) {
       if (live) {
         const response = await fetchImpl(RESEND_URL, {
           method: 'POST',
           headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from, to: [to], subject, text }),
+          body: JSON.stringify({ from, to: [to], subject, text, ...(html ? { html } : {}) }),
           signal: AbortSignal.timeout(timeoutMs),
         });
         if (!response.ok) throw new Error(`Resend respondeu ${response.status}`);

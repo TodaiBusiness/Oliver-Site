@@ -34,6 +34,15 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
   ordem é fixa (destaque, depois mais recente). Falta: upload de imagem validado por conteúdo (como o do chat) e ordem manual.
   Detalhe: link inválido vira `null` sem erro (regra antiga mantida); `image` e `link` vazios vêm como `null` na resposta.
 
+- **P-092** · 2026-11-17 · **Caixa de conversas do Panel: busca, arquivar, feed de mudanças e modelos (`site-svc`).** Implementado em
+  `/api/service/*` (ver `docs/SEGURANCA.md`). Limites conhecidos: (a) a busca de texto é `LIKE '%termo%'` (varre as mensagens; ok para
+  dezenas de milhares, depois pedir índice trigram/full-text) e no SQLite de desenvolvimento `LIKE` só ignora caixa de letras ASCII,
+  enquanto no Postgres (`ILIKE`) também ignora caixa de acentuadas; nenhum dos dois ignora acento (`acao` não acha `ação`); (b) o feed
+  `changes` usa cursor de tempo (ms) com sobreposição de 2 s, então o mesmo id pode repetir (o Panel deve tratar como idempotente), e com
+  200+ mudanças no mesmo milissegundo (só em carga sintética) o excedente é perdido; (c) o limite de 50 modelos é conferido na própria
+  instrução `INSERT`, mas no Postgres duas criações simultâneas no limite podem passar de 50 em 1; (d) variáveis `{nome}`/`{assunto}` dos
+  modelos são só texto para o site (o Panel as substitui). A mensagem nova do cliente desarquiva sozinha (`messages.create`).
+
 ### Segurança da conta
 
 - **P-019** · 2026-11-16 · **Fechar as pontas da segurança de contas (2FA, recuperação de senha, sessões).** O servidor já tem tudo
@@ -53,6 +62,14 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
      testar o SQL novo em um Postgres real (os testes rodam em SQLite).
 
 ### Depende do dono
+
+- **P-092** · 2026-11-17 · **Prazos de guarda e revisão jurídica da política de privacidade.** A página `/privacidade` (versão de
+  17/11/2026) passou a listar com exatidão cookies, armazenamento do navegador e dados de segurança. Valores reais do código:
+  estatísticas 400 dias; sessão até 8 h (ociosidade 30 min cliente / 15 min admin); tentativas de login 15 min; auditoria com IP e user
+  agent 365 dias (`AUDIT_RETENTION_DAYS`). **A definir pelo dono, com assessoria jurídica:** prazo de guarda do cadastro, pedidos de
+  orçamento, mensagens do chat (e imagens) e dados de compra; a página diz "a definir" nesses itens. O texto também precisa de revisão
+  por profissional jurídico (não afirma base legal nem conformidade). Quando a política mudar de forma que afete cookies, subir
+  `CONSENT_VERSION` em `src/utils/consent.js` (a faixa volta a perguntar).
 
 - **P-018** · 2026-11-05 · **Nome do repositório no GitHub.** O repositório ainda se chama `Oliver-Site`
   (`TodaiBusiness/Oliver-Site`); o código e a documentação já são TODAI. Renomear é no GitHub (**Settings → General →
@@ -75,6 +92,10 @@ Registro único de tudo o que ficou para depois neste projeto. Uma pendência re
   **Andamento (19/10/2026):** o servidor tem o checkout e a interface existe: início do produto, preço, `/comprar`,
   `/obrigado`, `/baixar`, `/termos` e `/privacidade` (ver `docs/LOJA_E_COMPRA.md`). A área do comprador também existe
   (`/minha-licenca`, P-009). Falta a prova da compra de ponta a ponta com o Mercado Pago (P-005 e `docs/COMPRA_AUTOMATICA.md`).
+
+- **P-020** · aberta em 17/11/2026 · Cliente que perdeu o celular e os códigos de recuperação do 2FA não tem autoatendimento (não há
+  e-mail de reset, de propósito). Hoje a equipe roda `scripts/admin-2fa-reset.mjs <e-mail>`; falta um botão de reset no Panel
+  (com identificação do cliente e auditoria).
 
 ## Resolvidas
 

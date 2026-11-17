@@ -1,20 +1,64 @@
 import { Link } from 'react-router-dom';
+import { openConsentPreferences } from '../utils/consent.js';
 import SiteShell from '../components/SiteShell.jsx';
 import { EMAIL, LEGAL_NAME } from '../data/company.js';
 import { PLAN } from '../../shared/plan.js';
 
 /**
- * Política de privacidade (LGPD) do site e do TODAI.
- * Lista só o que o sistema coleta de verdade. Se um dado novo passar a ser
- * coletado, esta página muda na mesma tarefa. Versão aprovada pelo dono em
- * 19/10/2026, sem revisão jurídica (decisão dele).
+ * Política de privacidade do site e do TODAI.
+ * Lista só o que o sistema coleta de verdade (confira com server/config.js e
+ * src/utils/consent.js). Se um dado ou cookie novo passar a existir, esta
+ * página muda na mesma tarefa, e a versão do consentimento (CONSENT_VERSION)
+ * sobe para a faixa perguntar de novo. Texto ainda sem revisão jurídica.
  */
+const STORAGE_ITEMS = [
+  {
+    name: 'oi_session',
+    where: 'Cookie',
+    purpose: 'Mantém você conectado na área do cliente. Só existe depois do login.',
+    life: 'Até 8 horas; expira antes se a conta ficar parada (30 minutos para clientes) ou se você sair.',
+    category: 'Necessário',
+  },
+  {
+    name: 'todai_consent',
+    where: 'Cookie',
+    purpose: 'Guarda a sua escolha sobre cookies. Não contém dado pessoal.',
+    life: '12 meses.',
+    category: 'Necessário',
+  },
+  {
+    name: 'todai-theme',
+    where: 'Armazenamento local do navegador',
+    purpose: 'Lembra o tema claro ou escuro que você escolheu.',
+    life: 'Até você apagar os dados do site no navegador.',
+    category: 'Necessário',
+  },
+  {
+    name: 'todai:funil',
+    where: 'Armazenamento da aba (sessionStorage)',
+    purpose: 'Guarda as respostas do assistente de orçamento enquanto você preenche.',
+    life: 'Até fechar a aba.',
+    category: 'Necessário',
+  },
+  {
+    name: 'todai-acesso',
+    where: 'Armazenamento da aba (sessionStorage)',
+    purpose: 'Mantém aberto o resumo da sua licença depois de entrar pelo link enviado por e-mail.',
+    life: 'Até fechar a aba.',
+    category: 'Necessário',
+  },
+];
+
 export default function Privacy() {
   return (
     <SiteShell>
       <article className="legal">
         <h1 className="legal__title">Política de privacidade</h1>
-        <p className="legal__updated">Versão de 27/10/2026</p>
+        <p className="legal__updated">Versão de 17/11/2026</p>
+        <p className="legal__note">
+          Texto a ser revisado por profissional jurídico. Ele descreve o que o site e o sistema
+          fazem hoje.
+        </p>
 
         <p>
           Esta página explica quais dados pessoais a {LEGAL_NAME} coleta no
@@ -38,27 +82,58 @@ export default function Privacy() {
             digita nos formulários e as mensagens trocadas.
           </li>
           <li>
-            <strong>Visitas ao site:</strong> contamos quantas pessoas abrem
-            cada página, só em números somados por dia: país e cidade
-            aproximados, o site de onde você veio, a campanha do link (quando
-            houver), o tipo de aparelho (celular, tablet ou computador) e a
-            página aberta. Não guardamos o seu endereço IP, não usamos cookie
-            nem identificador seu para isso e não identificamos você. Quem
-            ativa o sinal "Do Not Track" ou "Global Privacy Control" no
-            navegador não é contado.
-          </li>
-          <li>
             <strong>Pagamento:</strong> quem processa é o Mercado Pago. Não
             recebemos nem guardamos número de cartão; recebemos a confirmação
             do pagamento e o estado da assinatura.
           </li>
         </ul>
 
+        <h3>Estatísticas de visita</h3>
+        <p>
+          Só contamos com a sua permissão (veja a seção 5). Contamos quantas
+          pessoas abrem cada página, só em números somados por dia: país e
+          cidade aproximados, o site de onde você veio, a campanha do link
+          (quando houver), o tipo de aparelho (celular, tablet ou computador)
+          e a página aberta. Nessa contagem não guardamos o seu endereço IP,
+          não usamos cookie nem identificador seu e não identificamos você.
+          Quem ativa o sinal &quot;Do Not Track&quot; ou &quot;Global Privacy
+          Control&quot; no navegador não é contado, mesmo tendo aceitado. Os
+          números somados são mantidos por até 400 dias.
+        </p>
+
+        <h3>Dados de segurança de quem tem conta</h3>
+        <p>
+          Quem entra na área do cliente tem o endereço IP e o navegador (user
+          agent) guardados, só para proteger a conta. Isso é separado das
+          estatísticas de visita e não depende da escolha de cookies.
+        </p>
+        <ul>
+          <li>
+            <strong>Sessões ativas</strong> (IP e navegador): enquanto a sessão
+            vale, no máximo 8 horas, ou menos se a conta ficar parada (30
+            minutos para clientes). Depois disso são apagados.
+          </li>
+          <li>
+            <strong>Tentativas de login</strong> (e-mail digitado e IP):
+            guardadas por 15 minutos, para barrar tentativas em excesso.
+          </li>
+          <li>
+            <strong>Registro de ações da conta</strong> (por exemplo entrar,
+            trocar a senha, ativar a verificação em duas etapas; com IP e
+            navegador): 365 dias, depois apagados. Nunca guardam senha nem o
+            conteúdo das mensagens.
+          </li>
+        </ul>
+        <p>
+          O prazo de guarda dos demais dados (cadastro, pedidos de orçamento,
+          mensagens e dados de compra) ainda está a definir.
+        </p>
+
         <h2>2. Para que usamos</h2>
         <ul>
-          <li>Criar o seu cadastro, cobrar e liberar a licença (execução do contrato).</li>
+          <li>Criar o seu cadastro, cobrar e liberar a licença.</li>
           <li>Enviar o código de ativação, avisos de cobrança e suporte.</li>
-          <li>Proteger o serviço contra fraude e uso indevido da licença (legítimo interesse).</li>
+          <li>Proteger o serviço contra fraude e uso indevido da licença.</li>
           <li>Cumprir obrigações legais e fiscais.</li>
         </ul>
 
@@ -77,21 +152,68 @@ export default function Privacy() {
           funcionar e para dar suporte quando você pedir.
         </p>
 
-        <h2>5. Cookies</h2>
+        <h2>5. Cookies e armazenamento no navegador</h2>
         <p>
-          O site usa apenas o cookie de sessão necessário para manter você
-          conectado na área do cliente. Ele não é usado para propaganda nem
-          para rastrear sua navegação em outros sites. A contagem de visitas
-          não usa cookie.
+          Na primeira visita, uma faixa pergunta se você aceita as estatísticas.
+          Recusar é tão fácil quanto aceitar, e o site funciona igual. Nada
+          aqui serve para propaganda nem para acompanhar você em outros sites.
+        </p>
+        <div className="legal__table-wrap">
+          <table className="legal__table">
+            <caption className="sr-only">Cookies e itens gravados no navegador</caption>
+            <thead>
+              <tr>
+                <th scope="col">Nome</th>
+                <th scope="col">Onde fica</th>
+                <th scope="col">Para que serve</th>
+                <th scope="col">Duração</th>
+                <th scope="col">Categoria</th>
+              </tr>
+            </thead>
+            <tbody>
+              {STORAGE_ITEMS.map((item) => (
+                <tr key={item.name}>
+                  <th scope="row" data-label="Nome">
+                    <code>{item.name}</code>
+                  </th>
+                  <td data-label="Onde fica">{item.where}</td>
+                  <td data-label="Para que serve">{item.purpose}</td>
+                  <td data-label="Duração">{item.life}</td>
+                  <td data-label="Categoria">{item.category}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p>
+          <strong>Estatísticas:</strong> a contagem de visitas descrita na seção
+          1 não grava nenhum cookie nem item no navegador. Ela só roda se você
+          aceitar, e o site confere a sua escolha (no cookie{' '}
+          <code>todai_consent</code>) antes de gravar qualquer número.
+        </p>
+        <p>
+          <strong>Como mudar a escolha:</strong> use o botão abaixo ou o link
+          &quot;Preferências de cookies&quot; no rodapé de qualquer página. Ao
+          desligar as estatísticas, o site para de contar na hora. Se esta
+          política mudar de forma que afete os cookies, a faixa volta a
+          perguntar.
+        </p>
+        <p>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={openConsentPreferences}>
+            Preferências de cookies
+          </button>
         </p>
 
         <h2>6. Por quanto tempo guardamos</h2>
-        <p>
-          Enquanto o contrato estiver ativo e depois dele pelo tempo necessário
-          para cumprir obrigações legais e para a defesa em eventual disputa.
-          Passado esse prazo, os dados são apagados ou anonimizados. Os números
-          somados de visitas são mantidos por até 400 dias.
-        </p>
+        <ul>
+          <li>Números somados de visitas: até 400 dias.</li>
+          <li>Sessões, tentativas de login e registro de ações da conta: os prazos da seção 1.</li>
+          <li>
+            Cadastro, pedidos de orçamento, mensagens e dados de compra: prazo
+            a definir. Até a definição, tratamos esses dados só para o que está
+            descrito nesta página.
+          </li>
+        </ul>
 
         <h2>7. Segurança</h2>
         <p>

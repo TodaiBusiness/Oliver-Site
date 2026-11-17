@@ -3,6 +3,7 @@ import Icon from '../components/Icon.jsx';
 import Logo from '../components/Logo.jsx';
 import { COMPANY_NAME, EMAIL, WHATSAPP_MESSAGES } from '../data/company.js';
 import { FOOTER_GROUPS } from '../data/nav.js';
+import { openConsentPreferences } from '../utils/consent.js';
 import {
   createMailtoLink,
   createWhatsAppLink,
@@ -63,6 +64,9 @@ export default function Footer() {
         <p>
           © {year} {COMPANY_NAME}. Todos os direitos reservados.
         </p>
+        <button type="button" className="footer__prefs" onClick={openConsentPreferences}>
+          Preferências de cookies
+        </button>
       </div>
     </footer>
   );

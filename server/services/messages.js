@@ -10,8 +10,9 @@
 import { AUDIT_ACTIONS, LIMITS, ROLES } from '../config.js';
 import { tooManyRequests } from '../http/errors.js';
 import { createValidator, cleanText } from '../http/validation.js';
+import { NO_HOOKS } from './messageEvents.js';
 
-export function messagesService(ctx, requests, attachments) {
+export function messagesService(ctx, requests, attachments, hooks = NO_HOOKS) {
   return {
     /**
      * Caixa de mensagens: todas as conversas que o visitante pode ver.
@@ -47,10 +48,17 @@ export function messagesService(ctx, requests, attachments) {
     },
 
     async listForRequest(viewer, requestId, pagination) {
-      await requests.getForViewer(viewer, requestId); // autoriza ou lança 404
+      const request = await requests.getForViewer(viewer, requestId); // autoriza ou lança 404
 
       const items = await ctx.messages.listForRequest(requestId, pagination);
-      await ctx.messages.markReadForReader(requestId, viewer.id);
+      const lidas = await ctx.messages.markReadForReader(requestId, viewer.id);
+      if (lidas > 0) {
+        hooks.messagesRead({
+          requestId,
+          ownerId: request.user_id,
+          by: viewer.role === ROLES.ADMIN ? 'team' : 'client',
+        });
+      }
 
       /* Anexos de todas as mensagens numa consulta só (sem N+1). */
       const anexos = await attachments.metaPorMensagem(items.map((m) => m.id));
@@ -62,7 +70,7 @@ export function messagesService(ctx, requests, attachments) {
     },
 
     async send(viewer, requestId, body, imagem = null) {
-      await requests.getForViewer(viewer, requestId); // autoriza ou lança 404
+      const request = await requests.getForViewer(viewer, requestId); // autoriza ou lança 404
 
       /* Com imagem, o texto é opcional: mandar só a foto é legítimo. */
       const validator = createValidator();
@@ -113,6 +121,13 @@ export function messagesService(ctx, requests, attachments) {
         resourceType: 'message',
         resourceId: id,
         details: { requestId },
+      });
+
+      hooks.messageCreated({
+        requestId,
+        messageId: id,
+        ownerId: request.user_id,
+        fromTeam: viewer.role === ROLES.ADMIN,
       });
 
       return {

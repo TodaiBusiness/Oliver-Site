@@ -28,10 +28,13 @@ async function setup({ readKey = KEY, allowedOrigins = [], clock = { now: T0 } }
   return { app, db, analytics, clock, close: () => db.close() };
 }
 
-const visita = (app, { path = '/', entry = true, ua = UA_PC, ip = '1.1.1.1', extra = {}, headers = {} } = {}) =>
+const CONSENTIMENTO = encodeURIComponent(JSON.stringify({ v: 1, necessary: true, analytics: true, ts: 1 }));
+
+/* Por padrão a visita vem com o aceite das estatísticas (cookie todai_consent). */
+const visita = (app, { path = '/', entry = true, ua = UA_PC, ip = '1.1.1.1', extra = {}, headers = {}, cookie = `todai_consent=${CONSENTIMENTO}` } = {}) =>
   request(app, 'POST', '/api/analytics/collect', {
     body: { path, entry, ...extra },
-    headers: { 'user-agent': ua, 'x-forwarded-for': ip, ...headers },
+    headers: { 'user-agent': ua, 'x-forwarded-for': ip, ...(cookie ? { cookie } : {}), ...headers },
   });
 
 const relatorio = (app, { key = KEY, days } = {}) =>
@@ -39,6 +42,31 @@ const relatorio = (app, { key = KEY, days } = {}) =>
     query: days === undefined ? {} : { days: String(days) },
     headers: key === null ? {} : { 'X-Analytics-Key': key },
   });
+
+/* ---- consentimento ---- */
+
+test('sem cookie de consentimento, ou com analytics=false ou malformado: 204 e nada é gravado', async () => {
+  const { app, close } = await setup();
+  try {
+    const recusas = [
+      null,
+      `todai_consent=${encodeURIComponent(JSON.stringify({ v: 1, necessary: true, analytics: false, ts: 1 }))}`,
+      `todai_consent=${encodeURIComponent(JSON.stringify({ v: 1, analytics: 'true' }))}`,
+      'todai_consent=isto-nao-e-json',
+      'todai_consent=',
+      'outro=1',
+    ];
+    for (const cookie of recusas) {
+      assert.equal((await visita(app, { cookie })).status, 204, String(cookie));
+    }
+    const rel = await relatorio(app);
+    assert.equal(rel.body.totals.visits, 0);
+    assert.equal((await visita(app)).status, 202);
+    assert.equal((await relatorio(app)).body.totals.visits, 1);
+  } finally {
+    await close();
+  }
+});
 
 /* ---- coleta e agregação ---- */
 

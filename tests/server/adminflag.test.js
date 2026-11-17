@@ -182,6 +182,6 @@ test('front: /admin mostra o aviso quando desligado e links de admin dependem da
 test('front: resposta do Panel aparece como "<nome> · TODAI" e não agrupa admins diferentes', () => {
   const msg = readFileSync(new URL('../../src/components/chat/ChatMessage.jsx', import.meta.url), 'utf8');
   assert.match(msg, /author_external_name\} · TODAI/);
-  const chat = readFileSync(new URL('../../src/components/chat/Chat.jsx', import.meta.url), 'utf8');
-  assert.match(chat, /author_external_name/);
+  const autor = readFileSync(new URL('../../src/components/chat/autor.js', import.meta.url), 'utf8');
+  assert.match(autor, /author_external_name/);
 });

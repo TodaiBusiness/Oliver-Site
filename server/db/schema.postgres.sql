@@ -108,10 +108,20 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS author_external_name VARCHAR(80) N
 
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS client_message_id    VARCHAR(64) NULL;
 
+-- Aviso por e-mail quando a equipe responde (1 = recebe; o cliente desliga em Conta > Segurança).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_email SMALLINT NOT NULL DEFAULT 1;
+
 CREATE INDEX IF NOT EXISTS ix_messages_unread ON messages (is_read, request_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_messages_client_id
   ON messages (request_id, author_external_id, client_message_id)
   WHERE client_message_id IS NOT NULL;
+
+-- Arquivar conversa (Panel) e marca de mudança do feed /api/service/conversations/changes.
+ALTER TABLE project_requests ADD COLUMN IF NOT EXISTS archived_at       BIGINT NULL;
+ALTER TABLE project_requests ADD COLUMN IF NOT EXISTS panel_changed_at  BIGINT NULL;
+CREATE INDEX IF NOT EXISTS ix_messages_created       ON messages (created_at);
+CREATE INDEX IF NOT EXISTS ix_requests_panel_changed ON project_requests (panel_changed_at);
+CREATE INDEX IF NOT EXISTS ix_requests_updated       ON project_requests (updated_at);
 
 -- Usuário de sistema "TODAI Atendimento": assina as mensagens do Panel. O hash é
 -- inválido de propósito (não é scrypt): nenhuma senha confere, login impossível.
@@ -260,3 +270,13 @@ CREATE TABLE IF NOT EXISTS password_resets (
 );
 
 CREATE INDEX IF NOT EXISTS ix_resets_user ON password_resets (user_id);
+
+-- Modelos de resposta rápida da equipe (Panel): compartilhados, texto puro.
+CREATE TABLE IF NOT EXISTS reply_templates (
+  id              BIGSERIAL    NOT NULL,
+  title           VARCHAR(60)  NOT NULL,
+  body            TEXT         NOT NULL,
+  updated_at      BIGINT       NOT NULL,
+  updated_by_name VARCHAR(80)  NOT NULL,
+  CONSTRAINT pk_reply_templates PRIMARY KEY (id)
+);

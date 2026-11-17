@@ -11,6 +11,7 @@ import { createContext } from './context.js';
 import { createRouter } from './http/router.js';
 import {
   parseCookies,
+  analyticsConsented,
   serializeClearedSessionCookie,
   serializeSessionCookie,
 } from './http/cookies.js';
@@ -35,6 +36,7 @@ import { attachmentsService } from './services/attachments.js';
 import { panelProjectsService } from './services/panelProjects.js';
 import { panelClientsService } from './services/panelClients.js';
 import { panelConversationsService, parseServiceId } from './services/panelConversations.js';
+import { panelInboxService } from './services/panelInbox.js';
 import { quoteRequestsService } from './services/quoteRequests.js';
 import { checkoutService } from './services/checkout.js';
 import { accountService } from './services/account.js';
@@ -44,6 +46,13 @@ import { twoFactorService } from './services/twoFactor.js';
 import { passwordResetService } from './services/passwordReset.js';
 import { maintenanceService } from './services/maintenance.js';
 import { createMailer } from './services/mailer.js';
+import {
+  EVENT_STREAM_HEADERS,
+  createMessageEvents,
+  createMessageHooks,
+  sessionAliveChecker,
+} from './services/messageEvents.js';
+import { messageNotifyService } from './services/messageNotify.js';
 import { runWithRequest } from './http/requestContext.js';
 import { clipUserAgent } from './http/userAgent.js';
 import { normalizeEmail } from './http/validation.js';
@@ -158,6 +167,8 @@ export function createApp(
     adminEnabled = config.siteAdminEnabled,
     serviceKey = config.service.apiKey,
     serviceRatePerMin = config.service.ratePerMin,
+    eventsOptions = {},
+    notifyOptions = {},
   } = {}
 ) {
   const ctx = createContext(db, vault ? { vault } : undefined);
@@ -170,8 +181,13 @@ export function createApp(
   const projects = projectsService(ctx);
   const requests = requestsService(ctx);
   const attachments = attachmentsService(ctx, requests);
-  const messages = messagesService(ctx, requests, attachments);
-  const panelConversations = panelConversationsService(ctx);
+  /* Tempo real (SSE) e aviso por e-mail: ver services/messageEvents.js e messageNotify.js. */
+  const events = createMessageEvents({ isSessionAlive: sessionAliveChecker(ctx), ...eventsOptions });
+  const notify = messageNotifyService(ctx, { mailer, allowedOrigins, ...notifyOptions });
+  const messageHooks = createMessageHooks({ events, notify });
+  const messages = messagesService(ctx, requests, attachments, messageHooks);
+  const panelConversations = panelConversationsService(ctx, messageHooks);
+  const panelInbox = panelInboxService(ctx);
   const panelProjects = panelProjectsService(ctx, projects);
   const panelClients = panelClientsService(ctx, requests);
   const clients = clientsService(ctx);
@@ -227,13 +243,15 @@ export function createApp(
     body: { adminEnabled: adminEnabled === true },
   }));
 
-  /* Visitas do site (agregado, sem IP nem cookie — docs/VISITANTES.md). Não há
+  /* Visitas do site (agregado, sem IP nem cookie — docs/VISITANTES.md; só com consentimento). Não há
      CORS: só a própria origem do site pode chamar; sem `Origin` válido a
      requisição é recusada. Bot, DNT e Sec-GPC respondem 202 sem registrar. */
   router.post('/api/analytics/collect', async ({ body, headers, remoteAddress }) => {
     if (allowedOrigins.length && !allowedOrigins.includes(headers.origin)) {
       throw forbidden('Origem não autorizada.');
     }
+    /* Sem o aceite das estatísticas (cookie todai_consent) nada é gravado. */
+    if (!analyticsConsented(headers.cookie)) return { status: 204 };
     const collectIp = clientAddress(headers, remoteAddress);
     if (!collectLimiter.hit(collectIp) || !collectDaily.hit(collectIp)) {
       throw tooManyRequests('Muitas requisições.');
@@ -441,6 +459,7 @@ export function createApp(
     '/api/auth/logout',
     async ({ token, user }) => {
       await auth.logout(token, user?.id);
+      events.closeSession(user?.sessionId);
       return { status: 200, body: { ok: true }, cookies: [serializeClearedSessionCookie()] };
     },
     { auth: true }
@@ -604,6 +623,29 @@ export function createApp(
         },
       },
     }),
+    { auth: true }
+  );
+
+  /* Aviso por e-mail quando a equipe responde (liga/desliga na própria conta). */
+  router.get(
+    '/api/me/notifications',
+    async ({ user }) => ({
+      status: 200,
+      body: { notifyEmail: (await ctx.users.getNotifyEmail(user.id)) !== false },
+    }),
+    { auth: true }
+  );
+
+  router.patch(
+    '/api/me/notifications',
+    async ({ user, body }) => {
+      const keys = Object.keys(body ?? {});
+      if (keys.length !== 1 || keys[0] !== 'notifyEmail' || typeof body.notifyEmail !== 'boolean') {
+        throw badRequest('Envie apenas notifyEmail (verdadeiro ou falso).');
+      }
+      await ctx.users.setNotifyEmail(user.id, body.notifyEmail);
+      return { status: 200, body: { notifyEmail: body.notifyEmail } };
+    },
     { auth: true }
   );
 
@@ -858,6 +900,69 @@ export function createApp(
       status: 200,
       body: { conversations: await panelConversations.listConversations(query) },
     }),
+    svc
+  );
+
+  /* Feed de mudanças, arquivar e modelos de resposta (Panel). Declarada antes de /:id. */
+  router.get(
+    '/api/service/conversations/changes',
+    async ({ query }) => ({ status: 200, body: await panelInbox.changes(query) }),
+    svc
+  );
+
+  router.post(
+    '/api/service/conversations/:id/archive',
+    async ({ params, body }) => {
+      await panelInbox.archive(requireServiceId(params.id), pick(serviceProjectBody(body), ['actorId', 'actorName']));
+      return { status: 204 };
+    },
+    svc
+  );
+
+  router.post(
+    '/api/service/conversations/:id/unarchive',
+    async ({ params, body }) => {
+      await panelInbox.unarchive(requireServiceId(params.id), pick(serviceProjectBody(body), ['actorId', 'actorName']));
+      return { status: 204 };
+    },
+    svc
+  );
+
+  router.get(
+    '/api/service/templates',
+    async () => ({ status: 200, body: { templates: await panelInbox.listTemplates() } }),
+    svc
+  );
+
+  router.post(
+    '/api/service/templates',
+    async ({ body }) => ({
+      status: 201,
+      body: {
+        template: await panelInbox.createTemplate(
+          pick(serviceProjectBody(body), ['title', 'body', 'actorId', 'actorName'])
+        ),
+      },
+    }),
+    svc
+  );
+
+  router.put(
+    '/api/service/templates/:id',
+    async ({ params, body }) => {
+      const id = requireServiceId(params.id);
+      const input = pick(serviceProjectBody(body), ['title', 'body', 'actorId', 'actorName']);
+      return { status: 200, body: { template: await panelInbox.updateTemplate(id, input) } };
+    },
+    svc
+  );
+
+  router.delete(
+    '/api/service/templates/:id',
+    async ({ params, query }) => {
+      await panelInbox.deleteTemplate(requireServiceId(params.id), query);
+      return { status: 204 };
+    },
     svc
   );
 
@@ -1170,7 +1275,38 @@ export function createApp(
     }
   }
 
-  return { handle, bodyPolicy, ctx, maintenance, services: { auth, projects, requests, messages } };
+  /**
+   * GET /api/events (SSE). Não passa por `handle`: a resposta não termina.
+   * Devolve { status, headers, body } para erro (JSON, como `handle`) ou, em
+   * caso de sucesso, { status: 200, headers, stream: attach(sink) }, onde
+   * `attach` registra o sink {write,end,pendingBytes} e devolve o "detach"
+   * que o adaptador HTTP chama quando o socket fecha. Sem corpo, sem limite
+   * de corpo; auth só por cookie de sessão (CSRF não se aplica a GET).
+   */
+  async function openEventStream({ headers: rawHeaders, remoteAddress }) {
+    try {
+      const headers = normalizeHeaders(rawHeaders);
+      if (headers.origin !== undefined && allowedOrigins.length && !allowedOrigins.includes(headers.origin)) {
+        throw forbidden('Origem não autorizada.');
+      }
+      const token = parseCookies(headers.cookie)[SECURITY.SESSION_COOKIE] ?? null;
+      const user = await runWithRequest(
+        { ip: clientAddress(headers, remoteAddress), userAgent: clipUserAgent(headers['user-agent']) },
+        () => auth.resolveSession(token)
+      );
+      if (!user) throw unauthorized();
+      events.assertCanOpen(user.id); // 429 como resposta normal, antes do 200
+      return {
+        status: 200,
+        headers: EVENT_STREAM_HEADERS,
+        stream: (sink) => events.open({ userId: user.id, sessionId: user.sessionId }, sink),
+      };
+    } catch (error) {
+      return toErrorResponse(error);
+    }
+  }
+
+  return { handle, bodyPolicy, openEventStream, events, ctx, maintenance, services: { auth, projects, requests, messages } };
 }
 
 /* ------------------------------------------------------------- helpers */

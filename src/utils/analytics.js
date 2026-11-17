@@ -1,12 +1,14 @@
 /* =========================================================================
    Camada de eventos — preparada para analytics, sem instalar nada.
    -------------------------------------------------------------------------
-   Nenhuma biblioteca é carregada e nenhum dado sai do navegador. A função
+   Nenhuma biblioteca é carregada e nenhum dado sai do navegador (e, mesmo plugado, só com o aceite das estatísticas). A função
    apenas empurra o evento para `window.dataLayer` SE algum dia você plugar
    Google Tag Manager / GA4 / Plausible. Enquanto isso, é um no-op silencioso.
 
    Para ativar depois, basta incluir a tag do seu provedor no index.html.
    ========================================================================= */
+
+import { analyticsAllowed } from './consent.js';
 
 /** Nomes dos eventos disparados pelo site (mantidos em um só lugar). */
 export const EVENTS = {
@@ -21,6 +23,8 @@ export const EVENTS = {
 
 export function track(event, payload = {}) {
   if (typeof window === 'undefined') return;
+  /* Sem aceite das estatísticas, nada é empurrado para provedor algum. */
+  if (!analyticsAllowed()) return;
 
   const data = { event, ...payload };
 

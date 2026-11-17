@@ -59,3 +59,22 @@ export function serializeClearedSessionCookie() {
 
   return parts.join('; ');
 }
+
+/* ---- Consentimento de cookies (cookie próprio `todai_consent`, lido sem HttpOnly pelo navegador) ---- */
+
+export const CONSENT_COOKIE = 'todai_consent';
+
+/**
+ * True só quando o cookie de consentimento existe, é JSON válido e diz
+ * analytics=true. Qualquer outra coisa (ausente, malformado, false) é "não".
+ */
+export function analyticsConsented(cookieHeader) {
+  const raw = parseCookies(cookieHeader)[CONSENT_COOKIE];
+  if (typeof raw !== 'string' || !raw || raw.length > 400) return false;
+  try {
+    const data = JSON.parse(raw);
+    return data !== null && typeof data === 'object' && data.analytics === true;
+  } catch {
+    return false;
+  }
+}

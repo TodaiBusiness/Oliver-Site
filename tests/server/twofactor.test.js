@@ -67,20 +67,6 @@ test('admin sem 2FA continua entrando só com senha', async () => {
   }
 });
 
-test('cliente não configura 2FA', async () => {
-  const { app, close } = await createTestApp();
-  try {
-    const cliente = await createClient(app);
-    const r = await request(app, 'POST', '/api/auth/2fa/setup', {
-      token: cliente.token,
-      body: { password: cliente.user.password },
-    });
-    assert.equal(r.status, 403);
-  } finally {
-    close();
-  }
-});
-
 /* ------------------------------------------------------------------ ativar */
 
 test('ativar exige a senha, um código válido e entrega 10 códigos de recuperação', async () => {

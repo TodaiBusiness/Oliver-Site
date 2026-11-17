@@ -21,7 +21,7 @@ bugs que achou e corrigiu os itens marcados com a data, e de novo em 16/11/2026 
 
 ## Contas, sessões e segundo fator (16/11/2026)
 
-### Segundo fator (TOTP) para ADMIN
+### Segundo fator (TOTP) para ADMIN e CLIENT
 
 - RFC 6238 só com `node:crypto` (`server/security/totp.js`; testado com os vetores da RFC): SHA-1, 6 dígitos, 30 s, tolerância de ±1 passo.
 - Ativar: `POST /api/auth/2fa/setup` (exige a **senha**) sorteia o segredo e o guarda pendente; `POST /api/auth/2fa/enable` confirma com um
@@ -39,6 +39,13 @@ bugs que achou e corrigiu os itens marcados com a data, e de novo em 16/11/2026 
   segredos 2FA já cadastrados e os códigos de recuperação** (a chave do HMAC também muda). Saída: `node scripts/admin-2fa-reset.mjs <e-mail>`
   (exige acesso ao banco; apaga segredo, códigos e sessões da conta).
 - Admin **sem** 2FA continua entrando só com senha: ativar é opcional por enquanto (ver pendências).
+- **Clientes (CLIENT)**: o 2FA vale também para o cliente, sempre **opcional** (`required: false` no status). Ele ativa em
+  `/cliente/seguranca`; o login usa o mesmo passo do admin. A trava antiga era só o `requireAdmin` em `server/services/twoFactor.js`
+  (e `isAdmin` na tela); o login em dois passos nunca olhou o papel. Agora só ADMIN e CLIENT passam, e conta com login desligado
+  (usuário de sistema "TODAI Atendimento") é recusada com 403. Todas as proteções acima valem igual para o cliente.
+- **Limitação (sem e-mail de reset de 2FA)**: quem perde o celular **e** os códigos de recuperação não consegue se recuperar sozinho;
+  precisa falar com a equipe, que remove o 2FA direto no banco (`scripts/admin-2fa-reset.mjs <e-mail>`; reset pelo Panel fica para depois).
+  Pendência registrada em `docs/PENDENCIAS.md` (P-020).
 
 ### Senha, sessões e inatividade
 
@@ -102,6 +109,25 @@ bugs que achou e corrigiu os itens marcados com a data, e de novo em 16/11/2026 
 Ver `docs/PENDENCIAS.md`, P-019: telas ainda sem rota no `App.jsx`; `netlify/functions/api.js` não repassa os cabeçalhos da API; 2FA ainda
 opcional (obrigar só depois de todo admin ativar); sem QR code; SQL novo testado só em SQLite; limite por IP e por e-mail em memória (por
 instância); sem verificação de e-mail no cadastro.
+
+## Chat em tempo real e aviso por e-mail ao cliente (17/11/2026)
+
+**Stream de eventos: `GET /api/events` (Server-Sent Events).**
+- Autenticado só pelo cookie de sessão (sem sessão: 401). Resposta `text/event-stream` com `Cache-Control: no-cache, no-transform` e `X-Accel-Buffering: no`; não lê corpo e não usa o limite de corpo. Se há `ALLOWED_ORIGINS`/origens configuradas e a requisição traz `Origin`, ele precisa estar na lista.
+- Eventos: `ready` (ao abrir), `message` `{"requestId":n,"id":n}` e `read` `{"requestId":n,"by":"client"|"team"}`. Nunca levam texto de mensagem nem nome: o navegador busca o conteúdo pela API, que confere a autorização de novo. Batimento `: ping` a cada 25 s.
+- Só o DONO da solicitação recebe os eventos dela (o destinatário é escolhido no servidor, pelo `user_id` da solicitação). Admin não recebe eventos de conversas de clientes por este canal.
+- Disparam em qualquer criação de mensagem (cliente, admin do site, resposta do Panel via serviço) e quando mensagens são lidas (leitura pelo cliente, ou "lida" pelo Panel/admin). O gancho é único: `createMessageHooks` (`server/services/messageEvents.js`), chamado por `messages.js` e `panelConversations.js`; erro no gancho nunca falha a mensagem.
+- Limites: 3 conexões por usuário e 500 no processo (`429` com mensagem clara). O servidor encerra a conexão no logout e, a cada batimento, quando a sessão venceu ou passou do limite de inatividade (sem renovar a sessão: o stream não mantém ninguém logado). `server.js` fecha todas as conexões ao receber SIGTERM.
+- **Limitação: hub em memória, por processo.** Com mais de uma instância o evento só chega a quem está conectado na MESMA instância que gravou a mensagem; o front tem polling de segurança (30 s sem stream, 2 min com stream) e ressincroniza ao reconectar. Para várias instâncias, trocar `publish` por Redis pub/sub ou LISTEN/NOTIFY.
+- **Netlify:** função com tempo limite não sustenta SSE. `/api/events` responde `501 STREAM_INDISPONIVEL` e o front cai para polling (nada quebra). Em produção real (Render/VPS, `server.js`) o SSE funciona.
+- **Proxy reverso:** nginx precisa de `proxy_buffering off;` (e `proxy_read_timeout` maior que 25 s) em `/api/events`; Caddy, `flush_interval -1`. O servidor já manda `X-Accel-Buffering: no`.
+- Fora de escopo por decisão: "digitando…" e presença online.
+
+**Aviso por e-mail quando a equipe responde (`server/services/messageNotify.js`).**
+- Coluna `users.notify_email` (padrão 1; migração idempotente em SQLite e Postgres). O cliente liga/desliga com `PATCH /api/me/notifications` `{"notifyEmail":boolean}` (sessão obrigatória, corpo estrito: só essa chave, só booleano); `GET /api/me/notifications` devolve o valor atual. Componente: `src/components/NotifyEmailToggle.jsx` (já na lista de mensagens; falta incluir em Conta > Segurança).
+- Só para mensagem de autor ADMIN (admin do site ou Panel). Um e-mail por rajada: não envia se já existe outra mensagem da equipe NÃO LIDA da mesma solicitação nos últimos 15 min (regra por `id` menor, então duas respostas simultâneas geram um só aviso). Cliente que lê tudo volta a ser avisado na próxima resposta.
+- Corpo curto SEM o texto da mensagem: aviso + link `SITE_PUBLIC_URL/cliente/mensagens/{id}` (exige login) + rodapé "Para parar de receber estes avisos, desligue em Conta > Segurança.". Assunto: "Você recebeu uma resposta da TODAI". `SITE_PUBLIC_URL` precisa ser https, sem usuário/senha e, havendo origens permitidas, estar entre elas; senão não envia (registra uma vez). Nome do cliente entra como primeiro nome e é escapado no HTML.
+- Só com `RESEND_API_KEY` + `MAIL_FROM` (`mailer.live`); sem eles registra "e-mail desligado" uma vez e segue. O envio roda em segundo plano (sem `await`): falha, lentidão ou ausência do provedor nunca falham nem atrasam a mensagem; o log de erro não traz endereço nem texto.
 
 ## Erros da API de licenciamento
 
@@ -203,6 +229,24 @@ subdomínios; `src/utils/checkoutUrl.js`).
     `q` busca em ação, tipo/id do recurso, nome do usuário e **só o `actorName`** dentro de `details` (a busca não serve de oráculo para o resto do `details`). Ordem `id desc`.
   - **Risco residual**: o `ip` da auditoria é o do cliente HTTP daquele evento; nas ações do Panel é o IP da API do Panel, não o do admin (o admin está em `actorName`). A auditoria
     de envio de mensagem do Panel passou a gravar também `actorName` (sem o texto).
+
+- **Caixa de conversas do Panel: busca, arquivar, mudanças e modelos** (`server/services/panelInbox.js`, `panelInboxQuery.js`, `server/repositories/panelInbox.js`;
+  rotas `GET /api/service/conversations?filter&status&q`, `POST .../:id/archive|unarchive`, `GET .../conversations/changes?since`, `GET|POST|PUT|DELETE /api/service/templates`).
+  Mesmo porteiro dos demais `/api/service/*` (chave em tempo constante antes de rotear/ler corpo, 401 sem detalhe, 503 sem chave, 403 com `Origin`, cookie ignorado, rate limit,
+  corpo ≤ 32 KB). Testes: `tests/server/serviceInbox.test.js`.
+  - **Busca (`q`)**: ≤100 caracteres, controle e formatação Unicode viram espaço, `LIKE`/`ILIKE ... ESCAPE '!'` (`%`, `_`, `!` literais) e valor SEMPRE parâmetro. Procura em nome e e-mail do
+    cliente, tipo/descrição (o "título") e no texto das mensagens (`EXISTS`, então a conversa não duplica). `filter` ∈ `all` (não arquivadas) | `unread` | `archived`, `status` ∈ `REQUEST_STATUS_VALUES`;
+    valor inválido: 400 `DADOS_INVALIDOS` com `details`. Ordem `last_at desc, id desc` (paginação estável). O e-mail do cliente só sai na lista/detalhe de conversa (contrato), nunca em `changes`/modelos.
+  - **Arquivar**: coluna `project_requests.archived_at` (+ `panel_changed_at`, marca interna do feed; nenhuma das duas sai em resposta nenhuma, nem no site do cliente — as rotas do cliente não mudaram).
+    Idempotente (repetir = 204 sem nova auditoria). Auditoria `CONVERSA_ARQUIVADA`/`CONVERSA_DESARQUIVADA` com `userId` = usuário de sistema e `details` `{requestId, actorId, actorName}`.
+    Mensagem nova de CLIENTE desarquiva sozinha (uma instrução em `messagesRepository.create`, o único ponto de criação); resposta da equipe não. Conversa arquivada não conta em
+    `/conversations/unread` nem no `unreadCount` de `changes` (a mensagem continua não lida no banco).
+  - **Feed `changes`**: cursor opaco (base64url de `c1.<ms>`; inválido: 400). Três faixas indexadas (`ix_messages_created`, `ix_requests_panel_changed`, `ix_requests_updated`) mais a contagem de não
+    lidas (`ix_messages_unread`); medido: ~3 ms com 5.000 mensagens (SQLite e Postgres). O cursor devolvido é `agora - 2 s` (sobreposição contra commit tardio/relógio: ids podem repetir, nunca faltar).
+    Máx. 200 ids por chamada, do mais antigo; se passar, o cursor para logo antes da última e a próxima continua dali. O cursor não carrega dado nenhum (só um instante) e não dá acesso a nada além do que a chave já dá.
+  - **Modelos** (`reply_templates`): título 1..60 (sem controle), texto 1..2000 (só tab/quebra de linha entre os controles), máx. 50 (409 `LIMITE_DE_MODELOS`, checado dentro do `INSERT`), PUT exige objeto completo
+    (400 com todos os campos ruins de uma vez, inclusive `actorId/actorName`). Texto puro: guardado e devolvido sem interpretação (HTML fica como caracteres; o site nunca o renderiza, o Panel mostra como texto).
+    Auditoria `MODELO_RESPOSTA_CRIADO/EDITADO/EXCLUIDO` com `{title, actorId, actorName}`, nunca o texto do modelo. Modelos são compartilhados por toda a equipe (sem dono).
 
 ## Visitas do site
 

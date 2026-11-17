@@ -30,6 +30,7 @@ import { parseAllowedOrigins } from './server/http/origins.js';
 import { SECURITY_HEADERS } from './server/http/securityHeaders.js';
 import { applySeo } from './shared/seo.js';
 import { caminhoEstatico, lerCorpo, statusDaSpa } from './server/http/static.js';
+import { isEventStreamRequest, serveEventStream } from './server/http/sse.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -116,6 +117,13 @@ const server = createServer(async (request, response) => {
     /* ------------------------------------------------------------------ API */
     if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
       const apiPath = normalizeApiPath(url.pathname);
+
+      /* Tempo real do chat (SSE): GET sem corpo, resposta que não termina. */
+      if (isEventStreamRequest(request, apiPath)) {
+        await serveEventStream(app, request, response, SEGURANCA);
+        return;
+      }
+
       const politica = app.bodyPolicy({ path: apiPath, headers: request.headers });
 
       /* /api/service/* sem chave válida: o corpo NÃO é lido (nem 1 byte); o
@@ -283,6 +291,7 @@ server.listen(PORT, HOST, () => {
 for (const sinal of ['SIGTERM', 'SIGINT']) {
   process.on(sinal, () => {
     console.log(`[server] ${sinal} recebido, encerrando.`);
+    app.events.closeAll(); // senão o SSE seguraria o close() para sempre
     server.close(() => {
       db.close().finally(() => process.exit(0));
     });
