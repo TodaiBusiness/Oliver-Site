@@ -115,3 +115,122 @@ export const isoToday = (offsetDays = 0) => {
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
+
+/* ------------------------------------------------------------ agenda */
+
+const TZ_BR = 'America/Sao_Paulo';
+
+/** Hoje em Brasília, `yyyy-MM-dd`. */
+export const hojeBrasilia = (nowMs = Date.now()) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ_BR }).format(nowMs);
+
+/** `yyyy-MM-dd` + n dias (aritmética de calendário, sem fuso). */
+export function somaDias(dia, n) {
+  const d = new Date(`${dia}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Início do atendimento (com fuso ou já em Brasília) → `{ dia, hora, ms }` em Brasília. */
+export function partesBrasilia(inicio) {
+  if (typeof inicio !== 'string') return null;
+  let ms;
+  if (/(?:Z|[+-]\d{2}:\d{2})$/.test(inicio)) ms = Date.parse(inicio);
+  else {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(inicio);
+    ms = m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4] + 3, +m[5]) : NaN;
+  }
+  if (!Number.isFinite(ms)) return null;
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', { timeZone: TZ_BR, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+      .formatToParts(ms)
+      .map((x) => [x.type, x.value])
+  );
+  return { dia: `${p.year}-${p.month}-${p.day}`, hora: `${p.hour}:${p.minute}`, ms };
+}
+
+/** `2026-11-20` → "sexta-feira, 20 de novembro". */
+export const diaExtenso = (dia) =>
+  dia ? new Date(`${dia}T12:00:00Z`).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }) : '';
+
+/** `2026-11-20` → { sem: 'sex', num: '20', mes: 'nov' } (para os botões de dia). */
+export function diaCurto(dia) {
+  const d = new Date(`${dia}T12:00:00Z`);
+  const f = (opt) => d.toLocaleDateString('pt-BR', { ...opt, timeZone: 'UTC' }).replace('.', '');
+  return { sem: f({ weekday: 'short' }), num: f({ day: 'numeric' }), mes: f({ month: 'short' }) };
+}
+
+/** "sexta-feira, 20 de novembro às 09:00". */
+export function quandoEmTexto(inicio) {
+  const p = partesBrasilia(inicio);
+  return p ? `${diaExtenso(p.dia)} às ${p.hora}` : '';
+}
+
+/** 45 → "45 min", 90 → "1 h 30 min", 120 → "2 h". */
+export function duracaoEmTexto(min) {
+  if (!Number.isFinite(min) || min <= 0) return '';
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  return h ? (m ? `${h} h ${m} min` : `${h} h`) : `${m} min`;
+}
+
+export const periodoDoHorario = (hora) => {
+  const h = Number(hora.slice(0, 2));
+  return h < 12 ? 'Manhã' : h < 18 ? 'Tarde' : 'Noite';
+};
+
+export const ESTADOS_AGENDAMENTO = {
+  solicitado: { label: 'Aguardando a loja', tone: 'info', hint: 'O horário está reservado para você. A loja confirma em breve.' },
+  confirmado: { label: 'Confirmado', tone: 'ok', hint: 'A loja confirmou o seu horário.' },
+  recusado: { label: 'Recusado', tone: 'danger', hint: 'A loja não pôde confirmar este horário. Escolha outro.' },
+  cancelado_cliente: { label: 'Cancelado por você', tone: 'warn', hint: 'Você cancelou este agendamento.' },
+  cancelado_loja: { label: 'Cancelado pela loja', tone: 'warn', hint: 'A loja cancelou este agendamento. Escolha outro horário.' },
+  remarcado: { label: 'Remarcado pela loja', tone: 'info', hint: 'A loja alterou o horário. Confira a nova data.' },
+  concluido: { label: 'Concluído', tone: 'ok', hint: 'Atendimento realizado.' },
+  nao_compareceu: { label: 'Não compareceu', tone: 'warn', hint: 'O atendimento não aconteceu.' },
+};
+export const estadoAgendamento = (estado) => ESTADOS_AGENDAMENTO[estado] ?? { label: estado || 'Em andamento', tone: 'info', hint: '' };
+export const AGENDAMENTO_ATIVO = new Set(['solicitado', 'confirmado', 'remarcado']);
+
+const semAcento = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+export const ehPetShop = (agenda) => semAcento(agenda?.preset).includes('pet');
+
+/** Rótulos por preset (o que a loja publicou vence o padrão). */
+export function rotulosDaAgenda(agenda) {
+  const preset = semAcento(agenda?.preset);
+  const base = preset.includes('barb')
+    ? { profissional: 'Barbeiro', profissionais: 'Barbeiros', artigo: 'o', qualquer: 'Qualquer barbeiro' }
+    : preset.includes('pet')
+      ? { profissional: 'Tosador', profissionais: 'Tosadores', artigo: 'o', qualquer: 'Qualquer tosador' }
+      : { profissional: 'Profissional', profissionais: 'Profissionais', artigo: 'o', qualquer: 'Qualquer profissional' };
+  const r = agenda?.rotulos ?? {};
+  const profissional = r.profissional || base.profissional;
+  return {
+    ...base,
+    profissional,
+    profissionais: r.profissionais || (r.profissional ? `${profissional}s` : base.profissionais),
+    qualquer: r.qualquer || (r.profissional ? `Qualquer ${profissional.toLowerCase()}` : base.qualquer),
+    agendar: r.agendar || 'Agendar horário',
+  };
+}
+
+/** Preço e duração de um serviço conforme o porte (quando a loja diferencia). */
+export function servicoPorPorte(servico, porte) {
+  const doPorte = servico.exigePorte && porte ? servico.porte?.[porte] : null;
+  return { duracao: doPorte?.duracao ?? servico.duracao, preco: doPorte?.preco ?? servico.preco };
+}
+
+/** "a partir de" quando o preço varia com o porte e o porte ainda não foi escolhido. */
+export function precoMinimoServico(servico) {
+  const precos = Object.values(servico.porte ?? {}).map((p) => p?.preco).filter(Number.isFinite);
+  return servico.exigePorte && precos.length ? Math.min(...precos) : servico.preco;
+}
+
+/** Dá para cancelar ou remarcar? `podeCancelar` da API vence; senão vale o prazo da loja antes do início. */
+export function podeAlterarAgendamento(ag, prazoMin, nowMs = Date.now()) {
+  if (!ag || !['solicitado', 'confirmado'].includes(ag.estado)) return false;
+  if (typeof ag.podeCancelar === 'boolean') return ag.podeCancelar;
+  const inicio = partesBrasilia(ag.inicio)?.ms;
+  if (!Number.isFinite(inicio)) return false;
+  return inicio - nowMs >= (prazoMin ?? 0) * 60000;
+}

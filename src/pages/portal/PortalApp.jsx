@@ -6,6 +6,8 @@ import { PortalLogin, PortalRegister, PortalForgot, PortalReset, RequireLogin } 
 import PortalCatalog from './PortalCatalog.jsx';
 import PortalCart from './PortalCart.jsx';
 import { PortalOrders, PortalOrder } from './PortalOrders.jsx';
+import PortalBooking from './PortalBooking.jsx';
+import { PortalAppointments, PortalAppointment } from './PortalAppointments.jsx';
 import { PortalFiado, PortalAccount, PortalNotFound } from './PortalMore.jsx';
 
 /** Rotas do portal de uma loja (/l/:slug/...), em um pacote à parte do site. */
@@ -22,6 +24,9 @@ export default function PortalApp() {
         <Route path="carrinho" element={<RequireLogin><PortalCart /></RequireLogin>} />
         <Route path="pedidos" element={<RequireLogin><PortalOrders /></RequireLogin>} />
         <Route path="pedidos/:id" element={<RequireLogin><PortalOrder /></RequireLogin>} />
+        <Route path="agendar" element={<RequireLogin><PortalBooking /></RequireLogin>} />
+        <Route path="agendamentos" element={<RequireLogin><PortalAppointments /></RequireLogin>} />
+        <Route path="agendamentos/:id" element={<RequireLogin><PortalAppointment /></RequireLogin>} />
         <Route path="fiado" element={<RequireLogin><PortalFiado /></RequireLogin>} />
         <Route path="conta" element={<RequireLogin><PortalAccount /></RequireLogin>} />
         <Route path="*" element={<PortalNotFound />} />

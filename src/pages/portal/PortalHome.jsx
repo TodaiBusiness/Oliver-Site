@@ -9,19 +9,22 @@ export default function PortalHome() {
   const d = loja.data;
   const horarios = horariosEmLinhas(d.horarios);
   const pendente = signedIn && session.conta?.estado === 'pendente';
+  const soAgenda = Boolean(d.temAgenda) && !d.aceitaPedidos;
 
   return (
     <div className="p-home">
       <section className="p-hero" aria-labelledby="p-hero-title">
-        <p className="p-eyebrow">Pedidos online</p>
+        <p className="p-eyebrow">{soAgenda ? 'Agendamento online' : 'Pedidos online'}</p>
         <h1 className="p-hero__title" id="p-hero-title" tabIndex={-1}>
           {d.nomePublico}
         </h1>
         <p className="p-hero__lead">
-          Peça pelo celular e retire na loja ou receba em casa. O pagamento é feito na entrega ou na retirada.
+          {soAgenda
+            ? 'Escolha o serviço, o profissional e o melhor horário pelo celular. O pagamento é feito na loja.'
+            : 'Peça pelo celular e retire na loja ou receba em casa. O pagamento é feito na entrega ou na retirada.'}
         </p>
 
-        {!d.aceitaPedidos ? (
+        {!d.aceitaPedidos && !d.temAgenda ? (
           <Notice tone="warn" title="A loja não está recebendo pedidos agora">
             Você pode olhar o catálogo, mas só consegue enviar pedidos quando a loja voltar a aceitar.
           </Notice>
@@ -40,12 +43,25 @@ export default function PortalHome() {
         <div className="p-actions">
           {signedIn ? (
             <>
-              <Link className="p-btn p-btn--primary p-btn--lg" to={path('catalogo')}>
-                Ver o catálogo
-              </Link>
-              <Link className="p-btn p-btn--ghost p-btn--lg" to={path('pedidos')}>
-                Meus pedidos
-              </Link>
+              {d.temAgenda ? (
+                <Link className={`p-btn ${soAgenda ? 'p-btn--primary' : 'p-btn--ghost'} p-btn--lg`} to={path('agendar')}>
+                  <PIcon name="calendar" size={18} /> Agendar horário
+                </Link>
+              ) : null}
+              {soAgenda ? (
+                <Link className="p-btn p-btn--ghost p-btn--lg" to={path('agendamentos')}>
+                  Meus agendamentos
+                </Link>
+              ) : (
+                <>
+                  <Link className="p-btn p-btn--primary p-btn--lg" to={path('catalogo')}>
+                    Ver o catálogo
+                  </Link>
+                  <Link className="p-btn p-btn--ghost p-btn--lg" to={path('pedidos')}>
+                    Meus pedidos
+                  </Link>
+                </>
+              )}
             </>
           ) : (
             <>
@@ -61,6 +77,7 @@ export default function PortalHome() {
         {!signedIn ? <p className="p-muted p-small">Os preços aparecem depois que você entra na sua conta.</p> : null}
       </section>
 
+      {soAgenda ? null : (
       <section className="p-cards" aria-label="Como funciona a loja">
         <article className="p-card">
           <PIcon name="bag" />
@@ -84,6 +101,7 @@ export default function PortalHome() {
           <p className="p-muted">{d.pedidoMinimo > 0 ? `${brl(d.pedidoMinimo)} em produtos.` : 'Sem valor mínimo.'}</p>
         </article>
       </section>
+      )}
 
       {horarios.length ? (
         <section className="p-section" aria-labelledby="p-horarios">
