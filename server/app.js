@@ -50,6 +50,7 @@ import { maintenanceService } from './services/maintenance.js';
 import { portalApiClient } from './services/portalApi.js';
 import { portalService } from './services/portal.js';
 import { createMailer } from './services/mailer.js';
+import { registrationAlertService } from './services/registrationAlert.js';
 import {
   EVENT_STREAM_HEADERS,
   createMessageEvents,
@@ -169,6 +170,7 @@ export function createApp(
     portalOptions = {},
     account = accountService(),
     mailer = createMailer(),
+    registrationAlert = registrationAlertService(),
     forgotMinMs = 1200,
     vault,
     analytics = analyticsService(db, { readKey: config.analytics.readKey, allowedOrigins }),
@@ -180,7 +182,7 @@ export function createApp(
   } = {}
 ) {
   const ctx = createContext(db, vault ? { vault } : undefined);
-  const auth = authService(ctx, { adminEnabled });
+  const auth = authService(ctx, { adminEnabled, registrationAlert });
   const serviceAuth = createServiceAuth(serviceKey);
   const accountSecurity = accountSecurityService(ctx);
   const twoFactor = twoFactorService(ctx);
@@ -198,7 +200,7 @@ export function createApp(
   const panelConversations = panelConversationsService(ctx, messageHooks);
   const panelInbox = panelInboxService(ctx);
   const panelProjects = panelProjectsService(ctx, projects);
-  const panelClients = panelClientsService(ctx, requests);
+  const panelClients = panelClientsService(ctx, requests, { mailer });
   const clients = clientsService(ctx);
 
   const router = createRouter();
@@ -482,8 +484,7 @@ export function createApp(
     );
     /* Só estes campos são lidos: enviar `role` junto não tem efeito. */
     const input = pick(body, ['name', 'company', 'email', 'phone', 'password']);
-    const user = await auth.register(input);
-    return { status: 201, body: { user } };
+    return { status: 201, body: await auth.register(input) };
   });
 
   const requestMeta = (headers, remoteAddress) => ({
@@ -1235,6 +1236,33 @@ export function createApp(
       status: 200,
       body: { clients: await panelClients.listClients(query) },
     }),
+    svc
+  );
+
+  /* Antes de /clients/:id: "pending-count" não pode virar um id. */
+  router.get(
+    '/api/service/clients/pending-count',
+    async () => ({ status: 200, body: await panelClients.countPending() }),
+    svc
+  );
+
+  router.post(
+    '/api/service/clients/:id/approve',
+    async ({ params, body }) => {
+      const id = requireServiceId(params.id);
+      const input = pick(serviceProjectBody(body), ['actorId', 'actorName', 'reason']);
+      return { status: 200, body: await panelClients.approveClient(id, input) };
+    },
+    svc
+  );
+
+  router.post(
+    '/api/service/clients/:id/reject',
+    async ({ params, body }) => {
+      const id = requireServiceId(params.id);
+      const input = pick(serviceProjectBody(body), ['actorId', 'actorName', 'reason']);
+      return { status: 200, body: await panelClients.rejectClient(id, input) };
+    },
     svc
   );
 

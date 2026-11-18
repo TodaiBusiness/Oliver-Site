@@ -31,6 +31,7 @@ export function sessionsRepository(db) {
                 u.company      AS company,
                 u.email        AS email,
                 u.role         AS role,
+                u.status       AS status,
                 COALESCE(t.enabled, 0) AS totp_enabled
            FROM sessions s
            JOIN users u ON u.id = s.user_id

@@ -6,7 +6,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestApp, createAdmin, extractSessionToken, request } from './helpers.js';
+import { activateClient, createTestApp, createAdmin, extractSessionToken, request } from './helpers.js';
 import { REQUEST_STATUS } from '../../server/config.js';
 
 test('jornada completa: cadastro → solicitação → conversa → status', async () => {
@@ -27,9 +27,16 @@ test('jornada completa: cadastro → solicitação → conversa → status', asy
       },
     });
     assert.equal(cadastro.status, 201);
-    assert.equal(cadastro.body.user.role, 'CLIENT');
+    assert.equal(cadastro.body.status, 'PENDING');
+    assert.equal(cadastro.body.user, undefined);
+    assert.equal((await ctx.users.findByEmailWithHash('marina@padaria.com')).role, 'CLIENT');
 
-    /* 3. Faz login. */
+    /* 3. Só entra depois de autorizado. */
+    const antes = await request(app, 'POST', '/api/auth/login', {
+      body: { email: 'marina@padaria.com', password: 'SenhaSegura123' },
+    });
+    assert.equal(antes.status, 403);
+    await activateClient(app, 'marina@padaria.com');
     const login = await request(app, 'POST', '/api/auth/login', {
       body: { email: 'marina@padaria.com', password: 'SenhaSegura123' },
     });

@@ -98,11 +98,9 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const register = useCallback(async (data) => {
-    await api.post('/auth/register', data);
-    const result = await login(data.email, data.password);
-    return result;
-  }, [login]);
+  /* O cadastro novo fica PENDENTE até a equipe autorizar: não há sessão, então
+     NÃO entra na conta (nada de login aqui). Devolve `{ status, message }`. */
+  const register = useCallback(async (data) => api.post('/auth/register', data), []);
 
   const logout = useCallback(async () => {
     try {

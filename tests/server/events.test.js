@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { createTestApp, createAdmin, createClient, extractSessionToken, request } from './helpers.js';
+import { activateClient, createTestApp, createAdmin, createClient, extractSessionToken, request } from './helpers.js';
 import { isEventStreamRequest, serveEventStream } from '../../server/http/sse.js';
 import { SECURITY } from '../../server/config.js';
 import {
@@ -84,6 +84,7 @@ test('SSE: origem de outro site é recusada (403)', async () => {
       headers: o,
       body: { name: 'Cliente Teste', email, phone: '12999999999', password: 'SenhaForte123' },
     });
+    await activateClient(app, email);
     const login = await request(app, 'POST', '/api/auth/login', { headers: o, body: { email, password: 'SenhaForte123' } });
     const c = { token: extractSessionToken(login) };
     const ok = await app.openEventStream({ headers: { ...cookie(c.token), origin: SITE } });

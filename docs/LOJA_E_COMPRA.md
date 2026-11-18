@@ -50,6 +50,9 @@ Por que link por e-mail e não a conta do site: o cadastro do site não confere 
 e-mail, então qualquer pessoa poderia criar uma conta com o e-mail de um cliente e
 ver a licença dele. Receber o e-mail é a prova de identidade.
 
+Observação: o cadastro de conta do site agora também é conferido por pessoas: fica pendente
+até o admin autorizar no Panel (`docs/APROVACAO_CLIENTES.md`). A compra em si continua sem conta.
+
 Testes: `tests/server/account.test.js` (site) e `CustomerAccessTests` (API).
 Conferido no navegador com uma API falsa: formulário, link com token, resumo,
 token saindo da barra de endereço, temas claro e escuro e 375 px. Falta a prova com
