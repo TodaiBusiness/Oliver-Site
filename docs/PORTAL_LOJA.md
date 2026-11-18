@@ -13,6 +13,8 @@ Lado SITE do portal `/l/:slug` (contrato PDV, API e site: Parte 3). A API da loj
 
 | Método e rota | Auth | Nota |
 |---|---|---|
+| GET `/vitrine` | pública | nome, cores, avisos, horários, `fiadoAtivo`; nunca preço |
+| GET `/logo`, `/produtos/:id/imagem` | pública | bytes só se forem imagem de verdade (PNG/JPEG/GIF/WebP até 200 KB); `nosniff`; imagens servidas pelo site por causa da CSP. A logo leva `ETag` (hash do conteúdo) e `Cache-Control: public, max-age=300`; `If-None-Match` igual dá 304 |
 | GET `/vitrine` | pública | nome, cores, avisos, horários, `abertoAgora`, `proximaAbertura`, `prazoCancelarMin`, `fiadoAtivo`; nunca preço (`emailContato` fica no servidor) |
 | GET `/logo`, `/produtos/:id/imagem` | pública | bytes só se forem imagem de verdade (PNG/JPEG/GIF/WebP até 200 KB); `nosniff`; imagens servidas pelo site por causa da CSP |
 | POST `/register` | pública | sempre 202 (e-mail repetido é indistinguível; a pessoa recebe aviso por e-mail) |
@@ -41,7 +43,7 @@ A API calcula (`abertoAgora` booleano; `proximaAbertura` `yyyy-MM-ddTHH:mm` em h
 - **Preço**: sem sessão não há catálogo; a vitrine não leva valor. Qualquer outro preço que a API mande é descartado. O servidor nunca confia em preço/total do navegador (a API recalcula).
 - **Recuperação de senha**: token de 32 bytes, SHA-256 no banco, 30 min, uso único, preso à loja, no fragmento da URL (`#token=`); redefinir derruba as sessões.
 - **LGPD**: aceite no cadastro (`consent_at`), política de privacidade atualizada, cookie de sessão como armazenamento essencial. `/l/*` não entra na contagem de visitas.
-- **Logo**: só `data:image/...` ou caminho da própria API (nunca URL externa: SSRF).
+- **Logo**: só `data:image/...` ou caminho da própria API (nunca URL externa: SSRF). A logo que o lojista escolhe no PDV chega assim: a API põe `logoUrl: /api/v1/site/portal/{slug}/logo` na vitrine, o BFF busca esse caminho com a chave de serviço, confere os bytes (`detectarTipoReal`: SVG, HTML e arquivo acima de 200 KB viram 404) e a serve em `/api/portal/:slug/logo`; a vitrine do site sempre aponta para o caminho do BFF. Teste: `tests/server/portal.test.js` (logo enviada pelo PDV).
 
 ## E-mails
 
@@ -61,6 +63,10 @@ Fluxo ponta a ponta com a API real e um PDV simulado: cadastro, aprovação como
 - Catálogo: `{produtos:[{produtoId,nome,categoria,unidade,descricao,precoAplicado,disponivel,multiplo,caixaQtd,imagemHash}]}`; a foto só é pedida se houver `imagemHash` (ou `temImagem:true`).
 - Pedido: `podeCancelar`/`cancelavelAte` opcionais; `itens[].precoUnitario`, `entrega.taxa`.
 - Erros: ProblemDetails com `code`; `portal_inactive` (404) e `addon_not_active` (403) viram "loja indisponível". Códigos de recusa conhecidos têm texto próprio (`min_order`, `item_unavailable`, `invalid_multiple`, `outside_hours`, `cancel_window_closed`...); os demais 400/409/422 repassam `detail` só se for curto.
+
+## Verificado com a logo do PDV (18/11/2026)
+
+API real (PostgreSQL) + site real + `scripts/simular-pdv-logo.mjs`, que faz o que o PDV faz (ativa um computador, liga o adicional, configura o portal, publica o catálogo e envia a logo com `PUT /pdv/portal/logo`; `--remover` chama o `DELETE`). A vitrine `/l/loja-logo` mostra a logo no cabeçalho (fotos em `docs/evidencias/portal-logo-390.png` e `portal-logo-1280.png`); depois do `DELETE` a vitrine volta sem `logoUrl` e `/api/portal/:slug/logo` dá 404. Variáveis do script: ver o cabeçalho dele.
 
 ## Testar sem a API real
 
