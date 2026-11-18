@@ -170,7 +170,7 @@ test('não dá para virar ADMIN pelo cadastro', async () => {
     });
 
     assert.equal(resposta.status, 201);
-    assert.equal(resposta.body.user.role, ROLES.CLIENT);
+    assert.equal(resposta.body.status, 'PENDING');
 
     const noBanco = await ctx.users.findByEmailWithHash('esperto@teste.com');
     assert.equal(noBanco.role, ROLES.CLIENT, 'o papel não pode vir da requisição');

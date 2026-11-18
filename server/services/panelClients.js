@@ -11,9 +11,9 @@
    user agent, details cru da auditoria, e-mail digitado em login falho.
    ========================================================================= */
 
-import { LIMITS, REQUEST_STATUS_VALUES } from '../config.js';
+import { AUDIT_ACTIONS, LIMITS, REQUEST_STATUS_VALUES, config } from '../config.js';
 import { createValidator, escapeLike } from '../http/validation.js';
-import { notFound } from '../http/errors.js';
+import { conflict, notFound } from '../http/errors.js';
 import { createSystemUserResolver } from './panelConversations.js';
 import { actorOf } from './panelProjects.js';
 
@@ -94,8 +94,87 @@ function summaryOf(details) {
   return clip(parts.join(' · '), SUMMARY_MAX);
 }
 
-export function panelClientsService(ctx, requests) {
+const CLIENT_STATUS_FILTER = Object.freeze({
+  active: 'ACTIVE',
+  pending: 'PENDING',
+  rejected: 'REJECTED',
+  all: null,
+});
+const REASON_MAX = 300;
+
+export function panelClientsService(
+  ctx,
+  requests,
+  { mailer = null, siteUrl = config.site.publicUrl } = {}
+) {
   const getSystemUserId = createSystemUserResolver(ctx);
+  const baseUrl = (siteUrl || '').replace(/\/+$/, '');
+  const loginUrl = baseUrl ? `${baseUrl}/login` : null;
+
+  /** E-mail ao cliente: nunca desfaz a decisão. true só se foi (ou parece ter sido) entregue. */
+  async function notifyClient(client, subject, text) {
+    if (!mailer?.configured) return false;
+    try {
+      await mailer.send({ to: client.email, subject, text });
+      return true;
+    } catch (error) {
+      console.error('[clientes] falha ao enviar e-mail da decisão:', error?.message);
+      return false;
+    }
+  }
+
+  async function decide(id, input, { to, from, action, subject, text }) {
+    const actor = actorOf(input);
+    let note = null;
+    if (input?.reason !== undefined && input.reason !== null && input.reason !== '') {
+      const validator = createValidator();
+      validator.text('reason', input.reason, { max: REASON_MAX, label: 'o motivo' });
+      validator.assert();
+      note = oneLine(input.reason) || null;
+    }
+
+    const client = await ctx.users.findClientForService(id);
+    if (!client) throw notFound('Cliente não encontrado.');
+
+    const shaped = (row) => ({
+      id: String(row.id),
+      status: row.status,
+      decidedAt: row.decided_at ? iso(row.decided_at) : null,
+    });
+
+    /* Mesma decisão repetida: idempotente (sem novo e-mail nem auditoria). */
+    if (client.status === to) return { client: shaped(client), emailSent: false };
+
+    const changed = await ctx.users.decide(id, {
+      from,
+      to,
+      by: actor.actorName,
+      note,
+    });
+    if (!changed) {
+      const now = await ctx.users.findClientForService(id);
+      if (now?.status === to) return { client: shaped(now), emailSent: false };
+      throw conflict('O estado deste cadastro mudou. Atualize a lista.');
+    }
+
+    await ctx.audit.log({
+      userId: await getSystemUserId(),
+      action,
+      resourceType: 'cliente',
+      resourceId: id,
+      details: {
+        actorName: actor.actorName,
+        de: client.status,
+        para: to,
+        ...(note ? { motivo: note } : {}),
+      },
+    });
+
+    if (to === 'REJECTED') await ctx.sessions.deleteAllForUser(id);
+
+    const emailSent = await notifyClient(client, subject, text(client));
+    return { client: shaped(await ctx.users.findClientForService(id)), emailSent };
+  }
 
   function shapeClient(row) {
     const last = Math.max(
@@ -109,6 +188,9 @@ export function panelClientsService(ctx, requests) {
       company: row.company ?? null,
       email: row.email,
       phone: row.phone ?? null,
+      status: row.status,
+      decidedAt: row.decided_at ? iso(row.decided_at) : null,
+      decidedBy: row.decided_by ?? null,
       createdAt: iso(row.created_at),
       requestCount: Number(row.request_count ?? 0),
       projectCount: Number(row.project_count ?? 0),
@@ -118,11 +200,47 @@ export function panelClientsService(ctx, requests) {
 
   return {
     async listClients(query = {}) {
+      const raw = typeof query.status === 'string' && query.status ? query.status : 'active';
+      const validator = createValidator();
+      if (!Object.hasOwn(CLIENT_STATUS_FILTER, raw)) validator.fail('status', 'Filtro de status inválido.');
+      validator.assert();
       const rows = await ctx.users.listClientsForService({
+        status: CLIENT_STATUS_FILTER[raw],
         term: searchTerm(query.q),
         ...pageOf(query),
       });
       return rows.map(shapeClient);
+    },
+
+    async countPending() {
+      return { pending: await ctx.users.countByStatus('PENDING') };
+    },
+
+    approveClient(id, input) {
+      return decide(id, input, {
+        to: 'ACTIVE',
+        from: ['PENDING', 'REJECTED'],
+        action: AUDIT_ACTIONS.CLIENT_APPROVED,
+        subject: 'Sua conta TODAI foi autorizada',
+        text: (client) =>
+          `Olá, ${client.name}.\n\n` +
+          'Seu cadastro foi autorizado. Você já pode entrar na sua conta com o e-mail e a senha que cadastrou' +
+          (loginUrl ? `:\n\n${loginUrl}\n` : ' pela página Entrar do nosso site.\n') +
+          '\nPor segurança, não enviamos senhas por e-mail.\n\nEquipe TODAI\n',
+      });
+    },
+
+    rejectClient(id, input) {
+      return decide(id, input, {
+        to: 'REJECTED',
+        from: ['PENDING'],
+        action: AUDIT_ACTIONS.CLIENT_REJECTED,
+        subject: 'Sobre seu cadastro na TODAI',
+        text: (client) =>
+          `Olá, ${client.name}.\n\n` +
+          'Não conseguimos liberar o acesso do seu cadastro neste momento. ' +
+          'Se tiver dúvidas, responda este e-mail ou fale com a gente pelo site.\n\nEquipe TODAI\n',
+      });
     },
 
     async getClient(id) {

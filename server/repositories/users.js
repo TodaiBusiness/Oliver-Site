@@ -6,11 +6,12 @@
 import { ROLES } from '../config.js';
 
 /** Campos públicos. `password_hash` nunca sai daqui. */
-const PUBLIC_FIELDS = 'id, name, company, email, phone, role, created_at';
+const PUBLIC_FIELDS = 'id, name, company, email, phone, role, status, created_at';
 
 /* Subconsultas correlacionadas (sem JOIN: dois JOINs inflariam as contagens). */
 const SERVICE_CLIENT_COLUMNS = `
   u.id, u.name, u.company, u.email, u.phone, u.created_at,
+  u.status, u.decided_at, u.decided_by,
   (SELECT COUNT(*) FROM project_requests r WHERE r.user_id = u.id) AS request_count,
   (SELECT COUNT(*) FROM client_projects cp WHERE cp.user_id = u.id) AS project_count,
   (SELECT MAX(r.updated_at) FROM project_requests r WHERE r.user_id = u.id) AS last_request_at,
@@ -23,7 +24,7 @@ export function usersRepository(db) {
     /** Uso interno da autenticação — único lugar que lê o hash. */
     async findByEmailWithHash(email) {
       return db.queryOne(
-        `SELECT id, name, email, role, password_hash
+        `SELECT id, name, email, role, status, password_hash
            FROM users
           WHERE email = ?`,
         [email]
@@ -70,12 +71,12 @@ export function usersRepository(db) {
       return Boolean(row);
     },
 
-    async create({ name, company, email, phone, passwordHash, role = ROLES.CLIENT }) {
+    async create({ name, company, email, phone, passwordHash, role = ROLES.CLIENT, status = 'ACTIVE' }) {
       const now = Date.now();
       const { insertId } = await db.execute(
-        `INSERT INTO users (name, company, email, phone, password_hash, role, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [name, company, email, phone, passwordHash, role, now, now]
+        `INSERT INTO users (name, company, email, phone, password_hash, role, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [name, company, email, phone, passwordHash, role, status, now, now]
       );
       return insertId;
     },
@@ -136,13 +137,17 @@ export function usersRepository(db) {
        (Panel). Só role CLIENT; nunca password_hash. `term` já vem escapado
        (escapeLike) e usa ESCAPE '!'. Ordem estável: created_at desc, id desc. */
 
-    async listClientsForService({ term = null, limit, offset }) {
+    async listClientsForService({ term = null, status = 'ACTIVE', limit, offset }) {
       const like = db.dialect === 'postgres' ? 'ILIKE' : 'LIKE';
       const params = [ROLES.CLIENT];
       let filtro = '';
+      if (status) {
+        filtro += 'AND u.status = ? ';
+        params.push(status);
+      }
       if (term) {
         const pattern = `%${term}%`;
-        filtro = `AND (u.name ${like} ? ESCAPE '!' OR u.email ${like} ? ESCAPE '!' OR u.company ${like} ? ESCAPE '!')`;
+        filtro += `AND (u.name ${like} ? ESCAPE '!' OR u.email ${like} ? ESCAPE '!' OR u.company ${like} ? ESCAPE '!')`;
         params.push(pattern, pattern, pattern);
       }
       params.push(limit, offset);
@@ -161,6 +166,29 @@ export function usersRepository(db) {
         `SELECT ${SERVICE_CLIENT_COLUMNS} FROM users u WHERE u.role = ? AND u.id = ?`,
         [ROLES.CLIENT, id]
       );
+    },
+
+    /**
+     * Decisão do admin, atômica: só muda se o estado atual ainda é um dos
+     * `from`. Devolve true se ESTA chamada fez a transição.
+     */
+    async decide(id, { from, to, by, note = null, at = Date.now() }) {
+      const marks = from.map(() => '?').join(', ');
+      const { affectedRows } = await db.execute(
+        `UPDATE users
+            SET status = ?, decided_at = ?, decided_by = ?, decision_note = ?, updated_at = ?
+          WHERE id = ? AND role = ? AND status IN (${marks})`,
+        [to, at, by, note, at, id, ROLES.CLIENT, ...from]
+      );
+      return affectedRows > 0;
+    },
+
+    async countByStatus(status) {
+      const row = await db.queryOne(
+        'SELECT COUNT(*) AS total FROM users WHERE role = ? AND status = ?',
+        [ROLES.CLIENT, status]
+      );
+      return Number(row?.total ?? 0);
     },
 
     async countClients() {

@@ -32,6 +32,11 @@ const COLUNAS_NOVAS = [
   ['project_requests', 'panel_changed_at', 'INTEGER'],
   /* Aviso por e-mail quando a equipe responde (1 = recebe; o cliente desliga em Conta > Segurança). */
   ['users', 'notify_email', 'INTEGER NOT NULL DEFAULT 1'],
+  /* Aprovação de cliente novo (CHECK só nos bancos que nascem com o schema atual). */
+  ['users', 'status', "TEXT NOT NULL DEFAULT 'ACTIVE'"],
+  ['users', 'decided_at', 'INTEGER'],
+  ['users', 'decided_by', 'TEXT'],
+  ['users', 'decision_note', 'TEXT'],
 ];
 
 export function aplicarMigracoesSqlite(db) {

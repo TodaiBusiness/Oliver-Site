@@ -49,6 +49,17 @@ export function request(app, method, path, { body, token, query, headers } = {})
   });
 }
 
+/** Autoriza um cadastro pendente (o que o Panel faz), pelo repositório. */
+export async function activateClient(app, email) {
+  const row = await app.ctx.users.findByEmailWithHash(email.trim().toLowerCase());
+  const ok = await app.ctx.users.decide(row.id, {
+    from: ['PENDING', 'REJECTED'],
+    to: 'ACTIVE',
+    by: 'Teste',
+  });
+  return { id: row.id, changed: ok };
+}
+
 /** Cria um cliente pela API e devolve o token de sessão. */
 export async function createClient(app, overrides = {}) {
   const user = {
@@ -60,7 +71,10 @@ export async function createClient(app, overrides = {}) {
     ...overrides,
   };
 
-  await request(app, 'POST', '/api/auth/register', { body: user });
+  const registered = await request(app, 'POST', '/api/auth/register', { body: user });
+  /* O cadastro real fica PENDENTE até o admin autorizar; aqui a autorização é
+     feita pelo mesmo caminho do Panel (decide), para o teste focar no resto. */
+  if (registered.status === 201) await activateClient(app, user.email);
   const login = await request(app, 'POST', '/api/auth/login', {
     body: { email: user.email, password: user.password },
   });

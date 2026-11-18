@@ -92,7 +92,8 @@ test('lista de clientes: formato, só CLIENT, contagens, busca e paginação est
     assert.ok(!JSON.stringify(r.body).includes('Admin X'));
     const a = r.body.clients.find((c) => c.name === 'Ana Souza');
     assert.deepEqual(Object.keys(a).sort(), [
-      'company', 'createdAt', 'email', 'id', 'lastActivityAt', 'name', 'phone', 'projectCount', 'requestCount',
+      'company', 'createdAt', 'decidedAt', 'decidedBy', 'email', 'id', 'lastActivityAt', 'name', 'phone',
+      'projectCount', 'requestCount', 'status',
     ]);
     assert.equal(a.id, String(ana.id));
     assert.equal(a.requestCount, 2);
