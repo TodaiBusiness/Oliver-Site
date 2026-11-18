@@ -58,6 +58,7 @@ test('podeAlterarAgendamento: estado, prazo da loja e o que a API disser', () =>
   const ag = (extra) => ({ estado: 'confirmado', inicio: '2026-11-18T16:00:00-03:00', ...extra });
   assert.equal(podeAlterarAgendamento(ag(), 120, agora), true);
   assert.equal(podeAlterarAgendamento(ag(), 300, agora), false, 'faltam 4 h e o prazo é 5 h');
+  assert.equal(podeAlterarAgendamento(ag({ estado: 'remarcado' }), 120, agora), true, 'a loja remarcou: o horário segue seguro e o cliente pode cancelar ou remarcar');
   assert.equal(podeAlterarAgendamento(ag({ estado: 'concluido' }), 0, agora), false);
   assert.equal(podeAlterarAgendamento(ag({ estado: 'recusado' }), 0, agora), false);
   assert.equal(podeAlterarAgendamento(ag({ podeCancelar: false }), 0, agora), false);

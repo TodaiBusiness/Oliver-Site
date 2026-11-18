@@ -152,7 +152,7 @@ test('horários: valida a entrada antes de chamar a API e repassa a consulta cer
     const ok = await portal(app, 'GET', BARBER, '/agenda/horarios', { token: user.token, query: { servicos: 's-corte,s-barba', data: diaUtil(), profissionalId: 'pr-rafa', extra: 'x' } });
     assert.equal(ok.status, 200);
     assert.ok(ok.body.slots.length > 0);
-    assert.deepEqual(Object.keys(ok.body.slots[0]).sort(), ['fim', 'inicio', 'profissionalId', 'profissionalNome']);
+    assert.deepEqual(Object.keys(ok.body.slots[0]).sort(), ['duracaoMin', 'fim', 'inicio', 'profissionalId', 'profissionalNome', 'total']);
     const chamada = backend.calls.at(-1);
     assert.equal(chamada.query.servicos, 's-corte,s-barba');
     assert.equal(chamada.query.profissionalId, 'pr-rafa');
@@ -591,4 +591,33 @@ test('formatBrasilia e agendamentoMessage: com e sem fuso, sempre em Brasília',
   assert.match(m.html, /Loja &amp; Cia/);
   assert.match(m.text, /Olá, Ana\./);
   assert.ok(!/Horário:/.test(m.text), 'sem horário, a linha some');
+});
+
+test('B1 no formato REAL da API (duracaoMin, portes[], passoMin, antecedenciaMinHoras, servicoId, confirmacaoAutomatica) vira o que a tela usa', async () => {
+  const real = {
+    temAgenda: true,
+    preset: 'petshop',
+    rotulos: { profissional: 'Tosador/Banhista', profissionais: 'Tosadores/Banhistas', servico: 'Serviço', atendimento: 'Banho e tosa', cliente: 'Tutor' },
+    exigePet: true,
+    servicos: [
+      { id: 1, nome: 'Corte', categoria: 'Tosa', descricao: null, duracaoMin: 30, preco: 40, exigePorte: false, cor: null, portes: [], profissionalIds: [10] },
+      {
+        id: 2, nome: 'Banho', categoria: 'Banho', descricao: null, duracaoMin: 60, preco: 60, exigePorte: true, cor: null,
+        portes: [{ porte: 'G', duracaoMin: null, preco: 95 }, { porte: 'P', duracaoMin: 45, preco: null }], profissionalIds: [10, 11],
+      },
+    ],
+    profissionais: [{ id: 10, nome: 'Bruno', cor: '#2F6F4F', servicos: [{ servicoId: 1, duracaoMin: null, preco: null }, { servicoId: 2, duracaoMin: 70, preco: 70 }] }],
+    regras: { passoMin: 15, antecedenciaMinHoras: 2, antecedenciaMaxDias: 60, cancelamentoMinHoras: 24, prazoCancelarMin: 1440, confirmacaoAutomatica: true },
+    atualizadoEm: '2026-11-18T10:00:00+00:00',
+  };
+  const api = portalApiClient({
+    fetchImpl: async () => new Response(JSON.stringify(real), { status: 200, headers: { 'content-type': 'application/json' } }),
+    licensing: { baseUrl: 'https://api.exemplo', serviceKey: 'chave-secreta-0123456789', timeoutMs: 5000 },
+    cacheMs: 0,
+  });
+  const agenda = await api.agenda('loja-x');
+  assert.equal(agenda.servicos[0].duracao, 30);
+  assert.deepEqual(agenda.servicos[1].porte, { P: { duracao: 45, preco: 60 }, M: { duracao: 60, preco: 60 }, G: { duracao: 60, preco: 95 } });
+  assert.deepEqual(agenda.profissionais[0].servicos, ['1', '2']);
+  assert.deepEqual(agenda.regras, { slotMin: 15, antecedenciaMinMin: 120, antecedenciaMaxDias: 60, prazoCancelarMin: 1440, confirmacaoAuto: true });
 });

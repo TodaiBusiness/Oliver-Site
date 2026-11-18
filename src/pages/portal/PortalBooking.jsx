@@ -228,7 +228,7 @@ export function SlotPicker({ servicoIds, profissionalId, porte, regras, data, on
                     type="button"
                     className="p-slot"
                     aria-pressed={value?.inicio === slot.inicio}
-                    onClick={() => onChange({ inicio: slot.inicio, profissionalId: slot.profissionalId, profissionalNome: slot.profissionalNome })}
+                    onClick={() => onChange({ inicio: slot.inicio, profissionalId: slot.profissionalId, profissionalNome: slot.profissionalNome, duracaoMin: slot.duracaoMin, total: slot.total })}
                   >
                     {slot.hora}
                   </button>
@@ -341,8 +341,12 @@ function BookingFlow({ agenda, loja }) {
     keyRef.current = null;
   }, [servicos, profissionalId, slot, porte, petDados, observacao]);
 
-  const total = escolhidos.reduce((s, sv) => s + (servicoPorPorte(sv, porte).preco ?? 0), 0);
-  const duracaoTotal = escolhidos.reduce((s, sv) => s + (servicoPorPorte(sv, porte).duracao ?? 0), 0);
+  /* O horário escolhido traz duração e total da API (com o porte e a exceção do profissional); sem ele, a conta é pela tabela de serviços. */
+  const total = Number.isFinite(slot?.total) ? slot.total : escolhidos.reduce((s, sv) => s + (servicoPorPorte(sv, porte).preco ?? 0), 0);
+  const duracaoTotal = Number.isFinite(slot?.duracaoMin) ? slot.duracaoMin : escolhidos.reduce((s, sv) => s + (servicoPorPorte(sv, porte).duracao ?? 0), 0);
+  /* Se o profissional tem valor próprio num serviço, a soma da tabela não bate com o total da API: aí o resumo mostra só o total certo. */
+  const somaTabela = escolhidos.reduce((s, sv) => s + (servicoPorPorte(sv, porte).preco ?? 0), 0);
+  const linhasBatem = !Number.isFinite(slot?.total) || Math.abs(somaTabela - slot.total) < 0.005;
   const algumPrecoVariavel = escolhidos.some((s) => s.exigePorte) && !porte;
 
   const alternarServico = (sid) => {
@@ -596,7 +600,7 @@ function BookingFlow({ agenda, loja }) {
                       const v = servicoPorPorte(sv, porte);
                       return (
                         <li key={sv.id}>
-                          {sv.nome} · {duracaoEmTexto(v.duracao)} · {brl(v.preco)}
+                          {linhasBatem ? `${sv.nome} · ${duracaoEmTexto(v.duracao)} · ${brl(v.preco)}` : sv.nome}
                         </li>
                       );
                     })}

@@ -268,7 +268,7 @@ export function portalApiClient({
 
   /* Preço de serviço é o da loja (uma tabela só); nada de custo, comissão ou campo extra.
      A API entrega `portes: [{porte, duracaoMin, preco}]`; o mapa `{P: {duracao, preco}}` (formato do mock) também vale. */
-  function pickPorte(portes, mapa) {
+  function pickPorte(portes, mapa, base) {
     const out = {};
     if (Array.isArray(portes)) {
       for (const item of portes) {
@@ -282,7 +282,12 @@ export function portalApiClient({
         if (item && typeof item === 'object') out[key] = { duracao: num(item.duracao ?? item.duracaoMin), preco: num(item.preco) };
       }
     }
-    return Object.keys(out).length ? out : null;
+    if (!Object.keys(out).length) return null;
+    /* Porte sem valor próprio vale o valor-base do serviço (a API manda nulo): a tela recebe sempre número nos três portes. */
+    for (const key of PORTES) {
+      out[key] = { duracao: out[key]?.duracao ?? base.duracao, preco: out[key]?.preco ?? base.preco };
+    }
+    return out;
   }
 
   /* As regras chegam como a API as guarda (`passoMin`, `antecedenciaMinHoras`, `confirmacaoAutomatica`); o site usa minutos. */
@@ -317,7 +322,7 @@ export function portalApiClient({
           duracao: num(s.duracaoMin ?? s.duracao),
           preco: num(s.preco),
           exigePorte: bool(s.exigePorte),
-          porte: pickPorte(s.portes, s.porte),
+          porte: pickPorte(s.portes, s.porte, { duracao: num(s.duracaoMin ?? s.duracao), preco: num(s.preco) }),
         }))
         .filter((s) => s.id && s.nome),
       profissionais: list(body.profissionais, 100)
@@ -499,6 +504,9 @@ export function portalApiClient({
             fim: clip(s?.fim, 40),
             profissionalId: clip(s?.profissionalId == null ? '' : String(s.profissionalId), 64),
             profissionalNome: clip(s?.profissionalNome, 80),
+            /* Duração e total JÁ com o porte e as exceções do profissional (o que a API vai gravar). */
+            duracaoMin: num(s?.duracaoMin),
+            total: num(s?.total),
           }))
           .filter((s) => s.inicio && s.profissionalId),
         motivoVazio: clip(body.motivoVazio, 60),

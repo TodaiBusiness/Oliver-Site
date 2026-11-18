@@ -228,7 +228,7 @@ export function precoMinimoServico(servico) {
 
 /** Dá para cancelar ou remarcar? `podeCancelar` da API vence; senão vale o prazo da loja antes do início. */
 export function podeAlterarAgendamento(ag, prazoMin, nowMs = Date.now()) {
-  if (!ag || !['solicitado', 'confirmado'].includes(ag.estado)) return false;
+  if (!ag || !AGENDAMENTO_ATIVO.has(ag.estado)) return false; // solicitado, confirmado e remarcado seguram o horário (a API aceita cancelar e remarcar)
   if (typeof ag.podeCancelar === 'boolean') return ag.podeCancelar;
   const inicio = partesBrasilia(ag.inicio)?.ms;
   if (!Number.isFinite(inicio)) return false;

@@ -103,3 +103,14 @@ Os testes (`tests/server/portal.test.js`) usam o mesmo mock por `fetch` falso. C
 ## Banco
 
 `npm run db:migrate` cria as três tabelas (SQLite e Postgres; `schema.*.sql` e `reset.*.sql`).
+
+## Integração real da Parte 5 (API + site + PDV rodando juntos)
+
+Fluxo conferido com a API real (PostgreSQL, esquema 23), este site e um console que usa as classes reais do PDV (`PublicacaoAgendaMontador`, `PortalAgendaRegras`, `PortalCliente`,
+`AgendaDisponibilidade`): vitrine com `temAgenda` e rótulos por preset; horários livres iguais aos do PDV em 15 cenários (jornada com pausa, folga, ocupação do PDV, porte, serviços
+encadeados, "qualquer profissional"); pedido que segura o horário e 409 `slot_taken` com recarga da lista; confirmar, recusar e remarcar pela loja (e-mail do tipo agendamento);
+cancelar e remarcar pelo cliente dentro e fora do prazo; confirmação automática; loja "fechada" aceitando pedido; isolamento entre lojas; agenda retirada (`DELETE`) = 404 `portal_agenda_inactive`.
+Divergências corrigidas neste repositório: o BFF lia a agenda no formato do contrato antigo (`duracao`, `porte{}`, `slotMin`, minutos) e agora lê a da API (`duracaoMin`, `portes[]`,
+`passoMin`, `antecedenciaMinHoras`, `servicoId`, `confirmacaoAutomatica`), completando o porte sem valor próprio com o valor-base; o horário escolhido leva `duracaoMin` e `total` da API (exceção
+do profissional) para o resumo; `remarcado` também pode ser cancelado e remarcado pelo cliente. Capturas: `docs/evidencias/integracao-agenda-*`.
+Limite conhecido: ao remarcar, os horários do próprio agendamento aparecem ocupados na lista (a API aceita remarcar sobre si mesmo, mas B2 não exclui o pedido).
