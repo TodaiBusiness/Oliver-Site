@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './app/AuthContext.jsx';
 import ProtectedRoute from './app/ProtectedRoute.jsx';
@@ -41,6 +42,7 @@ import Terms from './pages/Terms.jsx';
 import Privacy from './pages/Privacy.jsx';
 import MyLicense from './pages/MyLicense.jsx';
 import NotFound from './pages/NotFound.jsx';
+const PortalApp = lazy(() => import('./pages/portal/PortalApp.jsx'));
 
 export default function App() {
   return (
@@ -76,6 +78,16 @@ export default function App() {
           <Route path="/cadastro" element={<Register />} />
           <Route path="/esqueci-senha" element={<ForgotPassword />} />
           <Route path="/redefinir-senha" element={<ResetPassword />} />
+
+          {/* ---- Portal de pedidos da loja: layout próprio, fora do SiteLayout, carregado só quando alguém abre /l/... ---- */}
+          <Route
+            path="/l/:slug/*"
+            element={
+              <Suspense fallback={<p role="status">Carregando…</p>}>
+                <PortalApp />
+              </Suspense>
+            }
+          />
 
           {/* ---- Área do cliente ---- */}
           <Route

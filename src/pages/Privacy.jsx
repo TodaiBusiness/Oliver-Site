@@ -20,6 +20,21 @@ const STORAGE_ITEMS = [
     category: 'Necessário',
   },
   {
+    name: 'oi_portal_<loja>',
+    where: 'Cookie',
+    purpose:
+      'Mantém você conectado no portal de pedidos de UMA loja (/l/nome-da-loja). Existe um por loja, só vale naquela loja e só depois do login.',
+    life: 'Até 30 dias; expira antes se a conta ficar parada por 7 dias ou se você sair.',
+    category: 'Necessário',
+  },
+  {
+    name: 'todai-portal-cart:<loja>',
+    where: 'Armazenamento local do navegador',
+    purpose: 'Guarda o carrinho do portal (só os produtos e as quantidades) para você não perdê-lo ao fechar a página. É apagado ao sair da conta.',
+    life: 'Até você enviar o pedido, sair ou apagar os dados do site no navegador.',
+    category: 'Necessário',
+  },
+  {
     name: 'todai_consent',
     where: 'Cookie',
     purpose: 'Guarda a sua escolha sobre cookies. Não contém dado pessoal.',
@@ -54,7 +69,7 @@ export default function Privacy() {
     <SiteShell>
       <article className="legal">
         <h1 className="legal__title">Política de privacidade</h1>
-        <p className="legal__updated">Versão de 17/11/2026</p>
+        <p className="legal__updated">Versão de 18/11/2026</p>
         <p className="legal__note">
           Texto a ser revisado por profissional jurídico. Ele descreve o que o site e o sistema
           fazem hoje.
@@ -128,6 +143,45 @@ export default function Privacy() {
           O prazo de guarda dos demais dados (cadastro, pedidos de orçamento,
           mensagens e dados de compra) ainda está a definir.
         </p>
+
+        <h3>Portal de pedidos das lojas (consumidores)</h3>
+        <p>
+          Lojas que usam o {PLAN.name} podem ter um portal de pedidos em{' '}
+          <code>/l/nome-da-loja</code>. Quem cria conta nesse portal é cliente
+          da loja, não da {LEGAL_NAME}. Neste caso coletamos: nome, telefone,
+          e-mail, senha (guardada só em forma de hash, nunca em texto), e,
+          se você informar, CPF ou CNPJ, nome do estabelecimento e endereço de
+          entrega. A conta vale apenas na loja em que foi criada: o mesmo e-mail
+          em outra loja é outro cadastro. O aceite desta política é pedido no
+          cadastro.
+        </p>
+        <ul>
+          <li>
+            <strong>Quem decide sobre os dados:</strong> a loja, que recebe o
+            cadastro e os pedidos e define preços e aprovação. A {LEGAL_NAME}
+            guarda login e senha e repassa o cadastro e os pedidos à loja, para
+            o portal funcionar.
+          </li>
+          <li>
+            <strong>Pedidos, fiado e catálogo:</strong> ficam no sistema da
+            loja. O portal só mostra o que é seu. Não há pagamento online: você
+            paga à loja na entrega ou na retirada.
+          </li>
+          <li>
+            <strong>Sessão e segurança:</strong> guardamos o IP e o navegador da
+            sessão enquanto ela vale, para proteger a conta. O portal não usa
+            cookies de estatística nem de propaganda e não entra na contagem de
+            visitas do site.
+          </li>
+          <li>
+            <strong>E-mails:</strong> enviamos avisos do pedido e do cadastro
+            e, se você pedir, o link para criar nova senha, em nome da loja.
+          </li>
+          <li>
+            <strong>Seus direitos:</strong> para corrigir ou apagar o cadastro,
+            fale com a loja ou com a gente em {EMAIL}.
+          </li>
+        </ul>
 
         <h2>2. Para que usamos</h2>
         <ul>
