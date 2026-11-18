@@ -8,6 +8,9 @@ import { useAuth } from '../app/AuthContext.jsx';
 /* Códigos de erro do servidor que significam "recomece pela senha". */
 const RECOMECAR = new Set(['NAO_AUTENTICADO']);
 
+/* Conta pendente ou recusada: o servidor responde 403 com estes códigos. */
+const NOTICE_CODES = new Set(['CONTA_PENDENTE', 'CONTA_RECUSADA']);
+
 export default function Login() {
   const { user, login, completeTwoFactor, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -15,6 +18,7 @@ export default function Login() {
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(false);
   const [sending, setSending] = useState(false);
 
   /* Passo 2 (só para contas com 2FA): desafio devolvido pelo servidor. */
@@ -73,6 +77,7 @@ export default function Login() {
   const submit = async (event) => {
     event.preventDefault();
     setError(null);
+    setNotice(false);
     setSending(true);
 
     try {
@@ -85,6 +90,8 @@ export default function Login() {
       }
       goTo(result);
     } catch (problem) {
+      /* Conta sem autorização: aviso informativo, não erro de senha. */
+      setNotice(NOTICE_CODES.has(problem.code));
       setError(problem.message);
     } finally {
       setSending(false);
@@ -162,8 +169,8 @@ export default function Login() {
         )}
 
         {error ? (
-          <div className="alert alert--error" role="alert">
-            <Icon name="close" size={16} />
+          <div className={`alert ${notice ? 'alert--info' : 'alert--error'}`} role="alert">
+            <Icon name={notice ? 'mail' : 'close'} size={16} />
             {error}
           </div>
         ) : null}

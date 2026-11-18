@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import Logo from '../components/Logo.jsx';
 import Icon from '../components/Icon.jsx';
 import Field from '../components/panel/Field.jsx';
@@ -9,12 +9,12 @@ const EMPTY = { name: '', company: '', email: '', phone: '', password: '' };
 
 export default function Register() {
   const { user, register, isAdmin } = useAuth();
-  const navigate = useNavigate();
 
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [error, setError] = useState(null);
   const [sending, setSending] = useState(false);
+  const [received, setReceived] = useState(false);
 
   if (user) {
     return <Navigate to={isAdmin ? '/admin' : '/cliente'} replace />;
@@ -31,7 +31,7 @@ export default function Register() {
 
     try {
       await register(form);
-      navigate('/cliente', { replace: true });
+      setReceived(true);
     } catch (problem) {
       /* O servidor devolve erro por campo — aproveitamos para marcar cada um. */
       setErrors(problem.details ?? {});
@@ -41,6 +41,35 @@ export default function Register() {
     }
   };
 
+  if (received) {
+    return (
+      <main className="auth">
+        <div className="auth__panel">
+          <Link className="auth__brand" to="/">
+            <Logo size={30} />
+          </Link>
+
+          <div className="auth__done" role="status">
+            <span className="auth__done-icon" aria-hidden="true">
+              <Icon name="check" size={22} />
+            </span>
+            <h1 className="auth__title">Cadastro recebido</h1>
+            <p className="auth__text">
+              Recebemos seu cadastro. Avisaremos por e-mail quando for autorizado.
+            </p>
+          </div>
+
+          <Link className="btn btn--primary btn--block" to="/">
+            Voltar ao site
+          </Link>
+          <p className="auth__foot">
+            Já foi autorizado? <Link to="/login">Entrar</Link>
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="auth">
       <div className="auth__panel auth__panel--wide">
@@ -48,9 +77,10 @@ export default function Register() {
           <Logo size={30} />
         </Link>
 
-        <h1 className="auth__title">Criar conta</h1>
+        <h1 className="auth__title">Solicitar cadastro</h1>
         <p className="auth__text">
-          Acompanhe o andamento do seu projeto em um só lugar.
+          Acompanhe o andamento do seu projeto em um só lugar. Todo cadastro é
+          conferido pela nossa equipe antes de liberar o acesso.
         </p>
 
         {error ? (
@@ -119,7 +149,7 @@ export default function Register() {
             className="btn btn--primary btn--block"
             disabled={sending}
           >
-            {sending ? 'Criando conta…' : 'Criar conta'}
+            {sending ? 'Enviando…' : 'Solicitar cadastro'}
           </button>
         </form>
 

@@ -189,6 +189,31 @@ select.field__control option {
   color: var(--danger-fg);
 }
 
+.alert--info {
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.auth__done {
+  display: grid;
+  justify-items: start;
+  gap: 0.25rem;
+  margin: 0.5rem 0 1.5rem;
+}
+
+.auth__done-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 0.75rem;
+  border-radius: 50%;
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-300);
+}
+
 .alert--success {
   border: 1px solid var(--accent-line);
   background: var(--accent-soft);

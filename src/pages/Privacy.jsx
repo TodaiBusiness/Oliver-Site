@@ -97,6 +97,15 @@ export default function Privacy() {
             digita nos formulários e as mensagens trocadas.
           </li>
           <li>
+            <strong>Cadastro de conta no site:</strong> nome, empresa, e-mail,
+            telefone e senha (guardada só em forma de hash). Todo cadastro novo
+            fica aguardando a autorização da nossa equipe, que avisa você por
+            e-mail da decisão. Guardamos quando e por quem o cadastro foi
+            decidido, e, se recusado, o e-mail fica registrado para que não se
+            cadastre de novo. A nossa equipe também recebe um aviso por e-mail
+            com os dados do cadastro para poder decidir.
+          </li>
+          <li>
             <strong>Pagamento:</strong> quem processa é o Mercado Pago. Não
             recebemos nem guardamos número de cartão; recebemos a confirmação
             do pagamento e o estado da assinatura.
