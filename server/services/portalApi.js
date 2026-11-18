@@ -266,15 +266,35 @@ export function portalApiClient({
   const PORTES = ['P', 'M', 'G'];
   const list = (value, max) => (Array.isArray(value) ? value.slice(0, max) : []);
 
-  /* Preço de serviço é o da loja (uma tabela só); nada de custo, comissão ou campo extra. */
-  function pickPorte(porte) {
-    if (!porte || typeof porte !== 'object') return null;
+  /* Preço de serviço é o da loja (uma tabela só); nada de custo, comissão ou campo extra.
+     A API entrega `portes: [{porte, duracaoMin, preco}]`; o mapa `{P: {duracao, preco}}` (formato do mock) também vale. */
+  function pickPorte(portes, mapa) {
     const out = {};
-    for (const key of PORTES) {
-      const item = porte[key];
-      if (item && typeof item === 'object') out[key] = { duracao: num(item.duracao), preco: num(item.preco) };
+    if (Array.isArray(portes)) {
+      for (const item of portes) {
+        if (item && typeof item === 'object' && PORTES.includes(item.porte)) {
+          out[item.porte] = { duracao: num(item.duracaoMin ?? item.duracao), preco: num(item.preco) };
+        }
+      }
+    } else if (mapa && typeof mapa === 'object') {
+      for (const key of PORTES) {
+        const item = mapa[key];
+        if (item && typeof item === 'object') out[key] = { duracao: num(item.duracao ?? item.duracaoMin), preco: num(item.preco) };
+      }
     }
     return Object.keys(out).length ? out : null;
+  }
+
+  /* As regras chegam como a API as guarda (`passoMin`, `antecedenciaMinHoras`, `confirmacaoAutomatica`); o site usa minutos. */
+  function pickRegras(regras) {
+    const horas = num(regras.antecedenciaMinHoras);
+    return {
+      slotMin: num(regras.passoMin ?? regras.slotMin),
+      antecedenciaMinMin: horas !== null && horas !== undefined ? horas * 60 : num(regras.antecedenciaMinMin),
+      antecedenciaMaxDias: num(regras.antecedenciaMaxDias),
+      prazoCancelarMin: num(regras.prazoCancelarMin),
+      confirmacaoAuto: bool(regras.confirmacaoAutomatica ?? regras.confirmacaoAuto),
+    };
   }
 
   function pickAgenda(body) {
@@ -294,10 +314,10 @@ export function portalApiClient({
           id: clip(String(s.id ?? ''), 64),
           nome: clip(s.nome, 120) ?? '',
           categoria: clip(s.categoria, 60),
-          duracao: num(s.duracao),
+          duracao: num(s.duracaoMin ?? s.duracao),
           preco: num(s.preco),
           exigePorte: bool(s.exigePorte),
-          porte: pickPorte(s.porte),
+          porte: pickPorte(s.portes, s.porte),
         }))
         .filter((s) => s.id && s.nome),
       profissionais: list(body.profissionais, 100)
@@ -306,17 +326,11 @@ export function portalApiClient({
           nome: clip(p?.nome, 80) ?? '',
           cor: typeof p?.cor === 'string' && HEX.test(p.cor) ? p.cor.toLowerCase() : null,
           servicos: list(p?.servicos, 200)
-            .map((s) => clip(String(typeof s === 'object' && s ? s.id ?? '' : s ?? ''), 64))
+            .map((s) => clip(String(typeof s === 'object' && s ? s.servicoId ?? s.id ?? '' : s ?? ''), 64))
             .filter(Boolean),
         }))
         .filter((p) => p.id && p.nome),
-      regras: {
-        slotMin: num(regras.slotMin),
-        antecedenciaMinMin: num(regras.antecedenciaMinMin),
-        antecedenciaMaxDias: num(regras.antecedenciaMaxDias),
-        prazoCancelarMin: num(regras.prazoCancelarMin),
-        confirmacaoAuto: bool(regras.confirmacaoAuto),
-      },
+      regras: pickRegras(regras),
       temAgenda: true,
     };
   }
