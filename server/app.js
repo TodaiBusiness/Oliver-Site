@@ -6,6 +6,7 @@
    é cosmético — quem barra é este arquivo.
    ========================================================================= */
 
+import { createHash } from 'node:crypto';
 import { AUDIT_ACTIONS, LIMITS, PORTAL, ROLES, SECURITY, config } from './config.js';
 import { createContext } from './context.js';
 import { createRouter } from './http/router.js';
@@ -361,9 +362,20 @@ export function createApp(
 
   router.get('/api/portal/:slug/logo', async ({ params, headers, remoteAddress }) => {
     const image = await portal.logo(params.slug, portalIp(headers, remoteAddress));
+    /* ETag pelo conteúdo: a logo trocada no PDV muda o hash; sem troca, o navegador revalida com 304. */
+    const etag = `"${createHash('sha256').update(image.buffer).digest('hex').slice(0, 32)}"`;
+    const igual = String(headers?.['if-none-match'] ?? '')
+      .split(',')
+      .some((tag) => tag.trim().replace(/^W\//, '') === etag);
     return {
-      status: 200,
-      raw: { buffer: image.buffer, contentType: image.mime, filename: 'logo', cacheControl: 'public, max-age=300' },
+      status: igual ? 304 : 200,
+      raw: {
+        buffer: igual ? Buffer.alloc(0) : image.buffer,
+        contentType: image.mime,
+        filename: 'logo',
+        cacheControl: 'public, max-age=300',
+        etag,
+      },
     };
   });
 
@@ -1471,7 +1483,7 @@ function normalizeHeaders(headers = {}) {
  * fixo evita download com nome manipulado. Cache privado: a imagem pertence
  * a uma conversa, não pode ficar em cache compartilhado.
  */
-function respondRaw(status, { buffer, contentType, filename, cacheControl }) {
+function respondRaw(status, { buffer, contentType, filename, cacheControl, etag }) {
   return {
     status,
     isRaw: true,
@@ -1483,6 +1495,7 @@ function respondRaw(status, { buffer, contentType, filename, cacheControl }) {
       'Content-Disposition': contentDisposition(filename),
       'Cache-Control': cacheControl ?? 'private, no-store',
       'Cross-Origin-Resource-Policy': 'same-origin',
+      ...(etag ? { ETag: etag } : {}),
     },
   };
 }

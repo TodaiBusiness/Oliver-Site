@@ -14,7 +14,7 @@ Lado SITE do portal `/l/:slug` (contrato PDV, API e site: Parte 3). A API da loj
 | Método e rota | Auth | Nota |
 |---|---|---|
 | GET `/vitrine` | pública | nome, cores, avisos, horários, `fiadoAtivo`; nunca preço |
-| GET `/logo`, `/produtos/:id/imagem` | pública | bytes só se forem imagem de verdade (PNG/JPEG/GIF/WebP até 200 KB); `nosniff`; imagens servidas pelo site por causa da CSP |
+| GET `/logo`, `/produtos/:id/imagem` | pública | bytes só se forem imagem de verdade (PNG/JPEG/GIF/WebP até 200 KB); `nosniff`; imagens servidas pelo site por causa da CSP. A logo leva `ETag` (hash do conteúdo) e `Cache-Control: public, max-age=300`; `If-None-Match` igual dá 304 |
 | POST `/register` | pública | sempre 202 (e-mail repetido é indistinguível; a pessoa recebe aviso por e-mail) |
 | POST `/login` `/logout` `/forgot` `/reset` | pública/sessão | erro único "E-mail ou senha incorretos."; `forgot` sempre 202 |
 | GET `/me` | sessão | dados da conta + `{estado,tabela}` vindos da API |
@@ -32,7 +32,7 @@ Lado SITE do portal `/l/:slug` (contrato PDV, API e site: Parte 3). A API da loj
 - **Preço**: sem sessão não há catálogo; a vitrine não leva valor. Qualquer outro preço que a API mande é descartado. O servidor nunca confia em preço/total do navegador (a API recalcula).
 - **Recuperação de senha**: token de 32 bytes, SHA-256 no banco, 30 min, uso único, preso à loja, no fragmento da URL (`#token=`); redefinir derruba as sessões.
 - **LGPD**: aceite no cadastro (`consent_at`), política de privacidade atualizada, cookie de sessão como armazenamento essencial. `/l/*` não entra na contagem de visitas.
-- **Logo**: só `data:image/...` ou caminho da própria API (nunca URL externa: SSRF).
+- **Logo**: só `data:image/...` ou caminho da própria API (nunca URL externa: SSRF). A logo que o lojista escolhe no PDV chega assim: a API põe `logoUrl: /api/v1/site/portal/{slug}/logo` na vitrine, o BFF busca esse caminho com a chave de serviço, confere os bytes (`detectarTipoReal`: SVG, HTML e arquivo acima de 200 KB viram 404) e a serve em `/api/portal/:slug/logo`; a vitrine do site sempre aponta para o caminho do BFF. Teste: `tests/server/portal.test.js` (logo enviada pelo PDV).
 
 ## E-mails
 

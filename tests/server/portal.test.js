@@ -577,6 +577,73 @@ test('logo só vem de data URI de imagem ou de caminho da própria API (nunca UR
   }
 });
 
+test('logo enviada pelo PDV: só bytes de imagem, nosniff, ETag pelo conteúdo e 304 na revalidação', async () => {
+  const { app, close } = await portalApp();
+  try {
+    const vitrine = await portal(app, 'GET', 'loja-demo', '/vitrine');
+    assert.equal(vitrine.body.logoUrl, '/api/portal/loja-demo/logo');
+
+    const ok = await portal(app, 'GET', 'loja-demo', '/logo');
+    assert.equal(ok.status, 200);
+    assert.equal(ok.headers['Content-Type'], 'image/png');
+    assert.equal(ok.headers['X-Content-Type-Options'], 'nosniff');
+    assert.equal(ok.headers['Cache-Control'], 'public, max-age=300');
+    assert.match(ok.headers.ETag, /^"[0-9a-f]{32}"$/);
+    assert.ok(ok.buffer.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47])));
+
+    const igual = await portal(app, 'GET', 'loja-demo', '/logo', { headers: { 'if-none-match': ok.headers.ETag } });
+    assert.equal(igual.status, 304);
+    assert.equal(igual.buffer.length, 0);
+    assert.equal(igual.headers.ETag, ok.headers.ETag);
+    const outra = await portal(app, 'GET', 'loja-demo', '/logo', { headers: { 'if-none-match': '"outra-logo"' } });
+    assert.equal(outra.status, 200);
+  } finally {
+    close();
+  }
+});
+
+test('logo que a API devolve como SVG, HTML ou grande demais nunca chega ao navegador', async () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+  const casos = [
+    Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>'),
+    Buffer.from('<html><script>alert(1)</script></html>'),
+    Buffer.concat([png, Buffer.alloc(300 * 1024)]),
+  ];
+  for (const bytes of casos) {
+    const api = portalApiClient({
+      fetchImpl: async (url) =>
+        String(url).includes('/logo')
+          ? new Response(bytes, { status: 200, headers: { 'content-type': 'image/png' } })
+          : new Response(JSON.stringify({ nomePublico: 'L', logoUrl: '/api/v1/site/portal/l/logo' }), { status: 200 }),
+      licensing: { baseUrl: 'https://api.exemplo', serviceKey: 'k'.repeat(32) },
+      cacheMs: 0,
+    });
+    await assert.rejects(api.logo('l'), (e) => e.status === 404);
+  }
+});
+
+test('logo do caminho da API usa a chave de serviço e só o caminho da própria API', async () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+  const chamadas = [];
+  const api = portalApiClient({
+    fetchImpl: async (url, init) => {
+      chamadas.push({ url: String(url), key: init.headers['X-Service-Key'] });
+      return String(url).endsWith('/logo')
+        ? new Response(png, { status: 200, headers: { 'content-type': 'image/png' } })
+        : new Response(JSON.stringify({ nomePublico: 'L', logoUrl: '/api/v1/site/portal/l/logo' }), { status: 200 });
+    },
+    licensing: { baseUrl: 'https://api.exemplo', serviceKey: 'k'.repeat(32) },
+    cacheMs: 0,
+  });
+  const logo = await api.logo('l');
+  assert.equal(logo.mime, 'image/png');
+  assert.deepEqual(
+    chamadas.map((c) => c.url),
+    ['https://api.exemplo/api/v1/site/portal/l', 'https://api.exemplo/api/v1/site/portal/l/logo']
+  );
+  assert.ok(chamadas.every((c) => c.key === 'k'.repeat(32)));
+});
+
 test('imagem que a API devolve como HTML ou grande demais é recusada', async () => {
   const html = Buffer.from('<script>alert(1)</script>');
   const grande = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(300 * 1024)]);
