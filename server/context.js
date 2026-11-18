@@ -13,6 +13,7 @@ import { attachmentsRepository } from './repositories/attachments.js';
 import { auditRepository, loginAttemptsRepository } from './repositories/audit.js';
 import { twoFactorRepository } from './repositories/twoFactor.js';
 import { passwordResetsRepository } from './repositories/passwordResets.js';
+import { portalRepository } from './repositories/portal.js';
 import { createVault } from './security/vault.js';
 import { config } from './config.js';
 
@@ -37,5 +38,6 @@ export function createContext(
     loginAttempts: loginAttemptsRepository(db),
     twoFactor: twoFactorRepository(db),
     passwordResets: passwordResetsRepository(db),
+    portal: portalRepository(db),
   };
 }

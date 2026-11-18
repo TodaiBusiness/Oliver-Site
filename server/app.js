@@ -6,13 +6,15 @@
    é cosmético — quem barra é este arquivo.
    ========================================================================= */
 
-import { AUDIT_ACTIONS, LIMITS, ROLES, SECURITY, config } from './config.js';
+import { AUDIT_ACTIONS, LIMITS, PORTAL, ROLES, SECURITY, config } from './config.js';
 import { createContext } from './context.js';
 import { createRouter } from './http/router.js';
 import {
   parseCookies,
   analyticsConsented,
+  serializeClearedPortalCookie,
   serializeClearedSessionCookie,
+  serializePortalCookie,
   serializeSessionCookie,
 } from './http/cookies.js';
 import {
@@ -45,6 +47,8 @@ import { accountSecurityService } from './services/accountSecurity.js';
 import { twoFactorService } from './services/twoFactor.js';
 import { passwordResetService } from './services/passwordReset.js';
 import { maintenanceService } from './services/maintenance.js';
+import { portalApiClient } from './services/portalApi.js';
+import { portalService } from './services/portal.js';
 import { createMailer } from './services/mailer.js';
 import {
   EVENT_STREAM_HEADERS,
@@ -124,6 +128,8 @@ export function bodyLimitFor(path, { serviceAuthorized = false } = {}) {
   /* Login, cadastro, 2FA, troca de senha: poucas dezenas de bytes. O teto
      global (feito para a imagem do chat) não faz sentido aqui. */
   if (typeof path === 'string' && path.startsWith('/api/auth/')) return SECURITY.AUTH_MAX_BODY_BYTES;
+  /* Portal da loja: cadastro, login e pedido (até 100 itens) cabem em 32 KB. */
+  if (typeof path === 'string' && path.startsWith('/api/portal/')) return PORTAL.MAX_BODY_BYTES;
   return null;
 }
 
@@ -159,6 +165,8 @@ export function createApp(
     allowedOrigins = [],
     quoteRequests = quoteRequestsService(),
     checkout = checkoutService(),
+    portalApi = portalApiClient(),
+    portalOptions = {},
     account = accountService(),
     mailer = createMailer(),
     forgotMinMs = 1200,
@@ -178,6 +186,7 @@ export function createApp(
   const twoFactor = twoFactorService(ctx);
   const passwordReset = passwordResetService(ctx, { mailer, minDurationMs: forgotMinMs });
   const maintenance = maintenanceService(ctx);
+  const portal = portalService(ctx, { api: portalApi, mailer, minDurationMs: forgotMinMs, ...portalOptions });
   const projects = projectsService(ctx);
   const requests = requestsService(ctx);
   const attachments = attachmentsService(ctx, requests);
@@ -334,6 +343,126 @@ export function createApp(
   router.post('/api/account/summary', async ({ body }) => {
     const input = pick(body, ['token']);
     return { status: 200, body: await account.summary(input) };
+  });
+
+  /* ----------------------------------------------- portal da loja (/l/:slug)
+
+     BFF do portal: contas próprias (portal_*), cookie por loja e a API da loja
+     por trás. Nada daqui usa `users`/`oi_session`. Escrita exige o cabeçalho
+     X-Portal-Request (e, com origens configuradas, Origin do próprio site). */
+
+  const portalIp = (headers, remoteAddress) => clientAddress(headers, remoteAddress);
+  const portalAccount = ({ params, headers }) => portal.requireAccount(params.slug, headers);
+
+  router.get('/api/portal/:slug/vitrine', async ({ params, headers, remoteAddress }) => ({
+    status: 200,
+    body: await portal.vitrine(params.slug, portalIp(headers, remoteAddress)),
+  }));
+
+  router.get('/api/portal/:slug/logo', async ({ params, headers, remoteAddress }) => {
+    const image = await portal.logo(params.slug, portalIp(headers, remoteAddress));
+    return {
+      status: 200,
+      raw: { buffer: image.buffer, contentType: image.mime, filename: 'logo', cacheControl: 'public, max-age=300' },
+    };
+  });
+
+  router.get('/api/portal/:slug/produtos/:id/imagem', async ({ params, headers, remoteAddress }) => {
+    const image = await portal.productImage(params.slug, params.id, portalIp(headers, remoteAddress));
+    return {
+      status: 200,
+      raw: { buffer: image.buffer, contentType: image.mime, filename: 'produto', cacheControl: 'public, max-age=3600' },
+    };
+  });
+
+  router.post('/api/portal/:slug/register', async ({ params, body, headers, remoteAddress }) => {
+    const input = pick(body, ['name', 'email', 'phone', 'password', 'type', 'business', 'document', 'address', 'acceptPrivacy']);
+    await portal.register(params.slug, input, { ip: portalIp(headers, remoteAddress), headers });
+    return {
+      status: 202,
+      body: { ok: true, message: 'Cadastro recebido. Entre com o seu e-mail e a senha que você criou.' },
+    };
+  });
+
+  router.post('/api/portal/:slug/login', async ({ params, body, headers, remoteAddress }) => {
+    const input = pick(body, ['email', 'password']);
+    const result = await portal.login(params.slug, input, {
+      ip: portalIp(headers, remoteAddress),
+      userAgent: clipUserAgent(headers['user-agent']),
+      headers,
+    });
+    return {
+      status: 200,
+      body: { account: result.account },
+      cookies: [serializePortalCookie(params.slug, result.token, { maxAgeMs: PORTAL.SESSION_TTL_MS })],
+    };
+  });
+
+  router.post('/api/portal/:slug/logout', async ({ params, headers }) => ({
+    status: 200,
+    body: await portal.logout(params.slug, headers),
+    cookies: [serializeClearedPortalCookie(params.slug)],
+  }));
+
+  router.post('/api/portal/:slug/forgot', async ({ params, body, headers, remoteAddress }) => {
+    const { email } = pick(body, ['email']);
+    await portal.requestReset(params.slug, email, { ip: portalIp(headers, remoteAddress), headers });
+    return {
+      status: 202,
+      body: { ok: true, message: 'Se existir uma conta com este e-mail, enviaremos um link para criar uma nova senha.' },
+    };
+  });
+
+  router.post('/api/portal/:slug/reset', async ({ params, body, headers, remoteAddress }) => {
+    const input = pick(body, ['token', 'password']);
+    return {
+      status: 200,
+      body: await portal.resetPassword(params.slug, input, { ip: portalIp(headers, remoteAddress), headers }),
+    };
+  });
+
+  router.get('/api/portal/:slug/me', async (request) => {
+    const account = await portalAccount(request);
+    return { status: 200, body: await portal.me(request.params.slug, account) };
+  });
+
+  router.get('/api/portal/:slug/catalogo', async (request) => {
+    const account = await portalAccount(request);
+    return { status: 200, body: await portal.catalogo(request.params.slug, account) };
+  });
+
+  router.post('/api/portal/:slug/pedidos', async (request) => {
+    const account = await portalAccount(request);
+    const input = pick(request.body, ['itens', 'entrega', 'pagamento', 'observacao', 'idempotencyKey']);
+    if (input.entrega && typeof input.entrega === 'object') {
+      input.entrega = pick(input.entrega, ['tipo', 'endereco', 'data', 'faixa']);
+    }
+    if (Array.isArray(input.itens)) input.itens = input.itens.map((item) => pick(item, ['produtoId', 'quantidade']));
+    const pedido = await portal.createOrder(request.params.slug, account, input, { headers: request.headers });
+    return { status: 201, body: { pedido } };
+  });
+
+  router.get('/api/portal/:slug/pedidos', async (request) => {
+    const account = await portalAccount(request);
+    return { status: 200, body: await portal.listOrders(request.params.slug, account) };
+  });
+
+  router.get('/api/portal/:slug/pedidos/:id', async (request) => {
+    const account = await portalAccount(request);
+    return { status: 200, body: await portal.getOrder(request.params.slug, account, request.params.id) };
+  });
+
+  router.post('/api/portal/:slug/pedidos/:id/cancelar', async (request) => {
+    const account = await portalAccount(request);
+    return {
+      status: 200,
+      body: await portal.cancelOrder(request.params.slug, account, request.params.id, { headers: request.headers }),
+    };
+  });
+
+  router.get('/api/portal/:slug/fiado', async (request) => {
+    const account = await portalAccount(request);
+    return { status: 200, body: await portal.fiado(request.params.slug, account) };
   });
 
   /* --------------------------------------------------------- autenticação */
@@ -1088,6 +1217,17 @@ export function createApp(
     svc
   );
 
+  /* Callback da API da loja → site: aviso por e-mail ao dono da conta do portal
+     (pedido mudou de estado, conta aprovada ou bloqueada). Só com X-Service-Key. */
+  router.post(
+    '/api/service/portal/eventos',
+    async ({ body }) => {
+      const input = pick(serviceProjectBody(body), ['slug', 'pedidoId', 'contaId', 'tipo', 'estado', 'motivo']);
+      return { status: 202, body: await portal.handleEvent(input) };
+    },
+    svc
+  );
+
   /* Contas do site, status de solicitações e atividade (telas do Panel). */
   router.get(
     '/api/service/clients',
@@ -1331,7 +1471,7 @@ function normalizeHeaders(headers = {}) {
  * fixo evita download com nome manipulado. Cache privado: a imagem pertence
  * a uma conversa, não pode ficar em cache compartilhado.
  */
-function respondRaw(status, { buffer, contentType, filename }) {
+function respondRaw(status, { buffer, contentType, filename, cacheControl }) {
   return {
     status,
     isRaw: true,
@@ -1341,7 +1481,7 @@ function respondRaw(status, { buffer, contentType, filename }) {
       'Content-Length': String(buffer.length),
       'X-Content-Type-Options': 'nosniff',
       'Content-Disposition': contentDisposition(filename),
-      'Cache-Control': 'private, no-store',
+      'Cache-Control': cacheControl ?? 'private, no-store',
       'Cross-Origin-Resource-Policy': 'same-origin',
     },
   };

@@ -8,7 +8,7 @@
      por instância (serve também a função serverless).
    ========================================================================= */
 
-import { SECURITY } from '../config.js';
+import { PORTAL, SECURITY } from '../config.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_INTERVAL_MS = 10 * 60 * 1000;
@@ -27,6 +27,8 @@ export function maintenanceService(ctx, { now = () => Date.now() } = {}) {
       loginAttempts: await ctx.loginAttempts.deleteOlderThan(current - SECURITY.LOGIN_WINDOW_MS),
       challenges: await ctx.twoFactor.deleteExpiredChallenges(current),
       resets: await ctx.passwordResets.deleteExpired(current),
+      portalSessions: await ctx.portal.deleteExpiredSessions(current, current - PORTAL.SESSION_IDLE_MS),
+      portalResets: await ctx.portal.deleteExpiredResets(current),
       audit: 0,
     };
 

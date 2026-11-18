@@ -280,3 +280,56 @@ CREATE TABLE IF NOT EXISTS reply_templates (
   updated_by_name VARCHAR(80)  NOT NULL,
   CONSTRAINT pk_reply_templates PRIMARY KEY (id)
 );
+
+-- ===========================================================================
+-- Portal de pedidos da loja (/l/:slug). Contas, sessões e recuperações do
+-- PORTAL são tabelas próprias e todas carregam a loja (store_slug): a conta de
+-- uma loja não existe em outra, e nada daqui se mistura com `users`/`sessions`
+-- (clientes e admin do site). O que é da loja (preço, pedido, aprovação) fica
+-- na API; aqui só ficam identidade e senha.
+-- ===========================================================================
+CREATE TABLE IF NOT EXISTS portal_accounts (
+  id            VARCHAR(64)  NOT NULL,
+  store_slug    VARCHAR(40)  NOT NULL,
+  name          VARCHAR(120) NOT NULL,
+  email         VARCHAR(190) NOT NULL,
+  phone         VARCHAR(30)  NOT NULL,
+  document      VARCHAR(20)  NULL,
+  business_name VARCHAR(120) NULL,
+  address       TEXT         NOT NULL DEFAULT '{}',
+  password_hash TEXT         NOT NULL,
+  consent_at    BIGINT       NOT NULL,
+  created_at    BIGINT       NOT NULL,
+  updated_at    BIGINT       NOT NULL,
+  CONSTRAINT pk_portal_accounts PRIMARY KEY (id),
+  CONSTRAINT ux_portal_accounts_email UNIQUE (store_slug, email)
+);
+
+CREATE TABLE IF NOT EXISTS portal_sessions (
+  id           VARCHAR(64) NOT NULL,
+  store_slug   VARCHAR(40) NOT NULL,
+  account_id   VARCHAR(64) NOT NULL,
+  expires_at   BIGINT      NOT NULL,
+  created_at   BIGINT      NOT NULL,
+  last_seen_at BIGINT      NOT NULL,
+  ip           VARCHAR(64) NULL,
+  user_agent   VARCHAR(300) NULL,
+  CONSTRAINT pk_portal_sessions PRIMARY KEY (id),
+  CONSTRAINT fk_portal_sessions_account FOREIGN KEY (account_id) REFERENCES portal_accounts(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS ix_portal_sessions_account ON portal_sessions (account_id);
+CREATE INDEX IF NOT EXISTS ix_portal_sessions_expires ON portal_sessions (expires_at);
+
+CREATE TABLE IF NOT EXISTS portal_resets (
+  id         VARCHAR(64) NOT NULL,
+  store_slug VARCHAR(40) NOT NULL,
+  account_id VARCHAR(64) NOT NULL,
+  expires_at BIGINT      NOT NULL,
+  used_at    BIGINT      NULL,
+  created_at BIGINT      NOT NULL,
+  CONSTRAINT pk_portal_resets PRIMARY KEY (id),
+  CONSTRAINT fk_portal_resets_account FOREIGN KEY (account_id) REFERENCES portal_accounts(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS ix_portal_resets_account ON portal_resets (account_id);

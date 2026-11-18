@@ -1,0 +1,374 @@
+/* =========================================================================
+   Cliente HTTP da API da loja (itens 9 a 16 do contrato do portal).
+   -------------------------------------------------------------------------
+   Mesmo modelo do checkout.js: `fetch` injetável (os testes usam um falso),
+   `X-Service-Key`, tempo máximo e erro GENÉRICO para o navegador — a API
+   central nunca vira canal de texto arbitrário para a tela. O navegador não
+   fala com a API; quem fala é este servidor.
+
+   Só o que o contrato prevê entra e sai: cada resposta passa por uma lista
+   branca de campos. Em particular, o catálogo só carrega `precoAplicado`
+   (a tabela da conta); qualquer outro preço que a API mandasse por engano
+   (varejo, atacado, revenda) é descartado aqui.
+   ========================================================================= */
+
+import { config, DEFAULT_TIMEOUT_MS, PORTAL } from '../config.js';
+import { AppError } from '../http/errors.js';
+import { detectarTipoReal } from '../security/imageValidation.js';
+
+const UNAVAILABLE = 'O portal da loja está indisponível agora. Tente novamente em instantes.';
+const INACTIVE = 'Esta loja não está recebendo pedidos pelo portal agora.';
+
+const validTimeout = (value) => (Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS);
+
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const CODE = /^[a-z0-9_]{2,48}$/;
+
+/* Mensagens próprias (PT-BR) para os motivos de recusa que a pessoa consegue
+   resolver. O texto da API só é usado como último recurso (ver `businessMessage`). */
+const BUSINESS_MESSAGES = {
+  min_order: 'O pedido não atinge o valor mínimo da loja.',
+  below_minimum: 'O pedido não atinge o valor mínimo da loja.',
+  item_unavailable: 'Algum item do carrinho não está mais disponível. Confira o carrinho.',
+  product_unavailable: 'Algum item do carrinho não está mais disponível. Confira o carrinho.',
+  invalid_multiple: 'Algum item não respeita a quantidade múltipla de venda. Ajuste o carrinho.',
+  outside_hours: 'A loja não atende no dia ou na faixa escolhidos. Escolha outro horário.',
+  store_closed: 'A loja não está aceitando pedidos agora.',
+  orders_disabled: 'A loja não está aceitando pedidos agora.',
+  delivery_unavailable: 'A loja não faz entrega. Escolha retirada.',
+  pickup_unavailable: 'A loja não faz retirada. Escolha entrega.',
+  account_pending: 'Sua conta ainda aguarda a aprovação da loja.',
+  account_blocked: 'Não foi possível concluir com esta conta. Fale com a loja.',
+  cancel_window_closed: 'O prazo para cancelar este pedido já passou. Fale com a loja.',
+  invalid_state: 'Este pedido não pode mais ser cancelado.',
+  payment_unavailable: 'Esta forma de pagamento não está liberada para a sua conta.',
+};
+
+const clip = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : null);
+const num = (value) => (Number.isFinite(Number(value)) && value !== null && value !== '' ? Number(value) : null);
+const bool = (value) => value === true;
+
+function cleanJsonish(value, maxBytes = 4096) {
+  if (value === null || value === undefined) return null;
+  try {
+    const text = JSON.stringify(value);
+    return text.length <= maxBytes ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Texto da API que pode ir à tela: só uma linha curta, sem controle. */
+function businessMessage(body) {
+  const detail = typeof body?.detail === 'string' ? body.detail : typeof body?.message === 'string' ? body.message : '';
+  const text = detail.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
+  return text && text.length <= 240 ? text : null;
+}
+
+export function portalApiClient({
+  fetchImpl = fetch,
+  licensing = config.licensing,
+  cacheMs = 15_000,
+  now = () => Date.now(),
+} = {}) {
+  const configured = Boolean(licensing.baseUrl && licensing.serviceKey);
+  const base = configured
+    ? new URL(
+        'api/v1/site/portal/',
+        licensing.baseUrl.endsWith('/') ? licensing.baseUrl : `${licensing.baseUrl}/`
+      )
+    : null;
+  const vitrineCache = new Map();
+
+  const seg = (value) => encodeURIComponent(String(value));
+
+  /** Chamada crua: devolve a Response (ou lança o erro genérico de rede). */
+  async function call(method, path, { query, body, accept, absolute = false } = {}) {
+    if (!configured) throw new AppError(503, 'PORTAL_INDISPONIVEL', UNAVAILABLE);
+    /* `absolute`: caminho que a própria API informou (logo), relativo à raiz dela, sempre no mesmo host. */
+    const url = absolute ? new URL(path, licensing.baseUrl) : new URL(path, base);
+    for (const [key, value] of Object.entries(query ?? {})) {
+      if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), validTimeout(licensing.timeoutMs));
+    try {
+      return await fetchImpl(url, {
+        method,
+        headers: {
+          'X-Service-Key': licensing.serviceKey,
+          Accept: accept ?? 'application/json',
+          ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        },
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+    } catch (cause) {
+      console.error('[portal] falha ao chamar a API da loja:', cause?.name ?? cause?.message);
+      throw new AppError(503, 'PORTAL_INDISPONIVEL', UNAVAILABLE);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async function readJson(response) {
+    const text = await response.text();
+    if (!text) return {};
+    try {
+      const parsed = JSON.parse(text);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  /** Resposta de erro da API → erro genérico (ou recusa de negócio com texto próprio). */
+  function failure(response, body, { business = false } = {}) {
+    const code = typeof body?.code === 'string' && CODE.test(body.code.toLowerCase()) ? body.code.toLowerCase() : null;
+    if (
+      (response.status === 404 && code === 'portal_inactive') ||
+      (response.status === 403 && code === 'addon_not_active')
+    ) {
+      return new AppError(404, 'PORTAL_INATIVO', INACTIVE);
+    }
+    if (response.status === 404) return new AppError(404, 'NAO_ENCONTRADO', 'Não encontrado.');
+    if (business && [400, 409, 422].includes(response.status)) {
+      const message =
+        (code && BUSINESS_MESSAGES[code]) ?? businessMessage(body) ?? 'Não foi possível concluir. Confira os dados e tente de novo.';
+      return new AppError(response.status === 409 ? 409 : 400, code ? code.toUpperCase() : 'PEDIDO_INVALIDO', message);
+    }
+    console.error(
+      `[portal] API da loja respondeu ${response.status}`,
+      code ?? '',
+      body?.correlationId ? `correlationId=${body.correlationId}` : ''
+    );
+    return new AppError(503, 'PORTAL_INDISPONIVEL', UNAVAILABLE);
+  }
+
+  async function json(method, path, options = {}) {
+    const response = await call(method, path, options);
+    const body = await readJson(response);
+    if (!response.ok) throw failure(response, body, { business: options.business });
+    return body;
+  }
+
+  /* -------------------------------------------------- listas brancas */
+
+  function pickVitrine(body) {
+    const cores = body.cores && typeof body.cores === 'object' ? body.cores : {};
+    const color = (value) => (typeof value === 'string' && HEX.test(value) ? value.toLowerCase() : null);
+    return {
+      nomePublico: clip(body.nomePublico, 80) ?? 'Loja',
+      cores: { primaria: color(cores.primaria), secundaria: color(cores.secundaria), fundo: color(cores.fundo) },
+      temLogo: typeof body.logoUrl === 'string' && body.logoUrl.length > 0,
+      aceitaPedidos: bool(body.aceitaPedidos),
+      retirada: bool(body.retirada),
+      entrega: bool(body.entrega),
+      taxaEntrega: num(body.taxaEntrega) ?? 0,
+      pedidoMinimo: num(body.pedidoMinimo) ?? 0,
+      mensagemAviso: clip(body.mensagemAviso, 300),
+      horarios: cleanJsonish(body.horarios),
+      prazoCancelarMin: num(body.prazoCancelarMin),
+      catalogoAtualizadoEm: clip(body.catalogoAtualizadoEm, 40),
+      fiadoAtivo: bool(body.fiadoAtivo),
+      emailContato: clip(body.emailContato ?? body.email, 190),
+    };
+  }
+
+  function pickProduto(item) {
+    const id = item.produtoId ?? item.id;
+    return {
+      id: clip(String(id ?? ''), 64),
+      nome: clip(item.nome, 160) ?? '',
+      categoria: clip(item.categoria, 80),
+      unidade: clip(item.unidade, 20) ?? 'un',
+      descricao: clip(item.descricao, 400),
+      preco: num(item.precoAplicado),
+      disponivel: item.disponivel !== false,
+      multiplo: Math.max(num(item.multiplo) ?? 1, 0.001),
+      caixaQtd: num(item.caixaQtd),
+      imagemHash: clip(item.imagemHash, 64) ?? (item.temImagem === true ? 'v1' : null),
+    };
+  }
+
+  function pickPedido(p) {
+    const itens = Array.isArray(p.itens) ? p.itens.slice(0, PORTAL.ITEMS_MAX) : [];
+    return {
+      id: clip(String(p.id ?? p.pedidoId ?? ''), 64),
+      referencia: clip(p.referencia, 40),
+      estado: clip(p.estado, 20),
+      criadoEm: clip(p.criadoEm, 40),
+      atualizadoEm: clip(p.atualizadoEm, 40),
+      total: num(p.total),
+      pagamento: clip(p.pagamento, 20),
+      observacao: clip(p.observacao, 600),
+      motivoRecusa: clip(p.motivoRecusa, 300),
+      previsao: clip(p.previsao, 60),
+      podeCancelar: typeof p.podeCancelar === 'boolean' ? p.podeCancelar : null,
+      cancelavelAte: clip(p.cancelavelAte, 40),
+      entrega: p.entrega && typeof p.entrega === 'object'
+        ? {
+            tipo: clip(p.entrega.tipo, 20),
+            data: clip(p.entrega.data, 20),
+            faixa: clip(p.entrega.faixa, 40),
+            taxa: num(p.entrega.taxa),
+            endereco: cleanJsonish(p.entrega.endereco, 1024),
+          }
+        : null,
+      itens: itens.map((i) => ({
+        produtoId: clip(String(i.produtoId ?? ''), 64),
+        nome: clip(i.nome, 160) ?? '',
+        quantidade: num(i.quantidade) ?? 0,
+        unidade: clip(i.unidade, 20),
+        precoUnitario: num(i.precoUnitario),
+      })),
+    };
+  }
+
+  function pickFiado(f) {
+    const extrato = Array.isArray(f.extrato) ? f.extrato.slice(0, 50) : [];
+    return {
+      saldo: num(f.saldo) ?? 0,
+      vencido: num(f.vencido) ?? 0,
+      proximoVencimento: clip(f.proximoVencimento, 20),
+      atualizadoEm: clip(f.atualizadoEm, 40),
+      extrato: extrato.map((e) => ({
+        data: clip(e?.data, 20),
+        descricao: clip(e?.descricao ?? e?.historico, 160),
+        valor: num(e?.valor),
+        tipo: clip(e?.tipo, 20),
+        vencimento: clip(e?.vencimento, 20),
+      })),
+    };
+  }
+
+  /* ----------------------------------------------------------- API */
+  return {
+    configured,
+
+    /** 9. Vitrine (com cache curto: o e-mail e a tela de entrada pedem muito). */
+    async vitrine(slug, { fresh = false } = {}) {
+      const hit = vitrineCache.get(slug);
+      if (!fresh && hit && hit.until > now()) {
+        if (hit.error) throw hit.error;
+        return hit.value;
+      }
+      try {
+        const body = await json('GET', seg(slug));
+        const value = { ...pickVitrine(body), _logoUrl: typeof body.logoUrl === 'string' ? body.logoUrl : null };
+        remember(slug, { value });
+        return value;
+      } catch (error) {
+        if (error.code === 'PORTAL_INATIVO') remember(slug, { error });
+        throw error;
+      }
+    },
+
+    /** 10. Cria a conta (fica pendente na loja). */
+    async criarConta(slug, conta) {
+      await json('POST', `${seg(slug)}/contas`, { body: conta, business: true });
+    },
+
+    /** 11. Estado e tabela da conta. */
+    async conta(slug, contaId) {
+      const body = await json('GET', `${seg(slug)}/contas/${seg(contaId)}`);
+      return { estado: clip(body.estado, 20), tabela: clip(body.tabela, 20) };
+    },
+
+    /** 12. Catálogo com UM preço (o da tabela da conta). */
+    async catalogo(slug, contaId) {
+      const body = await json('GET', `${seg(slug)}/catalogo`, { query: { contaId } });
+      const lista = Array.isArray(body) ? body : Array.isArray(body.produtos) ? body.produtos : [];
+      return {
+        versao: clip(String(body.versao ?? ''), 40),
+        atualizadoEm: clip(body.atualizadoEm ?? body.catalogoAtualizadoEm, 40),
+        produtos: lista.slice(0, 5000).map(pickProduto).filter((p) => p.id && p.nome),
+      };
+    },
+
+    /** 13. Foto do produto: só devolve bytes que são imagem de verdade. */
+    async imagem(slug, produtoId) {
+      const response = await call('GET', `${seg(slug)}/produtos/${seg(produtoId)}/imagem`, { accept: 'image/*,application/json' });
+      if (!response.ok) {
+        await response.arrayBuffer().catch(() => null);
+        throw response.status === 404 || response.status === 403
+          ? new AppError(404, 'NAO_ENCONTRADO', 'Não encontrado.')
+          : new AppError(503, 'PORTAL_INDISPONIVEL', UNAVAILABLE);
+      }
+      let buffer;
+      if (/json/i.test(response.headers.get('content-type') ?? '')) {
+        const body = await readJson(response);
+        buffer = typeof body.base64 === 'string' ? Buffer.from(body.base64, 'base64') : Buffer.alloc(0);
+      } else {
+        buffer = Buffer.from(await response.arrayBuffer());
+      }
+      const tipo = detectarTipoReal(buffer);
+      if (!tipo || buffer.length === 0 || buffer.length > PORTAL.IMAGE_MAX_BYTES) {
+        throw new AppError(404, 'NAO_ENCONTRADO', 'Não encontrado.');
+      }
+      return { buffer, mime: tipo.mime };
+    },
+
+    /** Logo da loja: só caminho da própria API (nunca URL externa: SSRF). */
+    async logo(slug) {
+      const vitrine = await this.vitrine(slug);
+      const logo = vitrine._logoUrl;
+      if (!logo) throw new AppError(404, 'NAO_ENCONTRADO', 'Não encontrado.');
+      const data = /^data:image\/(?:png|jpeg|webp|gif);base64,([A-Za-z0-9+/=]+)$/.exec(logo);
+      let buffer;
+      if (data) {
+        buffer = Buffer.from(data[1], 'base64');
+      } else if (/^\/[A-Za-z0-9_\-./]+$/.test(logo) && !logo.startsWith('//') && !logo.includes('..')) {
+        const response = await call('GET', logo, { accept: 'image/*', absolute: true }).catch(() => null);
+        if (!response?.ok) throw new AppError(404, 'NAO_ENCONTRADO', 'Não encontrado.');
+        buffer = Buffer.from(await response.arrayBuffer());
+      } else {
+        throw new AppError(404, 'NAO_ENCONTRADO', 'Não encontrado.');
+      }
+      const tipo = detectarTipoReal(buffer);
+      if (!tipo || buffer.length > PORTAL.IMAGE_MAX_BYTES) throw new AppError(404, 'NAO_ENCONTRADO', 'Não encontrado.');
+      return { buffer, mime: tipo.mime };
+    },
+
+    /** 14. Cria o pedido (a API recalcula tudo). */
+    async criarPedido(slug, pedido) {
+      const body = await json('POST', `${seg(slug)}/pedidos`, { body: pedido, business: true });
+      return {
+        pedidoId: clip(String(body.pedidoId ?? body.id ?? ''), 64),
+        referencia: clip(body.referencia, 40),
+        estado: clip(body.estado, 20) ?? 'recebido',
+        total: num(body.total),
+      };
+    },
+
+    /** 15. Pedidos da conta. */
+    async pedidos(slug, contaId) {
+      const body = await json('GET', `${seg(slug)}/pedidos`, { query: { contaId } });
+      const lista = Array.isArray(body) ? body : Array.isArray(body.pedidos) ? body.pedidos : [];
+      return lista.slice(0, 200).map(pickPedido);
+    },
+
+    async pedido(slug, pedidoId, contaId) {
+      return pickPedido(await json('GET', `${seg(slug)}/pedidos/${seg(pedidoId)}`, { query: { contaId } }));
+    },
+
+    async cancelar(slug, pedidoId, contaId) {
+      const body = await json('POST', `${seg(slug)}/pedidos/${seg(pedidoId)}/cancelar`, {
+        query: { contaId },
+        body: {},
+        business: true,
+      });
+      return { estado: clip(body.estado, 20) ?? 'cancelado' };
+    },
+
+    /** 16. Fiado (só leitura). */
+    async fiado(slug, contaId) {
+      return pickFiado(await json('GET', `${seg(slug)}/fiado`, { query: { contaId } }));
+    },
+  };
+
+  function remember(slug, entry) {
+    if (vitrineCache.size >= 500) vitrineCache.delete(vitrineCache.keys().next().value);
+    vitrineCache.set(slug, { ...entry, until: now() + cacheMs });
+  }
+}

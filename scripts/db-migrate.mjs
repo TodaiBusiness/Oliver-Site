@@ -44,6 +44,9 @@ async function main() {
     'audit_logs',
     'attachments',
     'site_visit_stats',
+    'portal_accounts',
+    'portal_sessions',
+    'portal_resets',
   ];
 
   for (const table of tables) {
