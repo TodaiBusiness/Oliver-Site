@@ -64,6 +64,39 @@ export function horariosEmLinhas(horarios) {
   return [];
 }
 
+const DIAS_SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+
+/** "amanhã às 08:00", "segunda às 08:00"... a partir de `yyyy-MM-ddTHH:mm` (Brasília), comparando com o dia de hoje em Brasília. */
+export function aberturaEmTexto(iso, nowMs = Date.now()) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso ?? '');
+  if (!m) return null;
+  const alvo = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+  const hoje = Date.parse(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(nowMs));
+  const dias = Math.round((alvo - hoje) / 86400000);
+  const hora = `${m[4]}:${m[5]}`;
+  if (dias <= 0) return `hoje às ${hora}`;
+  if (dias === 1) return `amanhã às ${hora}`;
+  if (dias < 7) return `${DIAS_SEMANA[new Date(alvo).getUTCDay()]} às ${hora}`;
+  return `${m[3]}/${m[2]} às ${hora}`;
+}
+
+/** Selo da loja: `null` se a API não informou; senão `{ aberto, texto }` (fechada nunca é erro, só informação). */
+export function statusDaLoja(loja, nowMs = Date.now()) {
+  if (!loja || typeof loja.abertoAgora !== 'boolean') return null;
+  if (loja.abertoAgora) return { aberto: true, texto: 'Aberto agora' };
+  const quando = aberturaEmTexto(loja.proximaAbertura, nowMs);
+  return { aberto: false, texto: quando ? `Fechado agora · abre ${quando}` : 'Fechado agora' };
+}
+
+/** Cliente pode cancelar? Prazo 0 = a loja não permite; senão vale o que a API disse (`podeCancelar`) ou a conta do prazo. */
+export function podeCancelarPedido(pedido, prazoMin, nowMs = Date.now()) {
+  if (!pedido || pedido.estado !== 'recebido' || prazoMin === 0) return false;
+  if (typeof pedido.podeCancelar === 'boolean') return pedido.podeCancelar;
+  if (pedido.cancelavelAte) return nowMs <= Date.parse(pedido.cancelavelAte);
+  if (prazoMin && pedido.criadoEm) return nowMs - Date.parse(pedido.criadoEm) <= prazoMin * 60000;
+  return true;
+}
+
 export function faixasDaLoja(horarios) {
   const faixas = horarios && !Array.isArray(horarios) && Array.isArray(horarios.faixas) ? horarios.faixas : null;
   const lista = (faixas ?? []).filter((f) => typeof f === 'string' && f.trim()).map((f) => f.trim().slice(0, 40));
