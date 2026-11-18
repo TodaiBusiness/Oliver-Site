@@ -7,7 +7,7 @@
    Path=/    → vale para toda a aplicação
    ========================================================================= */
 
-import { SECURITY, config } from '../config.js';
+import { PORTAL, SECURITY, config } from '../config.js';
 
 export function parseCookies(header) {
   const cookies = {};
@@ -77,4 +77,30 @@ export function analyticsConsented(cookieHeader) {
   } catch {
     return false;
   }
+}
+
+/* ---- Cookie de sessão do PORTAL da loja: um por loja (`oi_portal_<slug>`) ----
+   Path restrito à API daquela loja: o navegador nem envia o cookie de uma loja
+   para outra, e o servidor ainda confere a loja gravada na sessão. */
+
+export const portalCookieName = (slug) => `${PORTAL.COOKIE_PREFIX}${slug}`;
+
+const portalCookie = (slug, value, maxAgeSeconds) => {
+  const parts = [
+    `${portalCookieName(slug)}=${value}`,
+    `Path=/api/portal/${slug}`,
+    'HttpOnly',
+    'SameSite=Lax',
+    `Max-Age=${maxAgeSeconds}`,
+  ];
+  if (config.isProduction) parts.push('Secure');
+  return parts.join('; ');
+};
+
+export function serializePortalCookie(slug, token, { maxAgeMs }) {
+  return portalCookie(slug, encodeURIComponent(token), Math.floor(maxAgeMs / 1000));
+}
+
+export function serializeClearedPortalCookie(slug) {
+  return portalCookie(slug, '', 0);
 }

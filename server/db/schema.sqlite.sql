@@ -200,3 +200,51 @@ CREATE TABLE IF NOT EXISTS reply_templates (
   updated_at      INTEGER NOT NULL,
   updated_by_name TEXT    NOT NULL
 );
+
+-- ===========================================================================
+-- Portal de pedidos da loja (/l/:slug). Contas, sessões e recuperações do
+-- PORTAL são tabelas próprias e todas carregam a loja (store_slug): a conta de
+-- uma loja não existe em outra, e nada daqui se mistura com `users`/`sessions`
+-- (clientes e admin do site). O que é da loja (preço, pedido, aprovação) fica
+-- na API; aqui só ficam identidade e senha.
+-- ===========================================================================
+CREATE TABLE IF NOT EXISTS portal_accounts (
+  id            TEXT    PRIMARY KEY,
+  store_slug    TEXT    NOT NULL,
+  name          TEXT    NOT NULL,
+  email         TEXT    NOT NULL,
+  phone         TEXT    NOT NULL,
+  document      TEXT,
+  business_name TEXT,
+  address       TEXT    NOT NULL DEFAULT '{}',
+  password_hash TEXT    NOT NULL,
+  consent_at    INTEGER NOT NULL,
+  created_at    INTEGER NOT NULL,
+  updated_at    INTEGER NOT NULL,
+  UNIQUE (store_slug, email)
+);
+
+CREATE TABLE IF NOT EXISTS portal_sessions (
+  id           TEXT    PRIMARY KEY,
+  store_slug   TEXT    NOT NULL,
+  account_id   TEXT    NOT NULL REFERENCES portal_accounts(id) ON DELETE CASCADE,
+  expires_at   INTEGER NOT NULL,
+  created_at   INTEGER NOT NULL,
+  last_seen_at INTEGER NOT NULL,
+  ip           TEXT,
+  user_agent   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS ix_portal_sessions_account ON portal_sessions (account_id);
+CREATE INDEX IF NOT EXISTS ix_portal_sessions_expires ON portal_sessions (expires_at);
+
+CREATE TABLE IF NOT EXISTS portal_resets (
+  id         TEXT    PRIMARY KEY,
+  store_slug TEXT    NOT NULL,
+  account_id TEXT    NOT NULL REFERENCES portal_accounts(id) ON DELETE CASCADE,
+  expires_at INTEGER NOT NULL,
+  used_at    INTEGER,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_portal_resets_account ON portal_resets (account_id);

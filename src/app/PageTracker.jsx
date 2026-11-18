@@ -3,7 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { useConsent } from '../hooks/useConsent.js';
 
 /** Áreas logadas: não são o site público e não entram na medição. */
-const PRIVATE_PREFIXES = ['/admin', '/cliente', '/login', '/cadastro', '/esqueci-senha', '/redefinir-senha'];
+/* /l = portal de pedidos das lojas: dado de consumidor, nunca entra na medição do site. */
+const PRIVATE_PREFIXES = ['/l', '/admin', '/cliente', '/login', '/cadastro', '/esqueci-senha', '/redefinir-senha'];
 
 function trackingRefused() {
   return (

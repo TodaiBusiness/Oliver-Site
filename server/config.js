@@ -155,6 +155,30 @@ export const SECURITY = Object.freeze({
   PASSWORD_MAX_LENGTH: 200,
 });
 
+/* ------------------------------------------------------- portal da loja */
+
+/* Portal de pedidos (/l/:slug): sessão, recuperação e limites. Tudo separado de
+   SECURITY, de propósito: conta do portal nunca é conta do site. */
+export const PORTAL = Object.freeze({
+  /** Cookie `oi_portal_<slug>`: um por loja, com Path restrito à API daquela loja. */
+  COOKIE_PREFIX: 'oi_portal_',
+  SLUG_PATTERN: /^[a-z0-9-]{3,40}$/,
+  /** Limite absoluto e por inatividade (cliente de loja volta de tempos em tempos). */
+  SESSION_TTL_MS: 1000 * 60 * 60 * 24 * 30,
+  SESSION_IDLE_MS: 1000 * 60 * 60 * 24 * 7,
+  SESSION_TOUCH_MS: 60 * 1000,
+  RESET_TTL_MS: 1000 * 60 * 30,
+  /** Corpo máximo das rotas do portal (pedido com muitos itens). */
+  MAX_BODY_BYTES: 32 * 1024,
+  /** Foto do produto e logo: mesmo teto do contrato (150 KB), com folga. */
+  IMAGE_MAX_BYTES: 200 * 1024,
+  ITEMS_MAX: 100,
+  QUANTITY_MAX: 99999,
+  NOTE_MAX: 500,
+  /** Aviso por e-mail dos callbacks da API: não repetir o mesmo evento nesta janela. */
+  EVENT_DEDUPE_MS: 10 * 60 * 1000,
+});
+
 /* ------------------------------------------------------------- limites */
 
 export const LIMITS = Object.freeze({

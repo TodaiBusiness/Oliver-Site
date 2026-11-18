@@ -80,6 +80,8 @@ const PRIVATE = [
   ['/area-do-cliente', `Área do cliente | ${COMPANY}`],
   ['/cliente', `Área do cliente | ${COMPANY}`],
   ['/admin', `Painel | ${COMPANY}`],
+  /* Portal de pedidos de cada loja (/l/:slug/...): privado e fora dos buscadores; o slug é da loja, não do site. */
+  ['/l', `Portal de pedidos | ${COMPANY}`],
 ];
 
 const NOT_FOUND = { title: `Página não encontrada | ${COMPANY}`, description: PUBLIC['/'].description, noindex: true, notFound: true };

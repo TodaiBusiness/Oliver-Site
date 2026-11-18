@@ -23,6 +23,12 @@
 -- `npm run db:seed-admin`.
 -- ===========================================================================
 
+DROP TABLE IF EXISTS portal_resets CASCADE;
+
+DROP TABLE IF EXISTS portal_sessions CASCADE;
+
+DROP TABLE IF EXISTS portal_accounts CASCADE;
+
 DROP TABLE IF EXISTS reply_templates CASCADE;
 
 DROP TABLE IF EXISTS attachments CASCADE;
@@ -100,3 +106,9 @@ SELECT * FROM audit_logs;
 SELECT * FROM attachments;
 
 SELECT * FROM reply_templates;
+
+SELECT * FROM portal_accounts;
+
+SELECT * FROM portal_sessions;
+
+SELECT * FROM portal_resets;
