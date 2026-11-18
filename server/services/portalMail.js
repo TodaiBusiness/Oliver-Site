@@ -114,3 +114,59 @@ export function duplicateMessage({ store, name, loginUrl, resetUrl }) {
     html: layout({ store: lojaNome, title: 'Você já tem conta', paragraphs, action: { label: 'Entrar na minha conta', url: loginUrl }, footer: FOOTER }),
   };
 }
+
+/* --------------------------------------------------------------- agendamento */
+
+const TZ = 'America/Sao_Paulo';
+
+/** "sexta-feira, 20/11/2026 às 09:00" em hora de Brasília. Sem fuso na entrada = já é Brasília. */
+export function formatBrasilia(inicio) {
+  if (typeof inicio !== 'string') return null;
+  let instant;
+  if (/(?:Z|[+-]\d{2}:\d{2})$/.test(inicio)) {
+    instant = new Date(inicio);
+  } else {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(inicio);
+    if (!m) return null;
+    /* Brasília não tem horário de verão desde 2019: UTC-3 fixo. */
+    instant = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4] + 3, +m[5]));
+  }
+  if (Number.isNaN(instant.getTime())) return null;
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+      .formatToParts(instant)
+      .map((p) => [p.type, p.value])
+  );
+  return `${parts.weekday}, ${parts.day}/${parts.month}/${parts.year} às ${parts.hour}:${parts.minute}`;
+}
+
+const AGENDAMENTO_TITULOS = {
+  solicitado: 'Recebemos o seu pedido de agendamento',
+  confirmado: 'Seu agendamento foi confirmado',
+  recusado: 'A loja não pôde confirmar o seu agendamento',
+  cancelado_cliente: 'Seu agendamento foi cancelado',
+  cancelado_loja: 'A loja cancelou o seu agendamento',
+  remarcado: 'Seu agendamento foi remarcado',
+};
+
+export function agendamentoMessage({ store, name, estado, motivo, agendamento, inicio, url }) {
+  const lojaNome = cleanDisplayName(store, 60) || 'a loja';
+  const first = String(name ?? '').trim().split(/\s+/)[0] || '';
+  const title = AGENDAMENTO_TITULOS[estado] ?? 'Atualização do seu agendamento';
+  const ref = agendamento?.referencia ? ` ${agendamento.referencia}` : '';
+  const quando = formatBrasilia(inicio ?? agendamento?.inicio);
+  const servicos = (agendamento?.servicos ?? []).map((s) => s.nome).filter(Boolean).join(', ');
+  const paragraphs = [first ? `Olá, ${first}.` : 'Olá.', `${title} em ${lojaNome}${ref ? ` (agendamento${ref})` : ''}.`];
+  if (servicos) paragraphs.push(`Serviço: ${servicos}.`);
+  if (agendamento?.profissionalNome) paragraphs.push(`Profissional: ${agendamento.profissionalNome}.`);
+  if (quando) paragraphs.push(`${estado === 'recusado' || estado === 'cancelado_cliente' || estado === 'cancelado_loja' ? 'Horário que era' : 'Horário'}: ${quando} (horário de Brasília).`);
+  if (estado === 'solicitado') paragraphs.push('O horário fica reservado para você até a loja confirmar. Avisaremos por e-mail.');
+  if (estado === 'recusado' && motivo) paragraphs.push(`Motivo informado pela loja: ${motivo}`);
+  if ((estado === 'cancelado_loja' || estado === 'remarcado') && motivo) paragraphs.push(`Observação da loja: ${motivo}`);
+  if (estado === 'recusado' || estado === 'cancelado_loja') paragraphs.push('Se quiser, escolha outro horário pelo portal.');
+  return {
+    subject: `${lojaNome}: ${title.toLowerCase()}${ref ? ` (agendamento${ref})` : ''}`,
+    text: `${paragraphs.join('\n\n')}\n\nVer o agendamento: ${url}\n\n${FOOTER}\n`,
+    html: layout({ store: lojaNome, title, paragraphs, action: { label: 'Ver o agendamento', url }, footer: FOOTER }),
+  };
+}

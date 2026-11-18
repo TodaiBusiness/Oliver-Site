@@ -56,7 +56,8 @@ function Shell() {
   }, [theme]);
 
   useEffect(() => {
-    document.title = dados ? `${dados.nomePublico} | Pedidos` : 'Portal de pedidos';
+    const soAgenda = dados?.temAgenda && !dados?.aceitaPedidos;
+    document.title = dados ? `${dados.nomePublico} | ${soAgenda ? 'Agendamento' : 'Pedidos'}` : 'Portal da loja';
   }, [dados, pathname]);
 
   /* Troca de tela: volta ao topo; o foco vai para o título da página nova. */
@@ -65,11 +66,12 @@ function Shell() {
   }, [pathname]);
 
   const base = `/l/${slug}`;
+  /* Loja que só atende por agenda (não recebe pedidos) não mostra catálogo, carrinho nem pedidos. */
+  const soAgenda = Boolean(dados?.temAgenda) && !dados?.aceitaPedidos;
   const nav = signedIn
     ? [
-        ['catalogo', 'Catálogo', 'store'],
-        ['carrinho', 'Carrinho', 'cart'],
-        ['pedidos', 'Pedidos', 'receipt'],
+        ...(soAgenda ? [] : [['catalogo', 'Catálogo', 'store'], ['carrinho', 'Carrinho', 'cart'], ['pedidos', 'Pedidos', 'receipt']]),
+        ...(dados?.temAgenda ? [['agendar', 'Agendar', 'calendar']] : []),
         ...(dados?.fiadoAtivo ? [['fiado', 'Fiado', 'wallet']] : []),
         ['conta', 'Conta', 'user'],
       ]
@@ -94,7 +96,10 @@ function Shell() {
               <ul className="p-nav__list">
                 {nav.map(([to, label, icon]) => (
                   <li key={to}>
-                    <NavLink to={`${base}/${to}`} className="p-nav__link">
+                    <NavLink
+                      to={`${base}/${to}`}
+                      className={`p-nav__link${to === 'agendar' && pathname.startsWith(`${base}/agendamentos`) ? ' p-nav__link--on' : ''}`}
+                    >
                       <span className="p-nav__icon">
                         <PIcon name={icon} size={22} />
                         {to === 'carrinho' && cartCount > 0 ? (

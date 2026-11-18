@@ -67,5 +67,16 @@ export function portalApi(slug) {
     criarPedido: (body) => post('/pedidos', body),
     cancelar: (id) => post(`/pedidos/${encodeURIComponent(id)}/cancelar`),
     fiado: () => get('/fiado'),
+    agenda: () => get('/agenda'),
+    horarios: ({ servicos, profissionalId, data, porte }) => {
+      const q = new URLSearchParams({ servicos: servicos.join(','), profissionalId: profissionalId || 'qualquer', data });
+      if (porte) q.set('porte', porte);
+      return get(`/agenda/horarios?${q}`);
+    },
+    agendamentos: () => get('/agendamentos'),
+    agendamento: (id) => get(`/agendamentos/${encodeURIComponent(id)}`),
+    criarAgendamento: (body) => post('/agendamentos', body),
+    cancelarAgendamento: (id) => post(`/agendamentos/${encodeURIComponent(id)}/cancelar`),
+    remarcarAgendamento: (id, body) => post(`/agendamentos/${encodeURIComponent(id)}/remarcar`, body),
   };
 }

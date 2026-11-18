@@ -7,7 +7,7 @@ Lado SITE do portal `/l/:slug` (contrato PDV, API e site: Parte 3). A API da loj
 - SPA: `src/pages/portal/*`, carregada à parte (`PortalApp`, lazy) dentro de `PortalLayout`, FORA do `SiteLayout`. Rotas: `/l/:slug`, `entrar`, `cadastro`, `esqueci-senha`, `redefinir-senha`, `catalogo`, `carrinho`, `pedidos`, `pedidos/:id`, `fiado`, `conta`.
 - BFF: `/api/portal/:slug/...` (`server/services/portal.js`, rotas em `server/app.js`).
 - Cliente HTTP da API: `server/services/portalApi.js` (itens 9 a 16 do contrato). Usa `LICENSING_API_BASE_URL` + `SITE_SERVICE_API_KEY` (mesmo par do checkout), `fetch` injetável, tempo máximo e erros genéricos.
-- Callback API -> site: `POST /api/service/portal/eventos` (só com `X-Service-Key`), envia e-mail ao dono da conta.
+- Callback API -> site: `POST /api/service/portal/eventos` (só com `X-Service-Key`), envia e-mail ao dono da conta (tipos `pedido`, `conta` e `agendamento`).
 
 ## BFF
 
@@ -68,17 +68,49 @@ Fluxo ponta a ponta com a API real e um PDV simulado: cadastro, aprovação como
 
 API real (PostgreSQL) + site real + `scripts/simular-pdv-logo.mjs`, que faz o que o PDV faz (ativa um computador, liga o adicional, configura o portal, publica o catálogo e envia a logo com `PUT /pdv/portal/logo`; `--remover` chama o `DELETE`). A vitrine `/l/loja-logo` mostra a logo no cabeçalho (fotos em `docs/evidencias/portal-logo-390.png` e `portal-logo-1280.png`); depois do `DELETE` a vitrine volta sem `logoUrl` e `/api/portal/:slug/logo` dá 404. Variáveis do script: ver o cabeçalho dele.
 
+## Agendamento (Parte 5, lado do site)
+
+Contrato: `CONTRATO_AGENDA_PORTAL.md`. O PDV publica regras e ocupação; a API calcula horários livres e SEGURA o horário (`solicitado`) até a loja confirmar. O site só autentica, valida e repassa.
+
+- **Aba "Agendar"**: só aparece com `temAgenda: true` na vitrine (B1/vitrine). Loja que tem agenda e não recebe pedidos (`aceitaPedidos` falso) vira "só agenda": o menu esconde Catálogo/Carrinho/Pedidos, e a entrada mostra "Agendar horário". `/agenda` 404 vira `AGENDA_INATIVA` ("Esta loja não recebe agendamentos pelo portal").
+- **Cliente HTTP** (`portalApi.js`): `agenda`, `horarios`, `criarAgendamento`, `agendamentos`, `agendamento`, `cancelarAgendamento`, `remarcarAgendamento` (B1 a B4), todos com lista branca. Serviços chegam só com `id, nome, categoria, duracao, preco, exigePorte, porte{P,M,G:{duracao,preco}}` (o preço da loja, nunca custo, comissão ou outra tabela); profissionais só com `id, nome, cor, servicos[ids]` (jornada, folgas e ocupação ficam na API). Recusas de escrita e de horários (`slot_taken`, `too_soon`, `too_far`, `cancel_window_closed`, `porte_required`...) têm texto próprio em PT-BR; outros erros viram "portal indisponível".
+- **BFF** (sessão da conta; `contaId` SEMPRE o da sessão, `?contaId=` ou `contaId` no corpo do navegador são ignorados):
+
+| Método e rota | Nota |
+|---|---|
+| GET `/agenda` | preset, rótulos, serviços ativos, profissionais, regras |
+| GET `/agenda/horarios?servicos=a,b&profissionalId=id\|qualquer&data=YYYY-MM-DD[&porte=P\|M\|G]` | valida tudo antes de chamar a API; só esses 4 parâmetros passam |
+| POST `/agendamentos` | `servicos[]` (1 a 10 ids), `profissionalId\|null`, `inicio`, `pet{nome,especie,raca,porte}`, `porte`, `observacao` (500), `idempotencyKey`; escrita exige `X-Portal-Request`; 20/h por conta |
+| GET `/agendamentos`, GET `/agendamentos/:id` | só da conta; id de outra conta/loja dá 404 |
+| POST `/agendamentos/:id/cancelar`, `/remarcar {novoInicio, profissionalId?}` | a API confere o prazo (`prazoCancelarMin`) e o horário novo; remarcar volta a `solicitado` |
+
+- **SPA**: `/l/:slug/agendar` (passos: serviço(s), profissional ou "qualquer", dia e horário, pet só no preset Pet shop, revisar e enviar), `/l/:slug/agendamentos` e `/agendamentos/:id` (status, cancelar, remarcar). Horários em botões por período (manhã, tarde, noite), em hora de Brasília. Serviço com porte pede o porte ANTES dos horários (a duração muda com ele); preset Pet shop sem serviço por porte pede o porte no passo do pet. Horário ocupado (409 `SLOT_TAKEN`) volta ao passo dos horários, recarrega a lista e avisa. Fora do horário da loja: "a loja confirma quando abrir". Sem pagamento online. Rótulos: Barbearia = Barbeiro, Pet shop = Tosador, demais = Profissional (o que a loja publicar em `rotulos.profissional` vence). Cancelar e remarcar aparecem só enquanto `podeCancelar` (se a API mandar) ou o prazo da loja permitir.
+- **E-mail (B5)**: callback `tipo: 'agendamento'` com `{slug, agendamentoId, contaId, estado, motivo?, inicio}`. Manda e-mail em `solicitado`, `confirmado`, `recusado`, `cancelado_cliente`, `cancelado_loja` e `remarcado` (`concluido` e `nao_compareceu` respondem `sent:false, reason:'sem_aviso'`). Texto com nome da loja, serviço, profissional (do detalhe, se a API responder) e horário "em horário de Brasília"; HTML escapado. Não repete o mesmo estado + horário em 10 min (remarcar para outro horário avisa de novo).
+- **Suposições** (confirmar com a API): vitrine traz `temAgenda`; `rotulos` é um mapa com `profissional`/`profissionais`/`qualquer`/`agendar` (todos opcionais); horários vêm como ISO com ou sem fuso (sem fuso = Brasília); `motivoVazio` aceito: `sem_expediente`, `sem_profissional`, `antecedencia`, `muito_longe`, `folga` (qualquer outro vira "todos os horários estão ocupados"); detalhe do agendamento pode trazer `podeCancelar`.
+- **Testes**: `tests/server/portal-agenda.test.js` (BFF, isolamento por conta e por loja, validação, cliente HTTP com `fetch` falso, e-mail) e `tests/portal-agenda-format.test.js` (hora de Brasília, rótulos, prazo). Capturas: `docs/evidencias/agenda-*-390.png` e `-1280.png` (fluxo completo no mock: horários, revisar, detalhe, lista, remarcar, conflito 409, porte do pet).
+
 ## Testar sem a API real
 
-`node scripts/mock-portal-api.mjs` sobe a API falsa (porta 8799, lojas `loja-demo`, `so-retirada`, `cor-ruim`, `loja-fechada` (fechada agora, abre amanhã às 08:00, prazo de cancelar 0), `loja-inativa`). Site local:
+`node scripts/mock-portal-api.mjs` sobe a API falsa (porta 8799, lojas `loja-demo`, `so-retirada`, `cor-ruim`, `loja-fechada` (fechada agora, abre amanhã às 08:00, prazo de cancelar 0), `barbearia-demo` (agenda preset Barbearia, só agenda), `petshop-demo` (agenda preset Pet shop, serviços por porte, fechada agora), `loja-inativa`). Site local:
 
 ```
 LICENSING_API_BASE_URL=http://localhost:8799 \
 SITE_SERVICE_API_KEY=chave-do-mock-do-portal-0123456789abcdef npm run dev:api
 ```
 
-Os testes (`tests/server/portal.test.js`) usam o mesmo mock por `fetch` falso. Controles de bancada: `POST /__mock/pedidos/:id/estado`, `POST /__mock/contas/:id/decisao`.
+Os testes (`tests/server/portal.test.js`) usam o mesmo mock por `fetch` falso. Controles de bancada: `POST /__mock/pedidos/:id/estado`, `POST /__mock/contas/:id/decisao`, `POST /__mock/agendamentos/:id/estado {estado,motivo}` (a loja confirma, recusa, conclui) e `POST /__mock/agenda/ocupacao {slug,profissionalId,inicio,fim}` (o PDV ocupa um horário). O mock calcula horários com jornada, folga, antecedência e conflito (B1 a B4).
 
 ## Banco
 
 `npm run db:migrate` cria as três tabelas (SQLite e Postgres; `schema.*.sql` e `reset.*.sql`).
+
+## Integração real da Parte 5 (API + site + PDV rodando juntos)
+
+Fluxo conferido com a API real (PostgreSQL, esquema 23), este site e um console que usa as classes reais do PDV (`PublicacaoAgendaMontador`, `PortalAgendaRegras`, `PortalCliente`,
+`AgendaDisponibilidade`): vitrine com `temAgenda` e rótulos por preset; horários livres iguais aos do PDV em 15 cenários (jornada com pausa, folga, ocupação do PDV, porte, serviços
+encadeados, "qualquer profissional"); pedido que segura o horário e 409 `slot_taken` com recarga da lista; confirmar, recusar e remarcar pela loja (e-mail do tipo agendamento);
+cancelar e remarcar pelo cliente dentro e fora do prazo; confirmação automática; loja "fechada" aceitando pedido; isolamento entre lojas; agenda retirada (`DELETE`) = 404 `portal_agenda_inactive`.
+Divergências corrigidas neste repositório: o BFF lia a agenda no formato do contrato antigo (`duracao`, `porte{}`, `slotMin`, minutos) e agora lê a da API (`duracaoMin`, `portes[]`,
+`passoMin`, `antecedenciaMinHoras`, `servicoId`, `confirmacaoAutomatica`), completando o porte sem valor próprio com o valor-base; o horário escolhido leva `duracaoMin` e `total` da API (exceção
+do profissional) para o resumo; `remarcado` também pode ser cancelado e remarcado pelo cliente. Capturas: `docs/evidencias/integracao-agenda-*`.
+Limite conhecido: ao remarcar, os horários do próprio agendamento aparecem ocupados na lista (a API aceita remarcar sobre si mesmo, mas B2 não exclui o pedido).
