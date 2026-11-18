@@ -13,7 +13,7 @@ Lado SITE do portal `/l/:slug` (contrato PDV, API e site: Parte 3). A API da loj
 
 | Método e rota | Auth | Nota |
 |---|---|---|
-| GET `/vitrine` | pública | nome, cores, avisos, horários, `fiadoAtivo`; nunca preço |
+| GET `/vitrine` | pública | nome, cores, avisos, horários, `abertoAgora`, `proximaAbertura`, `prazoCancelarMin`, `fiadoAtivo`; nunca preço (`emailContato` fica no servidor) |
 | GET `/logo`, `/produtos/:id/imagem` | pública | bytes só se forem imagem de verdade (PNG/JPEG/GIF/WebP até 200 KB); `nosniff`; imagens servidas pelo site por causa da CSP |
 | POST `/register` | pública | sempre 202 (e-mail repetido é indistinguível; a pessoa recebe aviso por e-mail) |
 | POST `/login` `/logout` `/forgot` `/reset` | pública/sessão | erro único "E-mail ou senha incorretos."; `forgot` sempre 202 |
@@ -21,6 +21,15 @@ Lado SITE do portal `/l/:slug` (contrato PDV, API e site: Parte 3). A API da loj
 | GET `/catalogo` | sessão | UM preço (`preco` = `precoAplicado`); lista branca de campos |
 | POST/GET `/pedidos`, GET `/pedidos/:id`, POST `/pedidos/:id/cancelar` | sessão | `contaId` SEMPRE o da sessão |
 | GET `/fiado` | sessão | 404 se a loja não usa fiado |
+
+## Loja aberta ou fechada
+
+A API calcula (`abertoAgora` booleano; `proximaAbertura` `yyyy-MM-ddTHH:mm` em hora de Brasília ou `null`); o site só mostra. Lista branca no BFF: `abertoAgora` que não for booleano vira `null` (sem selo) e `proximaAbertura` fora do formato vira `null`.
+
+- Selo no cabeçalho (`StoreStatus`, `statusDaLoja` em `format.js`): **Aberto agora** (verde-escuro com ícone de check, texto branco 7,1:1, independente das cores da loja) ou **Fechado agora · abre amanhã às 08:00** (neutro, ícone de relógio, cores do tema; nunca em tom de erro). "Hoje / amanhã / dia da semana / dd/MM" comparam com o dia de hoje em Brasília (`aberturaEmTexto`). Sem `proximaAbertura`, só "Fechado agora".
+- Carrinho: com a loja aberta a pedidos e fechada agora, aviso "A loja está fechada agora; seu pedido fica na fila e a loja confirma quando abrir." O site **não bloqueia** o envio. Atenção: a API de hoje ainda recusa pedido fora do horário (409 `store_closed`, "A loja não está aceitando pedidos agora."); o aviso só é verdadeiro quando a API deixar de recusar.
+- Cancelar (`podeCancelarPedido`): `prazoCancelarMin` 0 esconde o botão (com texto "Esta loja não permite cancelar pelo portal"); fora isso vale `podeCancelar` da API, `cancelavelAte` ou a conta do prazo, e só em `recebido`.
+- O selo reflete o momento do carregamento da página, não é atualizado sozinho.
 
 ## Segurança
 
@@ -48,14 +57,14 @@ Fluxo ponta a ponta com a API real e um PDV simulado: cadastro, aprovação como
 
 ## Suposições sobre a API (confirmar com a parte da API)
 
-- Vitrine pode trazer `prazoCancelarMin`, `emailContato`; `horarios` é texto, lista ou mapa (com `faixas` opcional).
+- Vitrine traz `abertoAgora`, `proximaAbertura`, `prazoCancelarMin` (confirmados na API); `emailContato` ainda não existe lá (o site já o aceita se vier); `horarios` é texto, lista ou mapa (com `faixas` opcional).
 - Catálogo: `{produtos:[{produtoId,nome,categoria,unidade,descricao,precoAplicado,disponivel,multiplo,caixaQtd,imagemHash}]}`; a foto só é pedida se houver `imagemHash` (ou `temImagem:true`).
 - Pedido: `podeCancelar`/`cancelavelAte` opcionais; `itens[].precoUnitario`, `entrega.taxa`.
 - Erros: ProblemDetails com `code`; `portal_inactive` (404) e `addon_not_active` (403) viram "loja indisponível". Códigos de recusa conhecidos têm texto próprio (`min_order`, `item_unavailable`, `invalid_multiple`, `outside_hours`, `cancel_window_closed`...); os demais 400/409/422 repassam `detail` só se for curto.
 
 ## Testar sem a API real
 
-`node scripts/mock-portal-api.mjs` sobe a API falsa (porta 8799, lojas `loja-demo`, `so-retirada`, `cor-ruim`, `loja-inativa`). Site local:
+`node scripts/mock-portal-api.mjs` sobe a API falsa (porta 8799, lojas `loja-demo`, `so-retirada`, `cor-ruim`, `loja-fechada` (fechada agora, abre amanhã às 08:00, prazo de cancelar 0), `loja-inativa`). Site local:
 
 ```
 LICENSING_API_BASE_URL=http://localhost:8799 \
