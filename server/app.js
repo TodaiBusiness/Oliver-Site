@@ -474,6 +474,53 @@ export function createApp(
     };
   });
 
+  /* Agenda (Parte 5): sessão da conta; `contaId` SEMPRE o da sessão. */
+  router.get('/api/portal/:slug/agenda', async (request) => {
+    const account = await portalAccount(request);
+    return { status: 200, body: await portal.agenda(request.params.slug, account) };
+  });
+
+  router.get('/api/portal/:slug/agenda/horarios', async (request) => {
+    const account = await portalAccount(request);
+    const query = pick(request.query, ['servicos', 'profissionalId', 'data', 'porte']);
+    return { status: 200, body: await portal.horarios(request.params.slug, account, query) };
+  });
+
+  router.post('/api/portal/:slug/agendamentos', async (request) => {
+    const account = await portalAccount(request);
+    const input = pick(request.body, ['servicos', 'profissionalId', 'inicio', 'pet', 'porte', 'observacao', 'idempotencyKey']);
+    if (input.pet && typeof input.pet === 'object') input.pet = pick(input.pet, ['nome', 'especie', 'raca', 'porte']);
+    const agendamento = await portal.createBooking(request.params.slug, account, input, { headers: request.headers });
+    return { status: 201, body: { agendamento } };
+  });
+
+  router.get('/api/portal/:slug/agendamentos', async (request) => {
+    const account = await portalAccount(request);
+    return { status: 200, body: await portal.listBookings(request.params.slug, account) };
+  });
+
+  router.get('/api/portal/:slug/agendamentos/:id', async (request) => {
+    const account = await portalAccount(request);
+    return { status: 200, body: await portal.getBooking(request.params.slug, account, request.params.id) };
+  });
+
+  router.post('/api/portal/:slug/agendamentos/:id/cancelar', async (request) => {
+    const account = await portalAccount(request);
+    return {
+      status: 200,
+      body: await portal.cancelBooking(request.params.slug, account, request.params.id, { headers: request.headers }),
+    };
+  });
+
+  router.post('/api/portal/:slug/agendamentos/:id/remarcar', async (request) => {
+    const account = await portalAccount(request);
+    const input = pick(request.body, ['novoInicio', 'profissionalId']);
+    return {
+      status: 200,
+      body: await portal.rescheduleBooking(request.params.slug, account, request.params.id, input, { headers: request.headers }),
+    };
+  });
+
   router.get('/api/portal/:slug/fiado', async (request) => {
     const account = await portalAccount(request);
     return { status: 200, body: await portal.fiado(request.params.slug, account) };
@@ -1235,7 +1282,7 @@ export function createApp(
   router.post(
     '/api/service/portal/eventos',
     async ({ body }) => {
-      const input = pick(serviceProjectBody(body), ['slug', 'pedidoId', 'contaId', 'tipo', 'estado', 'motivo']);
+      const input = pick(serviceProjectBody(body), ['slug', 'pedidoId', 'agendamentoId', 'inicio', 'contaId', 'tipo', 'estado', 'motivo']);
       return { status: 202, body: await portal.handleEvent(input) };
     },
     svc

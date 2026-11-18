@@ -15,6 +15,10 @@
    Controles de bancada (fora do contrato), sob /__mock:
      POST /__mock/pedidos/:id/estado {estado}      muda o estado do pedido
      POST /__mock/contas/:id/decisao {estado,tabela}  aprova ou bloqueia a conta
+     POST /__mock/agendamentos/:id/estado {estado,motivo}  a loja confirma, recusa, conclui...
+     POST /__mock/agenda/ocupacao {slug,profissionalId,inicio,fim}  ocupa um horário (como o PDV)
+   Agenda (Parte 5, B1 a B4): lojas `barbearia-demo` (preset Barbearia) e `petshop-demo` (preset Pet shop,
+   serviços por porte); as demais dão 404 portal_agenda_inactive. Horários em Brasília (-03:00).
    Lojas prontas: `loja-demo` (fiado ligado, atacado), `so-retirada` (sem entrega,
    sem fiado), `loja-inativa` (404 portal_inactive) e `cor-ruim` (cores com
    contraste insuficiente, para testar o recálculo) e `loja-fechada` (fechada agora, abre amanhã às 08:00; prazo de cancelar 0).
@@ -95,6 +99,61 @@ const PRODUTOS = [
   id, nome, categoria, unidade, descricao, v, a, rv, disponivel, multiplo, caixaQtd, cor,
 }));
 
+
+/* --------------------------------------------------------------- agenda */
+const SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+const expediente = (sabado = true) => ({
+  dom: [],
+  seg: [{ abre: '09:00', fecha: '12:00' }, { abre: '13:00', fecha: '19:00' }],
+  ter: [{ abre: '09:00', fecha: '12:00' }, { abre: '13:00', fecha: '19:00' }],
+  qua: [{ abre: '09:00', fecha: '12:00' }, { abre: '13:00', fecha: '19:00' }],
+  qui: [{ abre: '09:00', fecha: '12:00' }, { abre: '13:00', fecha: '19:00' }],
+  sex: [{ abre: '09:00', fecha: '12:00' }, { abre: '13:00', fecha: '19:00' }],
+  sab: sabado ? [{ abre: '09:00', fecha: '15:00' }] : [],
+});
+
+const AGENDA_BARBEARIA = {
+  preset: 'Barbearia',
+  rotulos: { profissional: 'Barbeiro', profissionais: 'Barbeiros', servico: 'Serviço', agendar: 'Agendar horário' },
+  servicos: [
+    { id: 's-corte', nome: 'Corte masculino', categoria: 'Cabelo', duracao: 30, folga: 5, preco: 45, exigePorte: false, ativo: true },
+    { id: 's-barba', nome: 'Barba com toalha quente', categoria: 'Barba', duracao: 20, folga: 5, preco: 30, exigePorte: false, ativo: true },
+    { id: 's-combo', nome: 'Corte + barba', categoria: 'Combo', duracao: 50, folga: 10, preco: 70, exigePorte: false, ativo: true },
+    { id: 's-sobrancelha', nome: 'Sobrancelha', categoria: 'Barba', duracao: 10, folga: 0, preco: 15, exigePorte: false, ativo: true },
+    { id: 's-antigo', nome: 'Serviço desativado', categoria: 'Cabelo', duracao: 30, folga: 0, preco: 10, exigePorte: false, ativo: false },
+  ],
+  profissionais: [
+    { id: 'pr-rafa', nome: 'Rafa', cor: '#0f766e', servicos: [{ id: 's-corte' }, { id: 's-barba' }, { id: 's-combo' }, { id: 's-sobrancelha' }], horarios: expediente() },
+    { id: 'pr-dani', nome: 'Dani', cor: '#9a3412', servicos: [{ id: 's-corte' }, { id: 's-combo' }, { id: 's-sobrancelha' }], horarios: expediente(false) },
+  ],
+  regras: { slotMin: 30, antecedenciaMinMin: 60, antecedenciaMaxDias: 30, prazoCancelarMin: 120, confirmacaoAuto: false },
+};
+
+const AGENDA_PET = {
+  preset: 'Pet shop',
+  rotulos: { profissional: 'Tosador', profissionais: 'Tosadores', servico: 'Serviço', agendar: 'Agendar banho e tosa' },
+  servicos: [
+    { id: 's-banho', nome: 'Banho', categoria: 'Banho', duracao: 45, folga: 10, preco: 50, exigePorte: true, porte: { P: { duracao: 40, preco: 45 }, M: { duracao: 60, preco: 60 }, G: { duracao: 90, preco: 80 } }, ativo: true },
+    { id: 's-tosa', nome: 'Banho e tosa', categoria: 'Tosa', duracao: 90, folga: 10, preco: 90, exigePorte: true, porte: { P: { duracao: 75, preco: 80 }, M: { duracao: 100, preco: 100 }, G: { duracao: 130, preco: 130 } }, ativo: true },
+    { id: 's-unha', nome: 'Corte de unhas', categoria: 'Extras', duracao: 15, folga: 0, preco: 20, exigePorte: false, ativo: true },
+  ],
+  profissionais: [
+    { id: 'pr-leo', nome: 'Léo', cor: '#1d4ed8', servicos: [{ id: 's-banho' }, { id: 's-tosa' }, { id: 's-unha' }], horarios: expediente() },
+    { id: 'pr-bia', nome: 'Bia', cor: '#be185d', servicos: [{ id: 's-banho' }, { id: 's-unha' }], horarios: expediente() },
+  ],
+  regras: { slotMin: 30, antecedenciaMinMin: 120, antecedenciaMaxDias: 45, prazoCancelarMin: 240, confirmacaoAuto: false },
+};
+
+const BR = 3 * 3600000; // Brasília = UTC-3 (sem horário de verão)
+const pad2 = (n) => String(n).padStart(2, '0');
+/** Instante (ms) de "yyyy-MM-dd" + "HH:MM" em Brasília. */
+const brMs = (data, hhmm) => Date.parse(`${data}T${hhmm}:00-03:00`);
+/** ms → "yyyy-MM-ddTHH:mm:ss-03:00". */
+const brIso = (ms) => `${new Date(ms - BR).toISOString().slice(0, 19)}-03:00`;
+const brDia = (ms) => new Date(ms - BR).toISOString().slice(0, 10);
+const hhmmToMin = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+const minToHhmm = (m) => `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
+
 /** "yyyy-MM-ddT08:00" do dia seguinte em Brasília (o formato de `proximaAbertura` da API). */
 const amanhaAsOito = (ms) =>
   `${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(ms + 86400000)}T08:00`;
@@ -145,8 +204,29 @@ export function createMockBackend({ serviceKey = MOCK_SERVICE_KEY, leaky = false
       prazoCancelarMin: 0,
       logo: null,
     },
+    'barbearia-demo': {
+      ...BASE_LOJA,
+      nomePublico: 'Barbearia Navalha',
+      cores: { primaria: '#1f2937', secundaria: '#fde68a', fundo: '#fafaf9' },
+      aceitaPedidos: false,
+      logo: null,
+      agenda: AGENDA_BARBEARIA,
+    },
+    'petshop-demo': {
+      ...BASE_LOJA,
+      nomePublico: 'Pet Feliz Banho e Tosa',
+      cores: { primaria: '#1d4ed8', secundaria: '#bfdbfe', fundo: '#f8fafc' },
+      aceitaPedidos: false,
+      aberto: false,
+      logo: null,
+      agenda: AGENDA_PET,
+    },
     'loja-inativa': { inativa: true },
   };
+  const agendamentos = new Map(); // id -> agendamento
+  const idemAg = new Map(); // `${slug}|${key}` -> agendamento
+  const ocupacao = []; // {slug, profissionalId, ini, fim} (ms) — o que o PDV publica
+  let seqAg = 0;
   const contas = new Map(); // `${slug}|${contaId}` -> conta
   const pedidos = new Map(); // id -> pedido
   const idem = new Map(); // `${slug}|${key}` -> pedido
@@ -174,6 +254,210 @@ export function createMockBackend({ serviceKey = MOCK_SERVICE_KEY, leaky = false
       motivoRecusa: p.motivoRecusa ?? null,
       podeCancelar: cancelavel,
     };
+  }
+
+
+  /* ---------------------------------------------------------- agenda */
+
+  const ATIVOS = new Set(['solicitado', 'confirmado']);
+
+  function duracaoDe(agenda, ids, porte) {
+    let dur = 0;
+    let folga = 0;
+    let total = 0;
+    const itens = [];
+    for (const id of ids) {
+      const sv = agenda.servicos.find((x) => x.id === id && x.ativo);
+      if (!sv) return { erro: problem(400, 'invalid_service', 'Serviço inválido.') };
+      let d = sv.duracao;
+      let preco = sv.preco;
+      if (sv.exigePorte) {
+        if (!porte || !sv.porte?.[porte]) return { erro: problem(400, 'porte_required', 'Informe o porte do pet.') };
+        d = sv.porte[porte].duracao;
+        preco = sv.porte[porte].preco;
+      }
+      dur += d;
+      folga = Math.max(folga, sv.folga ?? 0);
+      total += preco;
+      itens.push({ servicoId: sv.id, nome: sv.nome, duracao: d, preco });
+    }
+    return { dur, folga, total: round2(total), itens };
+  }
+
+  /** Início livre de um profissional (ms), sem contar o agendamento `ignorarId` (remarcar). */
+  function livre(slug, pro, ini, fimBloq, ignorarId) {
+    for (const o of ocupacao) if (o.slug === slug && o.profissionalId === pro.id && ini < o.fim && o.ini < fimBloq) return false;
+    for (const a of agendamentos.values()) {
+      if (a.slug !== slug || a.id === ignorarId || !ATIVOS.has(a.estado) || a.profissionalId !== pro.id) continue;
+      if (ini < a.fimBloqueioMs && a.inicioMs < fimBloq) return false;
+    }
+    return true;
+  }
+
+  function slotsDe(slug, agenda, { ids, profissionalId, data, porte, ignorarId }) {
+    const calc = duracaoDe(agenda, ids, porte);
+    if (calc.erro) return { erro: calc.erro };
+    const r = agenda.regras;
+    const agora = now();
+    const dow = SEMANA[new Date(`${data}T12:00:00Z`).getUTCDay()];
+    const pros = agenda.profissionais.filter(
+      (p) => (!profissionalId || p.id === profissionalId) && ids.every((id) => p.servicos.some((x) => x.id === id))
+    );
+    if (profissionalId && !pros.length) return { erro: problem(400, 'invalid_professional', 'Profissional inválido.') };
+    const mapa = new Map();
+    let temExpediente = false;
+    for (const p of pros) {
+      for (const faixa of p.horarios[dow] ?? []) {
+        temExpediente = true;
+        for (let m = hhmmToMin(faixa.abre); m + calc.dur <= hhmmToMin(faixa.fecha); m += r.slotMin) {
+          const ini = brMs(data, minToHhmm(m));
+          if (ini < agora + r.antecedenciaMinMin * 60000 || ini > agora + r.antecedenciaMaxDias * 86400000) continue;
+          const fimBloq = ini + (calc.dur + calc.folga) * 60000;
+          if (!livre(slug, p, ini, fimBloq, ignorarId)) continue;
+          if (!mapa.has(ini)) mapa.set(ini, { inicio: brIso(ini), fim: brIso(ini + calc.dur * 60000), profissionalId: p.id, profissionalNome: p.nome });
+        }
+      }
+    }
+    const slots = [...mapa.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
+    const motivoVazio = slots.length ? undefined : !temExpediente ? 'sem_expediente' : 'sem_horarios';
+    return { slots, motivoVazio, calc };
+  }
+
+  function agView(a, agenda) {
+    const antes = a.inicioMs - now();
+    return {
+      id: a.id,
+      referencia: a.referencia,
+      estado: a.estado,
+      criadoEm: new Date(a.criadoMs).toISOString(),
+      servicos: a.servicos,
+      profissionalId: a.profissionalId,
+      profissionalNome: a.profissionalNome,
+      inicio: brIso(a.inicioMs),
+      fim: brIso(a.fimMs),
+      pet: a.pet,
+      observacao: a.observacao,
+      total: a.total,
+      motivo: a.motivo ?? null,
+      podeCancelar: ATIVOS.has(a.estado) && antes >= agenda.regras.prazoCancelarMin * 60000,
+    };
+  }
+
+  function agendaRoute(method, slug, loja, parts, query, body) {
+    const agenda = loja.agenda;
+    if (!agenda) return problem(404, 'portal_agenda_inactive');
+    /* B1 */
+    if (method === 'GET' && parts.length === 1) {
+      return json(200, {
+        preset: agenda.preset,
+        rotulos: agenda.rotulos,
+        servicos: agenda.servicos.filter((x) => x.ativo),
+        profissionais: agenda.profissionais.map((p) => ({ id: p.id, nome: p.nome, cor: p.cor, servicos: p.servicos })),
+        regras: agenda.regras,
+        temAgenda: true,
+        /* "Vazamento" proposital (só leaky): o site precisa descartar. */
+        ...(leaky ? { custoInterno: 12.5, comissao: 0.4 } : {}),
+      });
+    }
+    /* B2 */
+    if (method === 'GET' && parts[1] === 'horarios') {
+      const ids = String(query.servicos ?? '').split(',').filter(Boolean);
+      const pro = query.profissionalId && query.profissionalId !== 'qualquer' ? query.profissionalId : null;
+      if (!ids.length || !/^\d{4}-\d{2}-\d{2}$/.test(query.data ?? '')) return problem(400, 'invalid_request', 'Pedido inválido.');
+      const r = slotsDe(slug, agenda, { ids, profissionalId: pro, data: query.data, porte: query.porte });
+      if (r.erro) return r.erro;
+      return json(200, { slots: r.slots, ...(r.motivoVazio ? { motivoVazio: r.motivoVazio } : {}) });
+    }
+    return null;
+  }
+
+  function criarAgendamento(slug, loja, body) {
+    const agenda = loja.agenda;
+    const c = contas.get(`${slug}|${body.contaId}`);
+    if (!c) return problem(404, 'account_not_found');
+    if (c.estado === 'bloqueada') return problem(409, 'account_blocked', 'Conta bloqueada.');
+    const previo = idemAg.get(`${slug}|${body.idempotencyKey}`);
+    if (previo) return json(200, { id: previo.id, referencia: previo.referencia, estado: previo.estado, inicio: brIso(previo.inicioMs), fim: brIso(previo.fimMs), total: previo.total });
+    const ids = [...new Set(body.servicos ?? [])];
+    if (!ids.length) return problem(400, 'invalid_service', 'Escolha um serviço.');
+    const porte = body.porte ?? body.pet?.porte;
+    if (agenda.preset === 'Pet shop' && !body.pet?.nome) return problem(400, 'pet_required', 'Informe os dados do pet.');
+    const inicioMs = Date.parse(body.inicio);
+    if (!Number.isFinite(inicioMs)) return problem(400, 'invalid_slot', 'Horário inválido.');
+    const r = agenda.regras;
+    if (inicioMs < now() + r.antecedenciaMinMin * 60000) return problem(409, 'too_soon', 'Muito próximo.');
+    if (inicioMs > now() + r.antecedenciaMaxDias * 86400000) return problem(409, 'too_far', 'Muito distante.');
+    const data = brDia(inicioMs);
+    const res = slotsDe(slug, agenda, { ids, profissionalId: body.profissionalId ?? null, data, porte });
+    if (res.erro) return res.erro;
+    const slot = res.slots.find((s) => Date.parse(s.inicio) === inicioMs);
+    if (!slot) return problem(409, 'slot_taken', 'Horário ocupado.');
+    /* "Qualquer": a API escolhe quem estiver livre (aqui, o do primeiro horário). */
+    const pro = agenda.profissionais.find((p) => p.id === slot.profissionalId);
+    const ag = {
+      id: randomUUID(),
+      slug,
+      contaId: body.contaId,
+      referencia: `AG-W${String(++seqAg).padStart(4, '0')}`,
+      estado: r.confirmacaoAuto ? 'confirmado' : 'solicitado',
+      criadoMs: now(),
+      servicos: res.calc.itens,
+      profissionalId: pro.id,
+      profissionalNome: pro.nome,
+      inicioMs,
+      fimMs: inicioMs + res.calc.dur * 60000,
+      fimBloqueioMs: inicioMs + (res.calc.dur + res.calc.folga) * 60000,
+      pet: body.pet ?? null,
+      observacao: body.observacao ?? '',
+      total: res.calc.total,
+      porte,
+    };
+    agendamentos.set(ag.id, ag);
+    idemAg.set(`${slug}|${body.idempotencyKey}`, ag);
+    return json(201, { id: ag.id, referencia: ag.referencia, estado: ag.estado, inicio: brIso(ag.inicioMs), fim: brIso(ag.fimMs), total: ag.total });
+  }
+
+  function agendamentosRoute(method, slug, loja, parts, query, body) {
+    const agenda = loja.agenda;
+    if (!agenda) return problem(404, 'portal_agenda_inactive');
+    if (method === 'POST' && parts.length === 1) return criarAgendamento(slug, loja, body);
+    if (method === 'GET' && parts.length === 1) {
+      const lista = [...agendamentos.values()].filter((a) => a.slug === slug && a.contaId === query.contaId);
+      return json(200, { agendamentos: lista.sort((a, b) => b.inicioMs - a.inicioMs).map((a) => agView(a, agenda)) });
+    }
+    const a = agendamentos.get(parts[1]);
+    if (!a || a.slug !== slug || a.contaId !== query.contaId) return problem(404, 'booking_not_found');
+    if (method === 'GET' && parts.length === 2) return json(200, agView(a, agenda));
+    if (method === 'POST' && parts[2] === 'cancelar') {
+      if (!ATIVOS.has(a.estado)) return problem(409, 'invalid_state', 'Estado inválido.');
+      if (a.inicioMs - now() < agenda.regras.prazoCancelarMin * 60000) return problem(409, 'cancel_window_closed', 'Prazo vencido.');
+      a.estado = 'cancelado_cliente';
+      return json(200, { estado: a.estado });
+    }
+    if (method === 'POST' && parts[2] === 'remarcar') {
+      if (!ATIVOS.has(a.estado)) return problem(409, 'invalid_state', 'Estado inválido.');
+      if (a.inicioMs - now() < agenda.regras.prazoCancelarMin * 60000) return problem(409, 'cancel_window_closed', 'Prazo vencido.');
+      const novo = Date.parse(body.novoInicio);
+      if (!Number.isFinite(novo)) return problem(400, 'invalid_slot', 'Horário inválido.');
+      const r = agenda.regras;
+      if (novo < now() + r.antecedenciaMinMin * 60000) return problem(409, 'too_soon', 'Muito próximo.');
+      if (novo > now() + r.antecedenciaMaxDias * 86400000) return problem(409, 'too_far', 'Muito distante.');
+      const res = slotsDe(slug, agenda, { ids: a.servicos.map((x) => x.servicoId), profissionalId: body.profissionalId ?? a.profissionalId, data: brDia(novo), porte: a.porte, ignorarId: a.id });
+      if (res.erro) return res.erro;
+      const slot = res.slots.find((s) => Date.parse(s.inicio) === novo);
+      if (!slot) return problem(409, 'slot_taken', 'Horário ocupado.');
+      const pro = agenda.profissionais.find((p) => p.id === slot.profissionalId);
+      Object.assign(a, {
+        estado: 'solicitado',
+        inicioMs: novo,
+        fimMs: novo + res.calc.dur * 60000,
+        fimBloqueioMs: novo + (res.calc.dur + res.calc.folga) * 60000,
+        profissionalId: pro.id,
+        profissionalNome: pro.nome,
+      });
+      return json(200, { estado: a.estado, inicio: brIso(a.inicioMs) });
+    }
+    return null;
   }
 
   function handle({ method, path, query = {}, body = {}, headers = {} }) {
@@ -208,9 +492,20 @@ export function createMockBackend({ serviceKey = MOCK_SERVICE_KEY, leaky = false
         catalogoAtualizadoEm: loja.catalogoAtualizadoEm,
         fiadoAtivo: loja.fiadoAtivo,
         emailContato: loja.emailContato,
+        temAgenda: Boolean(loja.agenda),
       });
     }
     if (method === 'GET' && parts[0] === 'logo' && loja.logo) return { status: 200, binary: loja.logo, contentType: 'image/png' };
+
+    /* Agenda (B1 a B4) */
+    if (parts[0] === 'agenda') {
+      const r = agendaRoute(method, slug, loja, parts, query, body);
+      if (r) return r;
+    }
+    if (parts[0] === 'agendamentos') {
+      const r = agendamentosRoute(method, slug, loja, parts, query, body);
+      if (r) return r;
+    }
 
     /* 10 e 11. contas */
     if (parts[0] === 'contas') {
@@ -348,6 +643,18 @@ export function createMockBackend({ serviceKey = MOCK_SERVICE_KEY, leaky = false
       p.atualizadoMs = now();
       return json(200, { ok: true });
     }
+    const agEstado = /^\/__mock\/agendamentos\/([^/]+)\/estado$/.exec(path);
+    if (method === 'POST' && agEstado) {
+      const a = agendamentos.get(agEstado[1]);
+      if (!a) return problem(404, 'not_found');
+      a.estado = body.estado;
+      a.motivo = body.motivo ?? null;
+      return json(200, { ok: true });
+    }
+    if (method === 'POST' && path === '/__mock/agenda/ocupacao') {
+      ocupacao.push({ slug: body.slug, profissionalId: body.profissionalId, ini: Date.parse(body.inicio), fim: Date.parse(body.fim) });
+      return json(200, { ok: true });
+    }
     const decisao = /^\/__mock\/contas\/([^/]+)\/decisao$/.exec(path);
     if (method === 'POST' && decisao) {
       const c = [...contas.entries()].find(([k]) => k.endsWith(`|${decisao[1]}`));
@@ -359,7 +666,7 @@ export function createMockBackend({ serviceKey = MOCK_SERVICE_KEY, leaky = false
     return problem(404, 'not_found');
   }
 
-  return { handle, calls, state: { lojas, contas, pedidos }, PRODUTOS };
+  return { handle, calls, state: { lojas, contas, pedidos, agendamentos, ocupacao }, PRODUTOS };
 }
 
 /** `fetch` falso que responde com a API falsa (para os testes e para o servidor local sem rede). */
@@ -412,6 +719,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     });
   }).listen(port, () => {
     console.log(`[mock-portal] API falsa em http://localhost:${port} (chave: ${key})`);
-    console.log('[mock-portal] lojas: loja-demo, so-retirada, cor-ruim, loja-fechada, loja-inativa');
+    console.log('[mock-portal] lojas: loja-demo, so-retirada, cor-ruim, loja-fechada, barbearia-demo, petshop-demo, loja-inativa');
   });
 }

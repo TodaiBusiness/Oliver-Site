@@ -23,7 +23,7 @@ import { hashPassword, verifyPassword } from '../security/password.js';
 import { createSessionToken, hashToken } from '../security/tokens.js';
 import { isValidTaxId, onlyDigits } from '../../shared/taxId.js';
 import { cleanDisplayName } from './mailer.js';
-import { eventMessage, resetMessage, duplicateMessage } from './portalMail.js';
+import { eventMessage, agendamentoMessage, resetMessage, duplicateMessage } from './portalMail.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -32,11 +32,19 @@ const REQUEST_ID = /^[A-Za-z0-9_-]{8,64}$/;
 const PRODUCT_ID = /^[A-Za-z0-9_.:-]{1,64}$/;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{8,64}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+/* Início do atendimento como a API informou nos horários (com ou sem fuso). */
+const START_AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?$/;
+const PORTES = ['P', 'M', 'G'];
+const SERVICES_MAX = 10;
 
 const EVENT_STATES = {
   pedido: ['recebido', 'aceito', 'em_preparo', 'pronto', 'entregue', 'recusado', 'cancelado'],
   conta: ['ativa', 'bloqueada', 'pendente'],
+  agendamento: ['solicitado', 'confirmado', 'recusado', 'cancelado_cliente', 'cancelado_loja', 'remarcado', 'concluido', 'nao_compareceu'],
 };
+
+/* Estados do agendamento que viram e-mail (concluído e falta não geram aviso). */
+const AGENDAMENTO_AVISA = new Set(['solicitado', 'confirmado', 'recusado', 'cancelado_cliente', 'cancelado_loja', 'remarcado']);
 
 const GENERIC_LOGIN_ERROR = 'E-mail ou senha incorretos.';
 
@@ -69,6 +77,7 @@ export function portalService(
     read: [600, MIN],
     write: [60, 10 * MIN],
     order: [20, HOUR],
+    booking: [20, HOUR],
     ...limits,
   };
   const limiter = (key) => createRateLimiter({ max: L[key][0], windowMs: L[key][1] });
@@ -541,17 +550,169 @@ export function portalService(
     return { fiado: await api.fiado(slug, account.id) };
   }
 
+  /* ----------------------------------------------------------------- agenda */
+
+  /** Lista de serviços: ids distintos, de 1 a SERVICES_MAX. Devolve `null` se inválida. */
+  function parseServiceIds(value, { csv = false } = {}) {
+    const raw = Array.isArray(value) ? value : csv && typeof value === 'string' ? value.split(',') : [];
+    if (raw.length === 0 || raw.length > SERVICES_MAX) return null;
+    const ids = [];
+    for (const item of raw) {
+      if (typeof item !== 'string' || !PRODUCT_ID.test(item)) return null;
+      if (!ids.includes(item)) ids.push(item);
+    }
+    return ids;
+  }
+
+  const professionalOrNull = (value, v, field = 'profissionalId') => {
+    if (value === undefined || value === null || value === '' || value === 'qualquer') return null;
+    if (typeof value !== 'string' || !PRODUCT_ID.test(value)) {
+      v.fail(field, 'Profissional inválido.');
+      return null;
+    }
+    return value;
+  };
+
+  function validStart(value, v, field, label) {
+    if (typeof value !== 'string' || !START_AT.test(value) || Number.isNaN(Date.parse(value.length === 16 ? `${value}:00Z` : value))) {
+      v.fail(field, `Escolha ${label}.`);
+      return null;
+    }
+    return value;
+  }
+
+  async function agenda(slug, account) {
+    hit('read', account.id);
+    return { agenda: await api.agenda(slug) };
+  }
+
+  async function horarios(slug, account, query) {
+    hit('read', account.id);
+    const v = createValidator();
+    const servicos = parseServiceIds(query?.servicos, { csv: true });
+    if (!servicos) v.fail('servicos', 'Escolha ao menos um serviço.');
+    const profissionalId = professionalOrNull(query?.profissionalId, v);
+    const data = typeof query?.data === 'string' && DATE.test(query.data) && !Number.isNaN(Date.parse(query.data)) ? query.data : null;
+    if (!data) v.fail('data', 'Escolha a data.');
+    let porte;
+    if (query?.porte !== undefined && query.porte !== '') {
+      if (PORTES.includes(query.porte)) porte = query.porte;
+      else v.fail('porte', 'Escolha o porte do pet.');
+    }
+    v.assert();
+    return api.horarios(slug, { servicos, profissionalId, data, porte });
+  }
+
+  function cleanPet(raw, v) {
+    if (raw === undefined || raw === null) return null;
+    if (typeof raw !== 'object' || Array.isArray(raw)) {
+      v.fail('pet', 'Dados do pet inválidos.');
+      return null;
+    }
+    const pet = {
+      nome: line(raw.nome, 60),
+      especie: line(raw.especie, 30),
+      raca: line(raw.raca, 60),
+      porte: raw.porte,
+    };
+    if (!pet.nome) v.fail('pet.nome', 'Informe o nome do pet.');
+    if (!pet.especie) v.fail('pet.especie', 'Informe a espécie do pet.');
+    if (!PORTES.includes(pet.porte)) v.fail('pet.porte', 'Escolha o porte do pet.');
+    return pet;
+  }
+
+  function validateBooking(input) {
+    const v = createValidator();
+    const servicos = parseServiceIds(input.servicos);
+    if (!servicos) v.fail('servicos', 'Escolha ao menos um serviço.');
+    const profissionalId = professionalOrNull(input.profissionalId, v);
+    const inicio = validStart(input.inicio, v, 'inicio', 'o dia e o horário');
+    const pet = cleanPet(input.pet, v);
+    let porte = null;
+    if (input.porte !== undefined && input.porte !== null && input.porte !== '') {
+      if (PORTES.includes(input.porte)) porte = input.porte;
+      else v.fail('porte', 'Escolha o porte do pet.');
+    }
+    if (pet && porte && pet.porte !== porte) v.fail('pet.porte', 'O porte do pet não confere.');
+    const note = typeof input.observacao === 'string' ? line(input.observacao, PORTAL.NOTE_MAX) : '';
+    if (typeof input.observacao === 'string' && input.observacao.length > PORTAL.NOTE_MAX) {
+      v.fail('observacao', `A observação pode ter no máximo ${PORTAL.NOTE_MAX} caracteres.`);
+    }
+    if (typeof input.idempotencyKey !== 'string' || !IDEMPOTENCY_KEY.test(input.idempotencyKey)) {
+      v.fail('idempotencyKey', 'Pedido sem identificador. Recarregue a página.');
+    }
+    v.assert();
+    return {
+      servicos,
+      profissionalId,
+      inicio,
+      ...(pet ? { pet } : {}),
+      ...(porte || pet ? { porte: porte ?? pet.porte } : {}),
+      observacao: note,
+      idempotencyKey: input.idempotencyKey,
+    };
+  }
+
+  async function createBooking(slug, account, input, { headers }) {
+    assertWrite(headers);
+    const booking = validateBooking(input);
+    hit('booking', account.id, 'Você enviou muitos agendamentos em pouco tempo. Aguarde antes de enviar outro.');
+    /* `contaId` SEMPRE o da sessão. */
+    return api.criarAgendamento(slug, { contaId: account.id, ...booking });
+  }
+
+  async function listBookings(slug, account) {
+    hit('read', account.id);
+    return { agendamentos: await api.agendamentos(slug, account.id) };
+  }
+
+  async function getBooking(slug, account, id) {
+    hit('read', account.id);
+    return { agendamento: await api.agendamento(slug, requireBookingId(id), account.id) };
+  }
+
+  function requireBookingId(id) {
+    if (typeof id !== 'string' || !REQUEST_ID.test(id)) throw notFound('Agendamento não encontrado.');
+    return id;
+  }
+
+  async function cancelBooking(slug, account, id, { headers }) {
+    assertWrite(headers);
+    hit('write', account.id);
+    return api.cancelarAgendamento(slug, requireBookingId(id), account.id);
+  }
+
+  async function rescheduleBooking(slug, account, id, input, { headers }) {
+    assertWrite(headers);
+    const bookingId = requireBookingId(id);
+    const v = createValidator();
+    const novoInicio = validStart(input?.novoInicio, v, 'novoInicio', 'o novo dia e horário');
+    const profissionalId = professionalOrNull(input?.profissionalId, v);
+    v.assert();
+    hit('booking', account.id, 'Você alterou agendamentos vezes demais. Aguarde antes de tentar de novo.');
+    return api.remarcarAgendamento(slug, bookingId, account.id, {
+      novoInicio,
+      ...(profissionalId ? { profissionalId } : {}),
+    });
+  }
+
   /* ---------------------------------------------- callback da API → e-mail */
 
   async function handleEvent(input) {
     const v = createValidator();
     const slug = typeof input.slug === 'string' ? input.slug : '';
     if (!PORTAL.SLUG_PATTERN.test(slug)) v.fail('slug', 'slug inválido.');
-    if (!['pedido', 'conta'].includes(input.tipo)) v.fail('tipo', 'tipo inválido.');
+    if (!['pedido', 'conta', 'agendamento'].includes(input.tipo)) v.fail('tipo', 'tipo inválido.');
     else if (!EVENT_STATES[input.tipo].includes(input.estado)) v.fail('estado', 'estado inválido.');
     if (typeof input.contaId !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(input.contaId)) v.fail('contaId', 'contaId inválido.');
     if (input.pedidoId !== undefined && input.pedidoId !== null && !REQUEST_ID.test(String(input.pedidoId))) {
       v.fail('pedidoId', 'pedidoId inválido.');
+    }
+    if (input.tipo === 'agendamento') {
+      if (typeof input.agendamentoId !== 'string' || !REQUEST_ID.test(input.agendamentoId)) v.fail('agendamentoId', 'agendamentoId inválido.');
+      if (input.inicio !== undefined && input.inicio !== null && (typeof input.inicio !== 'string' || !START_AT.test(input.inicio))) {
+        v.fail('inicio', 'inicio inválido.');
+      }
     }
     v.assert();
 
@@ -560,7 +721,13 @@ export function portalService(
     /* Conta que não existe aqui: nada a avisar (e nada a retentar). */
     if (!account) return { sent: false, reason: 'conta_desconhecida' };
 
-    const key = `${slug}|${input.tipo}|${input.pedidoId ?? input.contaId}|${input.estado}`;
+    if (input.tipo === 'agendamento' && !AGENDAMENTO_AVISA.has(input.estado)) return { sent: false, reason: 'sem_aviso' };
+
+    /* O início entra na chave: remarcar duas vezes gera dois avisos (horários diferentes). */
+    const key =
+      input.tipo === 'agendamento'
+        ? `${slug}|agendamento|${input.agendamentoId}|${input.estado}|${input.inicio ?? ''}`
+        : `${slug}|${input.tipo}|${input.pedidoId ?? input.contaId}|${input.estado}`;
     const t = now();
     for (const [k, until] of seenEvents) if (until <= t) seenEvents.delete(k);
     if (seenEvents.has(key)) return { sent: false, reason: 'repetido' };
@@ -581,8 +748,27 @@ export function portalService(
       }
     }
 
+    let agendamento = null;
+    if (input.tipo === 'agendamento') {
+      try {
+        agendamento = await api.agendamento(slug, input.agendamentoId, account.id);
+      } catch {
+        /* Sem o detalhe, o aviso sai só com o estado e o horário do evento. */
+      }
+    }
+
     const store = vitrine?.nomePublico ?? null;
-    const message = eventMessage({
+    const message = input.tipo === 'agendamento'
+      ? agendamentoMessage({
+          store,
+          name: account.name,
+          estado: input.estado,
+          motivo,
+          agendamento,
+          inicio: input.inicio ?? agendamento?.inicio ?? null,
+          url: `${baseUrl}/l/${slug}/agendamentos/${encodeURIComponent(input.agendamentoId)}`,
+        })
+      : eventMessage({
       store,
       name: account.name,
       tipo: input.tipo,
@@ -629,6 +815,13 @@ export function portalService(
     getOrder,
     cancelOrder,
     fiado,
+    agenda,
+    horarios,
+    createBooking,
+    listBookings,
+    getBooking,
+    cancelBooking,
+    rescheduleBooking,
     handleEvent,
     get available() {
       return mailer.configured;

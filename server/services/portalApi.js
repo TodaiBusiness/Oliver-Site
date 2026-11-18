@@ -42,6 +42,16 @@ const BUSINESS_MESSAGES = {
   cancel_window_closed: 'O prazo para cancelar este pedido já passou. Fale com a loja.',
   invalid_state: 'Este pedido não pode mais ser cancelado.',
   payment_unavailable: 'Esta forma de pagamento não está liberada para a sua conta.',
+  /* Agenda (Parte 5) */
+  slot_taken: 'Esse horário acabou de ser ocupado. Escolha outro horário.',
+  too_soon: 'Esse horário está muito próximo. Escolha um horário mais adiante.',
+  too_far: 'Esse horário está longe demais. Escolha uma data mais próxima.',
+  inactive: 'Esta loja não está recebendo agendamentos agora.',
+  invalid_service: 'Algum serviço escolhido não está mais disponível. Recarregue a página.',
+  invalid_professional: 'Esse profissional não faz o serviço escolhido. Escolha outro.',
+  invalid_slot: 'Esse horário não está livre. Escolha outro horário.',
+  porte_required: 'Informe o porte do pet para ver os horários.',
+  pet_required: 'Informe os dados do pet.',
 };
 
 const clip = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : null);
@@ -133,6 +143,9 @@ export function portalApiClient({
     ) {
       return new AppError(404, 'PORTAL_INATIVO', INACTIVE);
     }
+    if (response.status === 404 && code === 'portal_agenda_inactive') {
+      return new AppError(404, 'AGENDA_INATIVA', 'Esta loja não está recebendo agendamentos agora.');
+    }
     if (response.status === 404) return new AppError(404, 'NAO_ENCONTRADO', 'Não encontrado.');
     if (business && [400, 409, 422].includes(response.status)) {
       const message =
@@ -175,6 +188,7 @@ export function portalApiClient({
       prazoCancelarMin: num(body.prazoCancelarMin),
       catalogoAtualizadoEm: clip(body.catalogoAtualizadoEm, 40),
       fiadoAtivo: bool(body.fiadoAtivo),
+      temAgenda: bool(body.temAgenda),
       emailContato: clip(body.emailContato ?? body.email, 190),
     };
   }
@@ -243,6 +257,94 @@ export function portalApiClient({
         tipo: clip(e?.tipo, 20),
         vencimento: clip(e?.vencimento, 20),
       })),
+    };
+  }
+
+  /* --------------------------------------------- agenda (Parte 5, B1 a B4) */
+
+  const ESTADOS_AG = new Set(['solicitado', 'confirmado', 'recusado', 'cancelado_cliente', 'cancelado_loja', 'remarcado', 'concluido', 'nao_compareceu']);
+  const PORTES = ['P', 'M', 'G'];
+  const list = (value, max) => (Array.isArray(value) ? value.slice(0, max) : []);
+
+  /* Preço de serviço é o da loja (uma tabela só); nada de custo, comissão ou campo extra. */
+  function pickPorte(porte) {
+    if (!porte || typeof porte !== 'object') return null;
+    const out = {};
+    for (const key of PORTES) {
+      const item = porte[key];
+      if (item && typeof item === 'object') out[key] = { duracao: num(item.duracao), preco: num(item.preco) };
+    }
+    return Object.keys(out).length ? out : null;
+  }
+
+  function pickAgenda(body) {
+    const regras = body.regras && typeof body.regras === 'object' ? body.regras : {};
+    const rotulos = body.rotulos && typeof body.rotulos === 'object' ? body.rotulos : {};
+    return {
+      preset: clip(body.preset, 30),
+      rotulos: Object.fromEntries(
+        Object.entries(rotulos)
+          .filter(([key, value]) => /^[a-zA-Z]{2,24}$/.test(key) && typeof value === 'string')
+          .slice(0, 12)
+          .map(([key, value]) => [key, value.trim().slice(0, 40)])
+      ),
+      servicos: list(body.servicos, 200)
+        .filter((s) => s && s.ativo !== false)
+        .map((s) => ({
+          id: clip(String(s.id ?? ''), 64),
+          nome: clip(s.nome, 120) ?? '',
+          categoria: clip(s.categoria, 60),
+          duracao: num(s.duracao),
+          preco: num(s.preco),
+          exigePorte: bool(s.exigePorte),
+          porte: pickPorte(s.porte),
+        }))
+        .filter((s) => s.id && s.nome),
+      profissionais: list(body.profissionais, 100)
+        .map((p) => ({
+          id: clip(String(p?.id ?? ''), 64),
+          nome: clip(p?.nome, 80) ?? '',
+          cor: typeof p?.cor === 'string' && HEX.test(p.cor) ? p.cor.toLowerCase() : null,
+          servicos: list(p?.servicos, 200)
+            .map((s) => clip(String(typeof s === 'object' && s ? s.id ?? '' : s ?? ''), 64))
+            .filter(Boolean),
+        }))
+        .filter((p) => p.id && p.nome),
+      regras: {
+        slotMin: num(regras.slotMin),
+        antecedenciaMinMin: num(regras.antecedenciaMinMin),
+        antecedenciaMaxDias: num(regras.antecedenciaMaxDias),
+        prazoCancelarMin: num(regras.prazoCancelarMin),
+        confirmacaoAuto: bool(regras.confirmacaoAuto),
+      },
+      temAgenda: true,
+    };
+  }
+
+  function pickAgendamento(a) {
+    const pet = a.pet && typeof a.pet === 'object' ? a.pet : null;
+    return {
+      id: clip(String(a.id ?? a.agendamentoId ?? ''), 64),
+      referencia: clip(a.referencia, 40),
+      estado: ESTADOS_AG.has(a.estado) ? a.estado : clip(a.estado, 24),
+      criadoEm: clip(a.criadoEm, 40),
+      servicos: list(a.servicos, 20).map((s) => ({
+        servicoId: clip(String(s?.servicoId ?? ''), 64),
+        nome: clip(s?.nome, 120) ?? '',
+        duracao: num(s?.duracao),
+        preco: num(s?.preco),
+      })),
+      profissionalId: clip(a.profissionalId == null ? '' : String(a.profissionalId), 64) || null,
+      profissionalNome: clip(a.profissionalNome, 80),
+      inicio: clip(a.inicio, 40),
+      fim: clip(a.fim, 40),
+      pet: pet
+        ? { nome: clip(pet.nome, 60), especie: clip(pet.especie, 30), raca: clip(pet.raca, 60), porte: PORTES.includes(pet.porte) ? pet.porte : null }
+        : null,
+      observacao: clip(a.observacao, 600),
+      total: num(a.total),
+      motivo: clip(a.motivo, 300),
+      podeCancelar: typeof a.podeCancelar === 'boolean' ? a.podeCancelar : null,
     };
   }
 
@@ -363,6 +465,64 @@ export function portalApiClient({
         business: true,
       });
       return { estado: clip(body.estado, 20) ?? 'cancelado' };
+    },
+
+    /** B1. Agenda publicada (serviços, profissionais, regras). 404 AGENDA_INATIVA se não publicada. */
+    async agenda(slug) {
+      return pickAgenda(await json('GET', `${seg(slug)}/agenda`));
+    },
+
+    /** B2. Horários livres (a API calcula; o site só repassa o que o navegador pediu, já validado). */
+    async horarios(slug, { servicos, profissionalId, data, porte }) {
+      const body = await json('GET', `${seg(slug)}/agenda/horarios`, {
+        query: { servicos: servicos.join(','), profissionalId: profissionalId ?? 'qualquer', data, porte },
+        business: true,
+      });
+      return {
+        slots: list(body.slots, 400)
+          .map((s) => ({
+            inicio: clip(s?.inicio, 40),
+            fim: clip(s?.fim, 40),
+            profissionalId: clip(s?.profissionalId == null ? '' : String(s.profissionalId), 64),
+            profissionalNome: clip(s?.profissionalNome, 80),
+          }))
+          .filter((s) => s.inicio && s.profissionalId),
+        motivoVazio: clip(body.motivoVazio, 60),
+      };
+    },
+
+    /** B3. Cria o agendamento (a API recalcula tudo e segura o horário). */
+    async criarAgendamento(slug, agendamento) {
+      const body = await json('POST', `${seg(slug)}/agendamentos`, { body: agendamento, business: true });
+      return {
+        id: clip(String(body.id ?? body.agendamentoId ?? ''), 64),
+        referencia: clip(body.referencia, 40),
+        estado: clip(body.estado, 24) ?? 'solicitado',
+        inicio: clip(body.inicio, 40),
+        fim: clip(body.fim, 40),
+        total: num(body.total),
+      };
+    },
+
+    /** B4. Agendamentos da conta, detalhe, cancelar e remarcar. */
+    async agendamentos(slug, contaId) {
+      const body = await json('GET', `${seg(slug)}/agendamentos`, { query: { contaId } });
+      const lista = Array.isArray(body) ? body : Array.isArray(body.agendamentos) ? body.agendamentos : [];
+      return lista.slice(0, 200).map(pickAgendamento);
+    },
+
+    async agendamento(slug, id, contaId) {
+      return pickAgendamento(await json('GET', `${seg(slug)}/agendamentos/${seg(id)}`, { query: { contaId } }));
+    },
+
+    async cancelarAgendamento(slug, id, contaId) {
+      const body = await json('POST', `${seg(slug)}/agendamentos/${seg(id)}/cancelar`, { query: { contaId }, body: {}, business: true });
+      return { estado: clip(body.estado, 24) ?? 'cancelado_cliente' };
+    },
+
+    async remarcarAgendamento(slug, id, contaId, dados) {
+      const body = await json('POST', `${seg(slug)}/agendamentos/${seg(id)}/remarcar`, { query: { contaId }, body: dados, business: true });
+      return { estado: clip(body.estado, 24) ?? 'solicitado', inicio: clip(body.inicio, 40) };
     },
 
     /** 16. Fiado (só leitura). */
