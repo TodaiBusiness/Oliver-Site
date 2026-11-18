@@ -17,7 +17,12 @@ CREATE TABLE IF NOT EXISTS users (
   role          TEXT    NOT NULL DEFAULT 'CLIENT'
                         CHECK (role IN ('CLIENT','ADMIN')),
   created_at    INTEGER NOT NULL,
-  updated_at    INTEGER NOT NULL
+  updated_at    INTEGER NOT NULL,
+  status        TEXT    NOT NULL DEFAULT 'ACTIVE'
+                        CHECK (status IN ('PENDING','ACTIVE','REJECTED')),
+  decided_at    INTEGER,
+  decided_by    TEXT,
+  decision_note TEXT
 );
 
 CREATE TABLE IF NOT EXISTS projects (

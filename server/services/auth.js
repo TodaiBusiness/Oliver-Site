@@ -39,7 +39,10 @@ const NO_IP = 'desconhecido';
 const isUniqueViolation = (error) =>
   error?.code === '23505' || /UNIQUE constraint failed/i.test(String(error?.message ?? ''));
 
-export function authService(ctx, { now = () => Date.now(), adminEnabled = true } = {}) {
+export function authService(
+  ctx,
+  { now = () => Date.now(), adminEnabled = true, registrationAlert = null } = {}
+) {
   const guard = createLoginGuard(ctx, { now });
 
   /** Referência opaca do e-mail digitado (HMAC): permite correlacionar sem guardar o texto. */
@@ -52,8 +55,24 @@ export function authService(ctx, { now = () => Date.now(), adminEnabled = true }
       'O acesso de administradores agora é pelo Panel TODAI. A administração do site foi desativada.'
     );
 
+  /* Conta que ainda não foi autorizada (ou foi recusada) nunca ganha sessão.
+     Só é chamada DEPOIS de a senha conferir: não vira oráculo de e-mail. */
+  const assertAccountActive = (account) => {
+    if (account.status === 'PENDING') {
+      throw new AppError(403, 'CONTA_PENDENTE', 'Seu cadastro está aguardando autorização.');
+    }
+    if (account.status === 'REJECTED') {
+      throw new AppError(
+        403,
+        'CONTA_RECUSADA',
+        'Não foi possível liberar o acesso desta conta. Fale com a TODAI se precisar de ajuda.'
+      );
+    }
+  };
+
   async function startSession(user, { ip, userAgent }) {
     if (user.role === ROLES.ADMIN && !adminEnabled) throw adminDisabled();
+    assertAccountActive(user);
     const token = createSessionToken();
     const expiresAt = now() + SECURITY.SESSION_TTL_MS;
 
@@ -83,7 +102,7 @@ export function authService(ctx, { now = () => Date.now(), adminEnabled = true }
   }
 
   return {
-    /** Cria uma conta de CLIENTE. */
+    /** Cria uma conta de CLIENTE em estado PENDENTE: sem sessão até o admin autorizar. */
     async register(input) {
       const validator = createValidator();
       validator.text('name', input.name, { max: LIMITS.NAME_MAX, label: 'o nome' });
@@ -118,6 +137,7 @@ export function authService(ctx, { now = () => Date.now(), adminEnabled = true }
           phone: cleanText(input.phone),
           passwordHash,
           role: ROLES.CLIENT, // sempre CLIENT: papel não vem da requisição
+          status: 'PENDING', // só entra depois da autorização do admin
         });
       } catch (error) {
         /* Dois cadastros simultâneos do mesmo e-mail: o UNIQUE decide. */
@@ -132,7 +152,32 @@ export function authService(ctx, { now = () => Date.now(), adminEnabled = true }
         resourceId: userId,
       });
 
-      return ctx.users.findById(userId);
+      /* Aviso ao admin: melhor esforço, sem esperar e sem derrubar o cadastro. */
+      registrationAlert?.notify(
+        {
+          siteUserId: String(userId),
+          name: cleanText(input.name),
+          company: cleanText(input.company) ?? '',
+          email,
+          phone: cleanText(input.phone) ?? '',
+          requestedAt: new Date(now()).toISOString(),
+        },
+        (reason) =>
+          ctx.audit
+            .log({
+              userId,
+              action: AUDIT_ACTIONS.REGISTRATION_ALERT_FAILED,
+              resourceType: 'user',
+              resourceId: userId,
+              details: { motivo: reason },
+            })
+            .catch(() => {})
+      );
+
+      return {
+        status: 'PENDING',
+        message: 'Recebemos seu cadastro. Avisaremos por e-mail quando for autorizado.',
+      };
     },
 
     /**
@@ -178,6 +223,10 @@ export function authService(ctx, { now = () => Date.now(), adminEnabled = true }
       /* Senha certa de um ADMIN com a administração do site desligada: só aqui a
          resposta muda (quem não sabe a senha não descobre nada por este caminho). */
       if (account.role === ROLES.ADMIN && !adminEnabled) throw adminDisabled();
+
+      /* Senha certa, conta ainda sem autorização: sem sessão, sem 2FA e sem
+         contar como falha de senha. */
+      assertAccountActive(account);
 
       /* Parâmetros de hash endurecidos depois do cadastro? Atualiza agora. */
       if (needsRehash(account.password_hash)) {
@@ -272,6 +321,12 @@ export function authService(ctx, { now = () => Date.now(), adminEnabled = true }
       /* Administração do site desligada: sessão de ADMIN deixa de valer (e é
          apagada, para não "ressuscitar" se a flag voltar a ligar). */
       if (session.role === ROLES.ADMIN && !adminEnabled) {
+        await ctx.sessions.delete(id);
+        return null;
+      }
+
+      /* Conta que deixou de estar ACTIVE (recusada): sessão apagada. */
+      if (session.status !== 'ACTIVE') {
         await ctx.sessions.delete(id);
         return null;
       }

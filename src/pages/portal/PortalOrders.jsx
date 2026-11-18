@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { usePortal } from './PortalContext.jsx';
 import { EmptyState, Notice, PIcon, PageTitle, Spinner, StatusBadge, usePolling, useLoad } from './ui.jsx';
-import { ESTADOS_FINAIS, ETAPAS, PAGAMENTOS, brl, estadoInfo, formatDate, formatDateTime, qty } from './format.js';
+import { ESTADOS_FINAIS, ETAPAS, PAGAMENTOS, brl, estadoInfo, formatDate, formatDateTime, podeCancelarPedido, qty } from './format.js';
 
 const POLL_MS = 20_000;
 
@@ -164,14 +164,7 @@ export function PortalOrder() {
   }, [pedido]);
 
   const prazo = loja.data.prazoCancelarMin;
-  const dentroDoPrazo = useMemo(() => {
-    if (!pedido) return false;
-    if (typeof pedido.podeCancelar === 'boolean') return pedido.podeCancelar;
-    if (pedido.cancelavelAte) return Date.now() <= Date.parse(pedido.cancelavelAte);
-    if (prazo && pedido.criadoEm) return Date.now() - Date.parse(pedido.criadoEm) <= prazo * 60000;
-    return true;
-  }, [pedido, prazo]);
-  const podeCancelar = pedido?.estado === 'recebido' && dentroDoPrazo;
+  const podeCancelar = useMemo(() => podeCancelarPedido(pedido, prazo), [pedido, prazo]);
 
   const cancel = async () => {
     setCancelling(true);
@@ -332,7 +325,11 @@ export function PortalOrder() {
             </div>
           </div>
         ) : null}
-        {pedido.estado === 'recebido' && !podeCancelar ? <p className="p-muted p-small">O prazo para cancelar já passou. Fale com a loja se precisar.</p> : null}
+        {pedido.estado === 'recebido' && !podeCancelar ? (
+          <p className="p-muted p-small">
+            {prazo === 0 ? 'Esta loja não permite cancelar pelo portal. Fale com a loja se precisar.' : 'O prazo para cancelar já passou. Fale com a loja se precisar.'}
+          </p>
+        ) : null}
       </div>
     </div>
   );

@@ -111,6 +111,19 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS client_message_id    VARCHAR(64) N
 -- Aviso por e-mail quando a equipe responde (1 = recebe; o cliente desliga em Conta > Segurança).
 ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_email SMALLINT NOT NULL DEFAULT 1;
 
+-- Aprovação de cliente novo: PENDING (aguarda o admin), ACTIVE, REJECTED. Contas
+-- existentes ficam ACTIVE pelo DEFAULT.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status        VARCHAR(10)  NOT NULL DEFAULT 'ACTIVE';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS decided_at    BIGINT       NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS decided_by    VARCHAR(80)  NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS decision_note VARCHAR(300) NULL;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_users_status') THEN
+    ALTER TABLE users ADD CONSTRAINT ck_users_status CHECK (status IN ('PENDING','ACTIVE','REJECTED'));
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS ix_users_status ON users (status, role);
+
 CREATE INDEX IF NOT EXISTS ix_messages_unread ON messages (is_read, request_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_messages_client_id
   ON messages (request_id, author_external_id, client_message_id)

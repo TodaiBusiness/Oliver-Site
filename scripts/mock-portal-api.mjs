@@ -17,7 +17,7 @@
      POST /__mock/contas/:id/decisao {estado,tabela}  aprova ou bloqueia a conta
    Lojas prontas: `loja-demo` (fiado ligado, atacado), `so-retirada` (sem entrega,
    sem fiado), `loja-inativa` (404 portal_inactive) e `cor-ruim` (cores com
-   contraste insuficiente, para testar o recálculo).
+   contraste insuficiente, para testar o recálculo) e `loja-fechada` (fechada agora, abre amanhã às 08:00; prazo de cancelar 0).
    ========================================================================= */
 
 import { createServer } from 'node:http';
@@ -95,6 +95,10 @@ const PRODUTOS = [
   id, nome, categoria, unidade, descricao, v, a, rv, disponivel, multiplo, caixaQtd, cor,
 }));
 
+/** "yyyy-MM-ddT08:00" do dia seguinte em Brasília (o formato de `proximaAbertura` da API). */
+const amanhaAsOito = (ms) =>
+  `${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(ms + 86400000)}T08:00`;
+
 const BASE_LOJA = {
   aceitaPedidos: true,
   retirada: true,
@@ -103,6 +107,7 @@ const BASE_LOJA = {
   pedidoMinimo: 40,
   mensagemAviso: 'Pedidos feitos até as 16h saem no mesmo dia.',
   horarios: ['Seg a sex: 8h às 19h', 'Sábado: 8h às 14h'],
+  aberto: true, // simula o cálculo da API: abertoAgora + proximaAbertura (amanhã às 08:00 de Brasília)
   prazoCancelarMin: 10,
   fiadoAtivo: false,
   catalogoAtualizadoEm: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
@@ -130,6 +135,14 @@ export function createMockBackend({ serviceKey = MOCK_SERVICE_KEY, leaky = false
       ...BASE_LOJA,
       nomePublico: 'Doces da Lu',
       cores: { primaria: '#ffe066', secundaria: '#fff3b0', fundo: '#fffde7' },
+      logo: null,
+    },
+    'loja-fechada': {
+      ...BASE_LOJA,
+      nomePublico: 'Padaria Estrela',
+      cores: { primaria: '#1e3a8a', secundaria: '#dbeafe', fundo: '#0f172a' },
+      aberto: false,
+      prazoCancelarMin: 0,
       logo: null,
     },
     'loja-inativa': { inativa: true },
@@ -183,6 +196,8 @@ export function createMockBackend({ serviceKey = MOCK_SERVICE_KEY, leaky = false
         cores: loja.cores,
         logoUrl: loja.logo ? `/api/v1/site/portal/${slug}/logo` : null,
         aceitaPedidos: loja.aceitaPedidos,
+        abertoAgora: loja.aceitaPedidos && loja.aberto,
+        proximaAbertura: loja.aceitaPedidos && !loja.aberto ? amanhaAsOito(now()) : null,
         retirada: loja.retirada,
         entrega: loja.entrega,
         taxaEntrega: loja.taxaEntrega,
@@ -397,6 +412,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     });
   }).listen(port, () => {
     console.log(`[mock-portal] API falsa em http://localhost:${port} (chave: ${key})`);
-    console.log('[mock-portal] lojas: loja-demo, so-retirada, cor-ruim, loja-inativa');
+    console.log('[mock-portal] lojas: loja-demo, so-retirada, cor-ruim, loja-fechada, loja-inativa');
   });
 }

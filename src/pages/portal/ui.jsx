@@ -78,6 +78,17 @@ export function EmptyState({ icon = 'bag', title, children, action }) {
   );
 }
 
+/** Selo "Aberto agora" (verde, com ícone) ou "Fechado agora · abre ..." (neutro: fechado é informação, não erro). */
+export function StoreStatus({ status, className = '' }) {
+  if (!status) return null;
+  return (
+    <span className={`p-open p-open--${status.aberto ? 'on' : 'off'} ${className}`.trim()}>
+      <PIcon name={status.aberto ? 'check' : 'clock'} size={16} />
+      <span>{status.texto}</span>
+    </span>
+  );
+}
+
 export function StatusBadge({ estado }) {
   const info = estadoInfo(estado);
   return <span className={`p-badge p-badge--${info.tone}`}>{info.label}</span>;

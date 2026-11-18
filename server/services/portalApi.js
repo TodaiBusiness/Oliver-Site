@@ -47,6 +47,8 @@ const BUSINESS_MESSAGES = {
 const clip = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : null);
 const num = (value) => (Number.isFinite(Number(value)) && value !== null && value !== '' ? Number(value) : null);
 const bool = (value) => value === true;
+/* Próxima abertura da API: yyyy-MM-ddTHH:mm em hora de Brasília (sem fuso). */
+const ISO_LOCAL = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/;
 
 function cleanJsonish(value, maxBytes = 4096) {
   if (value === null || value === undefined) return null;
@@ -162,6 +164,8 @@ export function portalApiClient({
       cores: { primaria: color(cores.primaria), secundaria: color(cores.secundaria), fundo: color(cores.fundo) },
       temLogo: typeof body.logoUrl === 'string' && body.logoUrl.length > 0,
       aceitaPedidos: bool(body.aceitaPedidos),
+      abertoAgora: typeof body.abertoAgora === 'boolean' ? body.abertoAgora : null,
+      proximaAbertura: typeof body.proximaAbertura === 'string' && ISO_LOCAL.test(body.proximaAbertura) ? body.proximaAbertura.slice(0, 16) : null,
       retirada: bool(body.retirada),
       entrega: bool(body.entrega),
       taxaEntrega: num(body.taxaEntrega) ?? 0,

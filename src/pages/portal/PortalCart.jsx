@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { usePortal } from './PortalContext.jsx';
 import { Stepper, ProductImage } from './PortalCatalog.jsx';
 import { EmptyState, Field, Notice, PIcon, PageTitle, Spinner, describedBy } from './ui.jsx';
-import { PAGAMENTOS, brl, faixasDaLoja, isoToday, qty } from './format.js';
+import { PAGAMENTOS, brl, faixasDaLoja, isoToday, qty, statusDaLoja } from './format.js';
 
 const newKey = () =>
   globalThis.crypto?.randomUUID?.().replace(/-/g, '') ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
@@ -133,6 +133,11 @@ export default function PortalCart() {
       {skipped.length ? (
         <Notice tone="warn" title="Alguns itens ficaram de fora">
           Não estão disponíveis agora: {skipped.join(', ')}.
+        </Notice>
+      ) : null}
+      {d.aceitaPedidos && statusDaLoja(d)?.aberto === false ? (
+        <Notice tone="info" icon="clock">
+          A loja está fechada agora; seu pedido fica na fila e a loja confirma quando abrir.
         </Notice>
       ) : null}
       {pendente ? (

@@ -2,7 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestApp, createClient, extractSessionToken, request } from './helpers.js';
+import { activateClient, createTestApp, createClient, extractSessionToken, request } from './helpers.js';
 import { hashPassword, verifyPassword, needsRehash } from '../../server/security/password.js';
 import { SECURITY } from '../../server/config.js';
 
@@ -83,6 +83,7 @@ test('e-mail é normalizado (maiúsculas e espaços não criam conta duplicada)'
     await request(app, 'POST', '/api/auth/register', {
       body: { name: 'Ana', email: 'Ana@Teste.com', password: 'SenhaForte123' },
     });
+    await activateClient(app, 'ana@teste.com');
 
     const duplicado = await request(app, 'POST', '/api/auth/register', {
       body: { name: 'Ana', email: '  ANA@TESTE.COM  ', password: 'SenhaForte123' },
@@ -126,6 +127,7 @@ test('o cookie de sessão é HttpOnly, SameSite e não contém a senha', async (
     await request(app, 'POST', '/api/auth/register', {
       body: { name: 'Ana', email: 'ana@teste.com', password: 'SenhaForte123' },
     });
+    await activateClient(app, 'ana@teste.com');
     const login = await request(app, 'POST', '/api/auth/login', {
       body: { email: 'ana@teste.com', password: 'SenhaForte123' },
     });
@@ -236,6 +238,7 @@ test('login bem-sucedido zera o contador de tentativas', async () => {
     await request(app, 'POST', '/api/auth/register', {
       body: { name: 'Ana', email: 'ana@teste.com', password: 'SenhaForte123' },
     });
+    await activateClient(app, 'ana@teste.com');
 
     await request(app, 'POST', '/api/auth/login', {
       body: { email: 'ana@teste.com', password: 'errada123' },

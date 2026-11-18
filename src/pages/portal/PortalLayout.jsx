@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
 import { buildPortalTheme } from '../../../shared/portalTheme.js';
 import { PortalProvider, usePortal } from './PortalContext.jsx';
-import { PIcon, Spinner } from './ui.jsx';
+import { PIcon, Spinner, StoreStatus } from './ui.jsx';
+import { statusDaLoja } from './format.js';
 
 /**
  * Casca do portal de uma loja (/l/:slug): FORA do SiteLayout, com o logo, o nome e
@@ -87,6 +88,7 @@ function Shell() {
       <header className="p-header">
         <div className="p-header__in">
           <Brand loja={dados} slug={slug} />
+          {pronto ? <StoreStatus status={statusDaLoja(dados)} className="p-header__status" /> : null}
           {pronto ? (
             <nav className="p-nav" aria-label="Menu do portal">
               <ul className="p-nav__list">

@@ -76,6 +76,7 @@ bugs que achou e corrigiu os itens marcados com a data, e de novo em 16/11/2026 
   dobra a espera (30 s, 1 min, 2 min... até 15 min); `429` com `Retry-After`. Tentativas durante a espera não contam. Limite conhecido:
   quem troca de IP a cada tentativa escapa deste bloqueio; sobram o teto de 20 por IP/10 min e o 2FA (admin). Não há bloqueio global por
   e-mail porque ele reabriria a negação de login a terceiros.
+- Cadastro novo **não entra sozinho** (ver `docs/APROVACAO_CLIENTES.md`): fica PENDING e só ganha sessão depois de o admin autorizar no Panel.
 - Cadastro: **mantive a mensagem 409** "Já existe uma conta com este e-mail" (mudar para resposta neutra quebraria o fluxo
   cadastrar-e-entrar sem e-mail de verificação) e fechei o resto: o scrypt roda antes da checagem (mesmo tempo nos dois casos), teto de 5 por
   10 min e 15 por hora por IP, e corrida entre dois cadastros iguais vira 409 (UNIQUE) em vez de 500. A enumeração continua possível, com
@@ -212,6 +213,8 @@ subdomínios; `src/utils/checkoutUrl.js`).
     e nada é apagado (o `ON DELETE CASCADE` do banco nunca é acionado por aqui). O Panel oferece "Ocultar do site" (`isPublic=false`).
   - Projeto `isPublic=false` (ou rascunho oculto) não sai em `/api/projects`; confirmado por teste. Rotas e front públicos não mudaram.
 
+- **Aprovação de cliente novo** (`GET /api/service/clients?status=`, `GET /api/service/clients/pending-count`, `POST /api/service/clients/:id/approve|reject`):
+  ver `docs/APROVACAO_CLIENTES.md`. Auditoria `CLIENTE_AUTORIZADO`/`CLIENTE_RECUSADO`/`CADASTRO_AVISO_ADMIN_FALHOU`, nunca com o e-mail do cliente.
 - **Contas do site, status e atividade pelo Panel** (`GET /api/service/clients`, `GET /api/service/clients/:id`, `POST /api/service/requests/:id/status`,
   `GET /api/service/audit`; `server/services/panelClients.js`). Mesmo porteiro dos demais `/api/service/*` (401/503/403, cookie ignorado, rate limit, corpo ≤ 32 KB),
   independente de `SITE_ADMIN_ENABLED`. Testes: `tests/server/serviceClients.test.js`.

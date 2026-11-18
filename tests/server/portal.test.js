@@ -107,6 +107,32 @@ const pedidoBase = (extra = {}) => ({
 
 /* ------------------------------------------------------------- vitrine */
 
+test('vitrine repassa abertoAgora e proximaAbertura (lista branca) e descarta o que não for do formato', async () => {
+  const { app, close, backend } = await portalApp();
+  try {
+    const aberta = await portal(app, 'GET', 'loja-demo', '/vitrine');
+    assert.equal(aberta.body.abertoAgora, true);
+    assert.equal(aberta.body.proximaAbertura, null);
+    assert.equal(aberta.body.prazoCancelarMin, 10);
+    const fechada = await portal(app, 'GET', 'loja-fechada', '/vitrine');
+    assert.equal(fechada.body.abertoAgora, false);
+    assert.match(fechada.body.proximaAbertura, /^\d{4}-\d{2}-\d{2}T08:00$/);
+    assert.equal(fechada.body.prazoCancelarMin, 0);
+    assert.equal(fechada.body.emailContato, undefined);
+  } finally {
+    close();
+  }
+  const api = portalApiClient({
+    fetchImpl: async () => new Response(JSON.stringify({ nomePublico: 'X', abertoAgora: 'sim', proximaAbertura: '<script>', extra: 1 }), { status: 200, headers: { 'content-type': 'application/json' } }),
+    licensing: { baseUrl: 'https://api.exemplo', serviceKey: MOCK_SERVICE_KEY, timeoutMs: 5000 },
+    cacheMs: 0,
+  });
+  const v = await api.vitrine('loja-x');
+  assert.equal(v.abertoAgora, null);
+  assert.equal(v.proximaAbertura, null);
+  assert.equal(v.extra, undefined);
+});
+
 test('vitrine é pública, não traz preço nem catálogo e aponta o logo para o próprio site', async () => {
   const { app, close } = await portalApp({ leaky: true });
   try {
