@@ -132,6 +132,13 @@ export function portalService(
     return address;
   }
 
+  /** O endereço de entrega do pedido segue como UMA linha de texto (contrato da API: texto de até 400), no formato que o PDV lê. */
+  function addressLine(a) {
+    const street = [a.rua, a.numero].filter(Boolean).join(', ');
+    const city = [a.cidade, a.uf].filter(Boolean).join('/');
+    return [street, a.complemento, a.bairro, city, a.cep ? `CEP ${a.cep}` : ''].filter(Boolean).join(' - ');
+  }
+
   /** Só navegador do próprio site escreve: cabeçalho próprio (cross-origin exigiria CORS, que não existe). */
   function assertWrite(headers) {
     if (headers['x-portal-request'] !== '1') throw new AppError(403, 'SEM_PERMISSAO', 'Requisição não permitida.');
@@ -490,7 +497,7 @@ export function portalService(
 
     return {
       itens: [...items].map(([produtoId, quantidade]) => ({ produtoId, quantidade })),
-      entrega: { tipo: delivery.tipo, ...(address ? { endereco: address } : {}), data: date, ...(band ? { faixa: band } : {}) },
+      entrega: { tipo: delivery.tipo, ...(address ? { endereco: addressLine(address) } : {}), data: date, ...(band ? { faixa: band } : {}) },
       pagamento: payment,
       observacao: note,
       idempotencyKey: input.idempotencyKey,

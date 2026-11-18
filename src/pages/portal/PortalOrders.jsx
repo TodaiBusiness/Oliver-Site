@@ -279,7 +279,12 @@ export function PortalOrder() {
               {pedido.entrega?.faixa ? `, ${pedido.entrega.faixa}` : ''}
             </dd>
           </div>
-          {pedido.entrega?.endereco && typeof pedido.entrega.endereco === 'object' ? (
+          {typeof pedido.entrega?.endereco === 'string' && pedido.entrega.endereco ? (
+            <div>
+              <dt>Endereço</dt>
+              <dd>{pedido.entrega.endereco}</dd>
+            </div>
+          ) : pedido.entrega?.endereco && typeof pedido.entrega.endereco === 'object' ? (
             <div>
               <dt>Endereço</dt>
               <dd>

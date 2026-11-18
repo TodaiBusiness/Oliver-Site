@@ -42,6 +42,10 @@ Lado SITE do portal `/l/:slug` (contrato PDV, API e site: Parte 3). A API da loj
 
 `shared/portalTheme.js` transforma `cores{primaria,secundaria,fundo}` em propriedades `--p-*` no `<html>` (via CSSOM, compatível com a CSP). Todo par de texto passa 4,5:1 (3:1 para borda de campo e foco); cor inválida ou fundo de tom médio cai para a cor segura. Teste: `tests/portal-theme.test.js`.
 
+## Verificado contra a API real (18/11/2026)
+
+Fluxo ponta a ponta com a API real e um PDV simulado: cadastro, aprovação como atacado (preço muda), pedido, aceite, recusa, cancelamento, fiado, e-mail por callback e isolamento entre duas lojas. Corrigido: `entrega.endereco` do pedido vai à API como UMA linha de texto (a API recusa objeto com 400); o detalhe do pedido mostra o endereço em texto.
+
 ## Suposições sobre a API (confirmar com a parte da API)
 
 - Vitrine pode trazer `prazoCancelarMin`, `emailContato`; `horarios` é texto, lista ou mapa (com `faixas` opcional).

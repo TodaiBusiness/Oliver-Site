@@ -624,7 +624,7 @@ test('pedido: contaId vem da sessão, idempotencyKey evita duplicar e outra cont
 });
 
 test('pedido: validação no servidor e mensagens de recusa da loja em português', async () => {
-  const { app, close } = await portalApp();
+  const { app, backend, close } = await portalApp();
   try {
     const a = await entrar(app);
     const envia = (extra) => portal(app, 'POST', 'loja-demo', '/pedidos', { token: a.token, body: pedidoBase(extra) });
@@ -655,6 +655,9 @@ test('pedido: validação no servidor e mensagens de recusa da loja em portuguê
     });
     assert.equal(entrega.status, 201);
     assert.equal(entrega.body.pedido.total, 71.8, 'taxa de entrega somada pela API');
+    /* Contrato da API: o endereço de entrega do pedido é UMA linha de texto (a API recusa objeto com 400). */
+    const enviadoEntrega = backend.calls.filter((c) => c.method === 'POST' && c.path.endsWith('/pedidos')).at(-1).body;
+    assert.equal(enviadoEntrega.entrega.endereco, 'Rua A, 1 - Centro - Taubaté');
   } finally {
     close();
   }
