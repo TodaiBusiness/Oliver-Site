@@ -53,6 +53,10 @@ Fluxo ponta a ponta com a API real e um PDV simulado: cadastro, aprovação como
 - Pedido: `podeCancelar`/`cancelavelAte` opcionais; `itens[].precoUnitario`, `entrega.taxa`.
 - Erros: ProblemDetails com `code`; `portal_inactive` (404) e `addon_not_active` (403) viram "loja indisponível". Códigos de recusa conhecidos têm texto próprio (`min_order`, `item_unavailable`, `invalid_multiple`, `outside_hours`, `cancel_window_closed`...); os demais 400/409/422 repassam `detail` só se for curto.
 
+## Verificado com a logo do PDV (18/11/2026)
+
+API real (PostgreSQL) + site real + `scripts/simular-pdv-logo.mjs`, que faz o que o PDV faz (ativa um computador, liga o adicional, configura o portal, publica o catálogo e envia a logo com `PUT /pdv/portal/logo`; `--remover` chama o `DELETE`). A vitrine `/l/loja-logo` mostra a logo no cabeçalho (fotos em `docs/evidencias/portal-logo-390.png` e `portal-logo-1280.png`); depois do `DELETE` a vitrine volta sem `logoUrl` e `/api/portal/:slug/logo` dá 404. Variáveis do script: ver o cabeçalho dele.
+
 ## Testar sem a API real
 
 `node scripts/mock-portal-api.mjs` sobe a API falsa (porta 8799, lojas `loja-demo`, `so-retirada`, `cor-ruim`, `loja-inativa`). Site local:
