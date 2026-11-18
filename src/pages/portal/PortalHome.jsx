@@ -8,8 +8,8 @@ export default function PortalHome() {
   const { loja, signedIn, session, path } = usePortal();
   const d = loja.data;
   const horarios = horariosEmLinhas(d.horarios);
-  const pendente = signedIn && session.conta?.estado === 'pendente';
   const soAgenda = Boolean(d.temAgenda) && !d.aceitaPedidos;
+  const pendente = signedIn && !soAgenda && session.conta?.estado === 'pendente';
 
   return (
     <div className="p-home">
@@ -116,7 +116,7 @@ export default function PortalHome() {
         </section>
       ) : null}
 
-      {d.catalogoAtualizadoEm ? (
+      {d.catalogoAtualizadoEm && !soAgenda ? (
         <p className="p-muted p-small p-stamp">Catálogo atualizado em {formatDateTime(d.catalogoAtualizadoEm)}.</p>
       ) : null}
     </div>

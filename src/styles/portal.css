@@ -1232,16 +1232,18 @@ dl.p-summary > div {
 }
 .p-tabs {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.2rem;
   margin: 0 0 1.1rem;
   border-bottom: 1px solid var(--p-line);
   overflow-x: auto;
 }
 .p-tab {
   display: inline-flex;
+  flex: 1 0 auto;
   align-items: center;
+  justify-content: center;
   min-height: 44px;
-  padding: 0.4rem 0.9rem;
+  padding: 0.4rem 0.6rem;
   margin-bottom: -1px;
   border-bottom: 3px solid transparent;
   text-decoration: none;
@@ -1475,6 +1477,9 @@ dl.p-summary > div {
   background: var(--p-ok-bg);
   color: var(--p-ok-fg);
   font-weight: 650;
+}
+.p-slotpicker {
+  margin-top: 1rem;
 }
 .p-remarcar {
   margin-top: 1.5rem;
