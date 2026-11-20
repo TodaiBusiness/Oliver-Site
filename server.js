@@ -14,9 +14,13 @@
      npm run build && npm start
      PORT=10000 npm start        (o Render define PORT sozinho)
 
-   O schema do banco NÃO é aplicado aqui, de propósito: `npm run db:migrate`
-   é rodado à parte, para um erro de DDL aparecer na hora e não como um
-   servidor que morre antes de abrir a porta.
+   O schema do banco É aplicado aqui, ao subir (db.init(), o mesmo do
+   `npm run db:migrate`: só CREATE/ALTER ... IF NOT EXISTS, pode rodar de novo).
+   Motivo: em 20/11/2026 a imagem nova subiu na VPS sem a migração e o login do
+   portal quebrou. Se a migração falhar, o servidor NÃO morre: loga o erro e
+   segue no ar, e o /api/health responde 503 com o banco desatualizado (o teste
+   de fumaça do deploy reprova e volta a versão anterior).
+   DB_MIGRATE_ON_START=false desliga (para migrar só à mão).
    ========================================================================= */
 
 import { createServer } from 'node:http';
@@ -24,6 +28,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 import { LIMITS, assertProductionConfig } from './server/config.js';
 import { getDb } from './server/db/index.js';
+import { applySchemaOnStart } from './server/db/startupMigration.js';
 import { createApp } from './server/app.js';
 import { normalizeApiPath } from './server/http/path.js';
 import { parseAllowedOrigins } from './server/http/origins.js';
@@ -75,6 +80,8 @@ const SEGURANCA = SECURITY_HEADERS;
 assertProductionConfig();
 
 const db = await getDb();
+
+await applySchemaOnStart(db);
 
 /* Origens autorizadas a enviar POST/PUT/PATCH/DELETE (defesa de CSRF).
 
