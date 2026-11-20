@@ -3,9 +3,10 @@ import { BILLING_DAYS, formatDueDate, isShortMonthDue, nextDueDate } from '../..
 import { formatBRL } from '../../../shared/plan.js';
 import MiniCalendar from './MiniCalendar.jsx';
 
-export default function StepDay({ billingDay, onChange, error, total }) {
+export default function StepDay({ billingDay, onChange, error, total, quote, quoting }) {
   const reduce = useReducedMotion();
-  const due = billingDay ? nextDueDate(billingDay) : null;
+  const due = billingDay ? (quote?.nextDueDate ?? nextDueDate(billingDay)) : null;
+  const charged = quote?.firstChargeAmount ?? total;
   const short = due ? isShortMonthDue(billingDay, due) : false;
 
   return (
@@ -46,10 +47,11 @@ export default function StepDay({ billingDay, onChange, error, total }) {
         {due ? (
           <>
             <MiniCalendar dueDate={due} />
-            <p className="sub-day__due">
-              Cobramos hoje a primeira mensalidade ({formatBRL(total)}) e depois todo dia {billingDay}.
+            <p className={`sub-day__due${quoting ? ' is-loading' : ''}`} aria-busy={quoting}>
+              Cobramos hoje a primeira mensalidade ({formatBRL(charged)}) e depois todo dia {billingDay}.
               {' '}Próximo vencimento: <strong>{formatDueDate(due)}</strong>
               {short ? ' (último dia do mês)' : ''}.
+              <span className="sub-est">{!quoting && quote?.estimated ? 'valor estimado' : ''}</span>
             </p>
           </>
         ) : (

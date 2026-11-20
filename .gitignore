@@ -16,3 +16,6 @@ server/data/
 
 # Mapa do codigo gerado pelo graphify (local, nao versionado)
 graphify-out/
+
+# Vídeos do PDV: gerados por scripts/gerar-videos-pdv.sh (npm run videos); a imagem Docker os gera no build
+public/sistema/video/

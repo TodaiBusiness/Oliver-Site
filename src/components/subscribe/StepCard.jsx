@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Field from '../panel/Field.jsx';
+import { formatBRL } from '../../../shared/plan.js';
 import CardPreview from './CardPreview.jsx';
 import {
   BRAND_LABEL, cardBrand, cardNumberProblem, ccvProblem, expiryProblem, formatCardNumber,
@@ -20,7 +21,7 @@ export function cardErrors(card) {
   };
 }
 
-export default function StepCard({ card, setCard, serverErrors, submitted }) {
+export default function StepCard({ card, setCard, serverErrors, submitted, quote, quoting }) {
   const [touched, setTouched] = useState({});
   const [flipped, setFlipped] = useState(false);
   const brand = cardBrand(card.number);
@@ -119,6 +120,12 @@ export default function StepCard({ card, setCard, serverErrors, submitted }) {
             required
           />
         </div>
+        {quote ? (
+          <p className={`sub-charge${quoting ? ' is-loading' : ''}`} aria-busy={quoting}>
+            Você será cobrado hoje: <strong>{formatBRL(quote.firstChargeAmount)}</strong>
+            <span className="sub-est">{!quoting && quote.estimated ? 'valor estimado' : ''}</span>
+          </p>
+        ) : null}
         <p className="sub-secure">Os dados do cartão vão direto para o processador do pagamento e não ficam guardados no site.</p>
       </div>
     </div>

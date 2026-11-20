@@ -160,3 +160,13 @@
 @media (prefers-reduced-motion: reduce) {
   .sub * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
+
+/* ---- cotação: os números esmaecem enquanto chegam (sem mudar o tamanho) ---- */
+.sub-summary__list, .sub-day__due, .sub-charge { transition: opacity var(--t-mid); }
+.is-loading .sub-summary__list, .sub-summary.is-loading .sub-summary__list,
+.sub-day__due.is-loading, .sub-charge.is-loading { opacity: 0.55; }
+.sub-charge { margin: 0; color: var(--text); font-size: var(--fs-sm); }
+.sub-charge strong { color: var(--white); }
+/* O espaço do selo fica reservado: a linha não pula quando ele aparece. */
+.sub-est { display: inline-block; min-width: 7.5em; margin-left: 0.5rem; min-height: 1.2em; color: var(--muted); font-size: var(--fs-xs); font-style: italic; }
+.sub-summary__est { display: block; margin: 0.6rem 0 0; min-height: 1.2em; }

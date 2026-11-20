@@ -8,6 +8,18 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# Vídeos do PDV (public/sistema/video, fora do git). Camada própria e ANTES do
+# `COPY . .`: só muda quando o script ou as capturas mudam, então o cache vale.
+# Se a geração falhar o build segue: a página cai nas imagens (ThemedVideo).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ffmpeg \
+ && rm -rf /var/lib/apt/lists/*
+COPY scripts/gerar-videos-pdv.sh scripts/gerar-videos-pdv.sh
+COPY public/sistema/*.webp public/sistema/
+RUN bash scripts/gerar-videos-pdv.sh || echo "aviso: vídeos do PDV não foram gerados; o site usa as imagens"
+
+# O `COPY . .` abaixo não leva public/sistema/video (.dockerignore), então a
+# pasta gerada acima é preservada.
 COPY . .
 
 # Valores PÚBLICOS: o Vite os grava no JavaScript que vai para o navegador.

@@ -7,6 +7,7 @@ import StepCompany from '../components/subscribe/StepCompany.jsx';
 import StepDay from '../components/subscribe/StepDay.jsx';
 import StepCard, { cardErrors } from '../components/subscribe/StepCard.jsx';
 import Summary from '../components/subscribe/Summary.jsx';
+import useQuote from '../components/subscribe/useQuote.js';
 import Success from '../components/subscribe/Success.jsx';
 import { api, ApiError } from '../api/client.js';
 import { monthlyPrice } from '../../shared/plan.js';
@@ -70,6 +71,7 @@ export default function Assinar() {
   const first = useRef(true);
 
   const total = monthlyPrice(values.devices);
+  const { quote, loading: quoting } = useQuote(Number(values.devices), values.billingDay);
 
   /* Dado de cartão só vive em memória: sai junto com a página. */
   useEffect(() => () => setCardState(EMPTY_CARD), []);
@@ -216,8 +218,8 @@ export default function Assinar() {
                   <AnimatePresence mode="wait" initial={false} custom={dir}>
                     <motion.div key={step} {...slide}>
                       {step === 0 ? <StepCompany values={values} errors={errors} set={set} setValues={setValues} /> : null}
-                      {step === 1 ? <StepDay billingDay={values.billingDay} total={total} error={errors.billingDay} onChange={(d) => { set('billingDay', d); }} /> : null}
-                      {step === 2 ? <StepCard card={card} setCard={setCard} serverErrors={errors} submitted={submitted} /> : null}
+                      {step === 1 ? <StepDay billingDay={values.billingDay} total={total} quote={quote} quoting={quoting} error={errors.billingDay} onChange={(d) => { set('billingDay', d); }} /> : null}
+                      {step === 2 ? <StepCard quote={quote} quoting={quoting} card={card} setCard={setCard} serverErrors={errors} submitted={submitted} /> : null}
                     </motion.div>
                   </AnimatePresence>
                 </div>
@@ -233,7 +235,7 @@ export default function Assinar() {
                 </div>
               </form>
 
-              <Summary total={total} devices={Number(values.devices)} billingDay={values.billingDay} number={card.number} />
+              <Summary quote={quote} quoting={quoting} total={total} devices={Number(values.devices)} billingDay={values.billingDay} number={card.number} />
             </div>
           </>
         )}

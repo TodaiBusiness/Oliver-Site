@@ -43,6 +43,7 @@ import { panelInboxService } from './services/panelInbox.js';
 import { quoteRequestsService } from './services/quoteRequests.js';
 import { checkoutService } from './services/checkout.js';
 import { subscribeService } from './services/subscribe.js';
+import { subscribeQuoteService } from './services/subscribeQuote.js';
 import { accountService } from './services/account.js';
 import { analyticsService, parseDays } from './services/analytics.js';
 import { accountSecurityService } from './services/accountSecurity.js';
@@ -170,6 +171,7 @@ export function createApp(
     quoteRequests = quoteRequestsService(),
     checkout = checkoutService(),
     subscribe = subscribeService(),
+    subscribeQuote = subscribeQuoteService(),
     portalApi = portalApiClient(),
     portalOptions = {},
     account = accountService(),
@@ -332,6 +334,16 @@ export function createApp(
       'acceptTerms',
     ]);
     const result = await checkout.create(input, {
+      clientKey: clientAddress(headers, remoteAddress),
+    });
+    return { status: 200, body: result };
+  });
+
+  /* Cotação antes de confirmar: cobrado hoje e próximo vencimento. Nunca
+     falha por causa da API central: cai na estimativa local ({estimated:true}). */
+  router.get('/api/subscribe/quote', async ({ query, headers, remoteAddress }) => {
+    const input = pick(query, ['devices', 'billingDay']);
+    const result = await subscribeQuote.quote(input, {
       clientKey: clientAddress(headers, remoteAddress),
     });
     return { status: 200, body: result };

@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "concurrently -n api,web -c green,cyan \"npm:dev:api\" \"npm:dev:web\"",
     "build": "vite build",
+    "videos": "bash scripts/gerar-videos-pdv.sh",
     "start": "node server.js",
     "preview": "vite preview",
     "test": "node --test",
