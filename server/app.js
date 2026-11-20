@@ -61,6 +61,7 @@ import {
   sessionAliveChecker,
 } from './services/messageEvents.js';
 import { messageNotifyService } from './services/messageNotify.js';
+import { healthService } from './services/health.js';
 import { runWithRequest } from './http/requestContext.js';
 import { clipUserAgent } from './http/userAgent.js';
 import { normalizeEmail } from './http/validation.js';
@@ -185,6 +186,7 @@ export function createApp(
     serviceRatePerMin = config.service.ratePerMin,
     eventsOptions = {},
     notifyOptions = {},
+    health = healthService(db),
   } = {}
 ) {
   const ctx = createContext(db, vault ? { vault } : undefined);
@@ -252,7 +254,12 @@ export function createApp(
     body: { projects: await projects.listPublic() },
   }));
 
-  router.get('/api/health', async () => ({ status: 200, body: { ok: true } }));
+  /* 503 se o banco não responde ou está atrás do código (server/services/health.js). */
+  router.get('/api/health', async () => {
+    const saude = await health.check();
+    if (saude.ok) return { status: 200, body: { ok: true } };
+    return { status: 503, body: { ok: false, error: saude.code, message: saude.message } };
+  });
 
   /* Só o que o front precisa saber para montar a navegação. Nada sensível. */
   router.get('/api/config/public', async () => ({

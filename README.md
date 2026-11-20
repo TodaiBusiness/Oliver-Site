@@ -307,9 +307,15 @@ deploy* para as meta tags saírem com o endereço novo.
 
 ### 5. Criar as tabelas e o administrador
 
-O schema **não** é aplicado no start do servidor, de propósito: assim um erro de
-DDL aparece na hora, e não como um serviço que morre antes de abrir a porta.
-Rode **da sua máquina**, apontando para o Neon:
+O servidor (`npm start`) **aplica o schema ao subir** (o mesmo `db.init()` do
+`npm run db:migrate`; tudo `IF NOT EXISTS`). Se a migração falhar ou passar de
+60 s, o servidor **não morre**: loga o erro e segue no ar, e o `/api/health`
+responde **503** (`BANCO_DESATUALIZADO` ou `BANCO_INDISPONIVEL`) até o banco ter
+todas as tabelas e colunas que o código usa. A lista exata do que falta vai para
+o log. `DB_MIGRATE_ON_START=false` desliga a migração ao subir.
+
+Para migrar à mão (instalação nova ou com a migração ao subir desligada), rode
+**da sua máquina**, apontando para o Neon:
 
 ```powershell
 $env:DATABASE_DRIVER="postgres"
