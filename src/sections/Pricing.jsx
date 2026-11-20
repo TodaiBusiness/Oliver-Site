@@ -73,7 +73,7 @@ export default function Pricing() {
               Pedir orçamento no WhatsApp
             </a>
             <p className="buy__legal">
-              Já sabe o que precisa? <Link to="/comprar">Compre pelo site</Link>.
+              Já sabe o que precisa? <Link to="/assinar">Assine com cartão</Link> ou <Link to="/comprar">compre pelo site</Link>.
             </p>
           </div>
         </div>

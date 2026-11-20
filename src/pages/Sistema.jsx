@@ -21,6 +21,9 @@ export default function Sistema() {
         >
           Comprar o {PLAN.name}
         </Link>
+        <Link className="btn btn--ghost btn--lg" to="/sistema/pdv">
+          Testar o PDV
+        </Link>
         <Link className="btn btn--ghost btn--lg" to="/precos">
           Ver preços
         </Link>

@@ -55,6 +55,8 @@ const TIPOS = new Map(
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
     '.webp': 'image/webp',
+    '.webm': 'video/webm',
+    '.mp4': 'video/mp4',
     '.gif': 'image/gif',
     '.ico': 'image/x-icon',
     '.woff2': 'font/woff2',
@@ -90,12 +92,42 @@ const app = createApp(db, { allowedOrigins });
 
 /* ------------------------------------------------------------------ auxiliares */
 
-async function enviarArquivo(response, caminho, { status = 200, imutavel = false } = {}) {
-  const conteudo = await readFile(caminho);
+/** `Range: bytes=a-b` simples (um intervalo). null = sem Range; 'invalido' = 416. */
+function lerRange(cabecalho, tamanho) {
+  if (typeof cabecalho !== 'string') return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(cabecalho.trim());
+  if (!m || (m[1] === '' && m[2] === '')) return 'invalido';
+  let inicio;
+  let fim;
+  if (m[1] === '') {
+    inicio = Math.max(0, tamanho - Number(m[2]));
+    fim = tamanho - 1;
+  } else {
+    inicio = Number(m[1]);
+    fim = m[2] === '' ? tamanho - 1 : Math.min(Number(m[2]), tamanho - 1);
+  }
+  return inicio > fim || inicio >= tamanho ? 'invalido' : { inicio, fim };
+}
+
+async function enviarArquivo(response, caminho, { status = 200, imutavel = false, range = null } = {}) {
+  const completo = await readFile(caminho);
+  const tipo = TIPOS.get(extname(caminho).toLowerCase()) ?? 'application/octet-stream';
+  const intervalo = lerRange(range, completo.length);
+
+  if (intervalo === 'invalido') {
+    response.writeHead(416, { ...SEGURANCA, 'Content-Range': `bytes */${completo.length}` });
+    response.end();
+    return;
+  }
+  /* Vídeo precisa de Range (Safari e seek); vale para qualquer arquivo estático. */
+  const conteudo = intervalo ? completo.subarray(intervalo.inicio, intervalo.fim + 1) : completo;
+  if (intervalo) status = 206;
 
   response.writeHead(status, {
     ...SEGURANCA,
-    'Content-Type': TIPOS.get(extname(caminho).toLowerCase()) ?? 'application/octet-stream',
+    'Content-Type': tipo,
+    'Accept-Ranges': 'bytes',
+    ...(intervalo ? { 'Content-Range': `bytes ${intervalo.inicio}-${intervalo.fim}/${completo.length}` } : {}),
     'Content-Length': conteudo.length,
     /* Os nomes em /assets trazem hash do conteúdo: mudou o arquivo, mudou o
        nome. Por isso podem ser guardados para sempre. O index.html, não —
@@ -232,6 +264,7 @@ const server = createServer(async (request, response) => {
 
     if (arquivo?.isFile()) {
       await enviarArquivo(response, caminho, {
+        range: request.headers.range,
         imutavel: url.pathname.startsWith('/assets/'),
       });
       return;

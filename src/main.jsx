@@ -10,7 +10,9 @@ import './styles/sections.css';
 import './styles/overlays.css';
 import './styles/panel.css';
 import './styles/store.css';
+import './styles/subscribe.css';
 import './styles/sistema.css';
+import './styles/pdv.css';
 import './styles/security.css';
 import './styles/consent.css';
 
