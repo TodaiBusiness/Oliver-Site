@@ -9,6 +9,8 @@ import PageTracker from './app/PageTracker.jsx';
 import SiteLayout from './components/SiteLayout.jsx';
 import Home from './pages/Home.jsx';
 import Sistema from './pages/Sistema.jsx';
+import Pdv from './pages/Pdv.jsx';
+import Assinar from './pages/Assinar.jsx';
 import Precos from './pages/Precos.jsx';
 import Servicos from './pages/Servicos.jsx';
 import ServicoLandingPages from './pages/ServicoLandingPages.jsx';
@@ -58,6 +60,8 @@ export default function App() {
           <Route element={<SiteLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/sistema" element={<Sistema />} />
+            <Route path="/sistema/pdv" element={<Pdv />} />
+            <Route path="/assinar" element={<Assinar />} />
             <Route path="/precos" element={<Precos />} />
             <Route path="/servicos" element={<Servicos />} />
             <Route path="/servicos/landing-pages" element={<ServicoLandingPages />} />

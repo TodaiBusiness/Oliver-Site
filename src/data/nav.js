@@ -40,6 +40,8 @@ export const FOOTER_GROUPS = [
     title: 'Sistema TODAI',
     links: [
       { label: 'Conhecer o sistema', to: '/sistema' },
+      { label: 'Testar o PDV', to: '/sistema/pdv' },
+      { label: 'Assinar', to: '/assinar' },
       { label: 'Preços', to: '/precos' },
       { label: 'Comprar', to: '/comprar' },
       { label: 'Baixar', to: '/baixar' },

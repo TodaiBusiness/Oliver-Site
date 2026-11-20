@@ -21,6 +21,14 @@ const PUBLIC = {
     title: `${PLAN.name} | Estoque, caixa e vendas para a sua loja`,
     description: `Sistema para Windows com estoque, comandas, caixa e resultado da loja num só lugar. ${PRICE}. Da ${COMPANY}.`,
   },
+  '/sistema/pdv': {
+    title: `Conheça o PDV do ${PLAN.name} tela a tela | ${COMPANY}`,
+    description: `Teste o caixa, o pagamento, o fechamento, o estoque e a busca Ctrl+K do ${PLAN.name} direto no navegador. Veja o que cada tela faz.`,
+  },
+  '/assinar': {
+    title: `Assinar o ${PLAN.name} | ${COMPANY}`,
+    description: `Assine o ${PLAN.name} com cartão e escolha o dia da cobrança: 15, 20 ou 30.`,
+  },
   '/precos': {
     title: `Preços | ${PLAN.name} e serviços sob orçamento | ${COMPANY}`,
     description: `${PRICE} no ${PLAN.name}. Landing pages, sites e sistemas sob medida saem em proposta, sem compromisso.`,

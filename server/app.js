@@ -42,6 +42,7 @@ import { panelConversationsService, parseServiceId } from './services/panelConve
 import { panelInboxService } from './services/panelInbox.js';
 import { quoteRequestsService } from './services/quoteRequests.js';
 import { checkoutService } from './services/checkout.js';
+import { subscribeService } from './services/subscribe.js';
 import { accountService } from './services/account.js';
 import { analyticsService, parseDays } from './services/analytics.js';
 import { accountSecurityService } from './services/accountSecurity.js';
@@ -122,6 +123,7 @@ const SERVICE_MESSAGE_PATH = /^\/api\/service\/conversations\/[^/]+\/messages$/;
  */
 export function bodyLimitFor(path, { serviceAuthorized = false } = {}) {
   if (path === '/api/analytics/collect') return COLLECT_MAX_BODY_BYTES;
+  if (path === '/api/subscribe') return SECURITY.AUTH_MAX_BODY_BYTES;
   if (typeof path === 'string' && path.startsWith('/api/service/')) {
     return serviceAuthorized && SERVICE_MESSAGE_PATH.test(path)
       ? LIMITS.SERVICE_IMAGE_MAX_BODY_BYTES
@@ -167,6 +169,7 @@ export function createApp(
     allowedOrigins = [],
     quoteRequests = quoteRequestsService(),
     checkout = checkoutService(),
+    subscribe = subscribeService(),
     portalApi = portalApiClient(),
     portalOptions = {},
     account = accountService(),
@@ -329,6 +332,28 @@ export function createApp(
       'acceptTerms',
     ]);
     const result = await checkout.create(input, {
+      clientKey: clientAddress(headers, remoteAddress),
+    });
+    return { status: 200, body: result };
+  });
+
+  /* Assinatura no cartão (Asaas, pela API de licenciamento). O corpo traz
+     dados de cartão: este handler não os registra em lugar nenhum, e o
+     serviço só devolve status, bandeira, final do cartão, dia e valor. */
+  router.post('/api/subscribe', async ({ body, headers, remoteAddress }) => {
+    const input = pick(body, [
+      'companyName',
+      'contactName',
+      'taxId',
+      'email',
+      'phone',
+      'devices',
+      'billingDay',
+      'acceptTerms',
+      'card',
+      'holder',
+    ]);
+    const result = await subscribe.create(input, {
       clientKey: clientAddress(headers, remoteAddress),
     });
     return { status: 200, body: result };
