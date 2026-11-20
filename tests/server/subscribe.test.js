@@ -83,6 +83,22 @@ test('encaminha a assinatura com o cartão só em dígitos e devolve apenas o re
   }
 });
 
+test('repassa chargedToday e firstChargeAmount quando válidos e ignora os inválidos', async () => {
+  const bom = await setup({ body: { ...OK, chargedToday: true, firstChargeAmount: 150 } });
+  const ruim = await setup({ body: { ...OK, chargedToday: 'sim', firstChargeAmount: 'x' } });
+  try {
+    const a = await post(bom.app, PEDIDO);
+    assert.equal(a.body.chargedToday, true);
+    assert.equal(a.body.firstChargeAmount, 150);
+    const b = await post(ruim.app, PEDIDO);
+    assert.equal('chargedToday' in b.body, false);
+    assert.equal('firstChargeAmount' in b.body, false);
+  } finally {
+    await bom.close();
+    await ruim.close();
+  }
+});
+
 test('a resposta ao navegador nunca traz cartão nem credencial, mesmo se a API mandar a mais', async () => {
   const { app, close } = await setup({ body: { ...OK, cardNumber: NUMERO, ccv: CCV, token: 'tok_secreto', customerId: 'cus_1' } });
   try {

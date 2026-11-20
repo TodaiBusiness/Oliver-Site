@@ -16,7 +16,7 @@
 
 export const CSP =
   "default-src 'self'; script-src 'self'; style-src 'self'; " +
-  "img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; " +
+  "img-src 'self' data:; media-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; " +
   "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests";
 
 export const SECURITY_HEADERS = Object.freeze({

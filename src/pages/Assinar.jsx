@@ -184,7 +184,7 @@ export default function Assinar() {
       <div className="sub">
         <header className="sub__head">
           <h1 className="sub__title">Assine o {PRODUCT.name}</h1>
-          <p className="sub__lead">Cobrança mensal no cartão, no dia que você escolher.</p>
+          <p className="sub__lead">Cobramos a primeira mensalidade hoje e as seguintes no dia que você escolher.</p>
         </header>
 
         {result ? (
@@ -216,7 +216,7 @@ export default function Assinar() {
                   <AnimatePresence mode="wait" initial={false} custom={dir}>
                     <motion.div key={step} {...slide}>
                       {step === 0 ? <StepCompany values={values} errors={errors} set={set} setValues={setValues} /> : null}
-                      {step === 1 ? <StepDay billingDay={values.billingDay} error={errors.billingDay} onChange={(d) => { set('billingDay', d); }} /> : null}
+                      {step === 1 ? <StepDay billingDay={values.billingDay} total={total} error={errors.billingDay} onChange={(d) => { set('billingDay', d); }} /> : null}
                       {step === 2 ? <StepCard card={card} setCard={setCard} serverErrors={errors} submitted={submitted} /> : null}
                     </motion.div>
                   </AnimatePresence>

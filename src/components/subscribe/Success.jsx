@@ -31,12 +31,17 @@ const Success = forwardRef(function Success({ result }, headingRef) {
         <p className="sub-done__lead">
           {pending
             ? 'Estamos aguardando a confirmação do cartão. Assim que confirmar, enviamos o código de ativação por e-mail.'
-            : 'Tudo certo. O código de ativação e o link do instalador seguem para o seu e-mail.'}
+            : result.chargedToday
+              ? `Cobramos hoje a primeira mensalidade e depois todo dia ${result.billingDay}. O código de ativação e o link do instalador seguem para o seu e-mail.`
+              : 'Tudo certo. O código de ativação e o link do instalador seguem para o seu e-mail.'}
         </p>
 
         <dl className="sub-done__list">
           <div><dt>Cartão</dt><dd>{result.cardBrand} ****{result.cardLast4}</dd></div>
-          <div><dt>Vencimento</dt><dd>todo dia {result.billingDay}</dd></div>
+          {result.chargedToday ? (
+            <div><dt>Cobrado hoje</dt><dd>{formatBRL(result.firstChargeAmount ?? result.amount)}</dd></div>
+          ) : null}
+          <div><dt>Vencimento seguinte</dt><dd>todo dia {result.billingDay}</dd></div>
           <div><dt>Próximo vencimento</dt><dd>{formatDueDate(result.nextDueDate)}</dd></div>
           <div><dt>Valor mensal</dt><dd>{formatBRL(result.amount)}</dd></div>
         </dl>

@@ -23,9 +23,9 @@ function parts(value) {
 }
 
 /**
- * Próximo vencimento para o dia escolhido, como 'YYYY-MM-DD'.
+ * Próximo vencimento para o dia escolhido, como 'YYYY-MM-DD', SEMPRE depois de
+ * hoje (a primeira mensalidade é cobrada na hora; o dia vale para os ciclos seguintes).
  * Mês curto: o dia 30 cai no último dia do mês (28/29 em fevereiro).
- * Se o dia deste mês já passou, vai para o mês seguinte; se é hoje, vale hoje.
  */
 export function nextDueDate(billingDay, today = new Date()) {
   const { year, month, day } = parts(today);
@@ -33,7 +33,7 @@ export function nextDueDate(billingDay, today = new Date()) {
 
   let y = year;
   let m = month;
-  if (effective(y, m) < day) {
+  if (effective(y, m) <= day) {
     m += 1;
     if (m > 11) {
       m = 0;

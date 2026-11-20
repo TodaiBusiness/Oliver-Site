@@ -11,9 +11,11 @@ test('dias de vencimento permitidos', () => {
   assert.deepEqual([...BILLING_DAYS], [15, 20, 30]);
 });
 
-test('próximo vencimento: dia ainda por vir, hoje e já passado', () => {
+test('próximo vencimento: sempre depois de hoje', () => {
   assert.equal(nextDueDate(20, '2026-11-10'), '2026-11-20');
-  assert.equal(nextDueDate(20, '2026-11-20'), '2026-11-20');
+  assert.equal(nextDueDate(20, '2026-11-20'), '2026-12-20', 'hoje não conta: já cobramos na hora');
+  assert.equal(nextDueDate(30, '2027-02-28'), '2027-03-30');
+  assert.equal(nextDueDate(30, '2026-11-30'), '2026-12-30');
   assert.equal(nextDueDate(15, '2026-11-19'), '2026-12-15');
   assert.equal(nextDueDate(15, '2026-12-19'), '2027-01-15', 'vira o ano');
   assert.equal(nextDueDate(20, new Date(2026, 10, 19)), '2026-11-20', 'aceita Date');

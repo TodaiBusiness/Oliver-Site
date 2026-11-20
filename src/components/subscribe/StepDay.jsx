@@ -1,8 +1,9 @@
 import { motion, useReducedMotion } from 'motion/react';
 import { BILLING_DAYS, formatDueDate, isShortMonthDue, nextDueDate } from '../../../shared/billing.js';
+import { formatBRL } from '../../../shared/plan.js';
 import MiniCalendar from './MiniCalendar.jsx';
 
-export default function StepDay({ billingDay, onChange, error }) {
+export default function StepDay({ billingDay, onChange, error, total }) {
   const reduce = useReducedMotion();
   const due = billingDay ? nextDueDate(billingDay) : null;
   const short = due ? isShortMonthDue(billingDay, due) : false;
@@ -46,12 +47,13 @@ export default function StepDay({ billingDay, onChange, error }) {
           <>
             <MiniCalendar dueDate={due} />
             <p className="sub-day__due">
-              Primeiro vencimento: <strong>{formatDueDate(due)}</strong>
-              {short ? ' (último dia do mês)' : ''}
+              Cobramos hoje a primeira mensalidade ({formatBRL(total)}) e depois todo dia {billingDay}.
+              {' '}Próximo vencimento: <strong>{formatDueDate(due)}</strong>
+              {short ? ' (último dia do mês)' : ''}.
             </p>
           </>
         ) : (
-          <p className="sub-day__hint">Escolha um dia para ver o primeiro vencimento no calendário.</p>
+          <p className="sub-day__hint">Escolha o dia das próximas mensalidades para ver o vencimento no calendário.</p>
         )}
         <p className="sub-day__note">Em meses curtos, cobramos no último dia do mês.</p>
       </div>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import PageHero from '../components/PageHero.jsx';
-import ThemedShot from '../components/ThemedShot.jsx';
+import ThemedVideo from '../components/ThemedVideo.jsx';
 import PdvSimulator from '../components/pdv/PdvSimulator.jsx';
 import CommandPalette from '../components/pdv/CommandPalette.jsx';
 import CashClose from '../components/pdv/CashClose.jsx';
@@ -25,7 +25,7 @@ function Shot({ id, alt, reduce }) {
       viewport={{ once: true, margin: '-80px' }}
       transition={{ duration: reduce ? 0 : 0.7, ease: [0.22, 1, 0.36, 1] }}
     >
-      <ThemedShot base={`/sistema/${id}`} alt={alt} />
+      <ThemedVideo base={`/sistema/${id}`} alt={alt} />
     </motion.figure>
   );
 }

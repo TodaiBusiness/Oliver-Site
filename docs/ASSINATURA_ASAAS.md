@@ -5,9 +5,9 @@ Rota do site: `/assinar`. Endpoint: `POST /api/subscribe`. O Asaas fica na API d
 ## Fluxo
 
 1. Empresa e computadores (preço mensal de `shared/plan.js`).
-2. Dia do vencimento: 15, 20 ou 30 (`shared/billing.js`). Em meses curtos cobra no último dia do mês.
+2. Dia do vencimento: 15, 20 ou 30 (`shared/billing.js`). A primeira mensalidade é cobrada na hora; o dia vale para os ciclos seguintes (`nextDueDate` é sempre depois de hoje). Em meses curtos cobra no último dia do mês.
 3. Cartão e CEP/número do endereço de cobrança.
-4. Sucesso: final do cartão, dia, próximo vencimento, links para `/baixar` e `/minha-licenca`.
+4. Sucesso: final do cartão, valor cobrado hoje, dia, próximo vencimento, links para `/baixar` e `/minha-licenca`.
 
 O navegador valida (Luhn, validade, CVV, CEP), e `server/services/subscribe.js` valida tudo de novo, inclusive `billingDay`.
 
@@ -16,7 +16,7 @@ O navegador valida (Luhn, validade, CVV, CEP), e `server/services/subscribe.js` 
 `POST {LICENSING_API_BASE_URL}/api/v1/site/subscription`, header `X-Service-Key`, JSON:
 `companyName, contactName, taxId (dígitos), email, phone, devices, billingDay, card{holderName, number, expiryMonth 'MM', expiryYear 'YYYY', ccv}, holder{postalCode, addressNumber}, remoteIp`.
 
-- 200: `{status 'active'|'pending', cardBrand, cardLast4, billingDay, nextDueDate, amount}`. O navegador recebe só isso, conferido.
+- 200: `{status 'active'|'pending', cardBrand, cardLast4, billingDay, nextDueDate (próximo ciclo), amount, chargedToday?, firstChargeAmount?}`. O navegador recebe só isso, conferido (os dois últimos são opcionais e só passam no tipo certo). `pending` é só fallback.
 - 400: `{errors:{campo:[msgs]}}` (repassado só para campos conhecidos; mensagem com número de cartão é descartada).
 - 402: `CARTAO_RECUSADO`. 409: mensagem neutra (`CONFIRA_O_EMAIL`). Outros e timeout: 503 `ASSINATURA_INDISPONIVEL`.
 - Limite: 3 pedidos válidos por 10 minutos por visitante (429). Pedido inválido não conta.

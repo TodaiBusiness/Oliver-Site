@@ -194,7 +194,7 @@ export function subscribeService({ fetchImpl = fetch, licensing = config.licensi
       console.error('[assinatura] a API respondeu sem os dados esperados');
       throw new AppError(503, 'ASSINATURA_INDISPONIVEL', UNAVAILABLE);
     }
-    return {
+    const result = {
       status: body.status,
       cardBrand: body.cardBrand.slice(0, 20),
       cardLast4: String(body.cardLast4),
@@ -202,6 +202,12 @@ export function subscribeService({ fetchImpl = fetch, licensing = config.licensi
       nextDueDate: body.nextDueDate,
       amount: Number(body.amount),
     };
+    /* Opcionais: só passam se vierem no tipo certo. */
+    if (typeof body.chargedToday === 'boolean') result.chargedToday = body.chargedToday;
+    if (body.firstChargeAmount !== null && body.firstChargeAmount !== undefined && Number.isFinite(Number(body.firstChargeAmount)) && Number(body.firstChargeAmount) >= 0) {
+      result.firstChargeAmount = Number(body.firstChargeAmount);
+    }
+    return result;
   }
 
   /** Descarta mensagem da API que traga o número do cartão (ou algo parecido com um). */
