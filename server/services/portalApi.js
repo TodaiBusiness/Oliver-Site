@@ -210,6 +210,8 @@ export function portalApiClient({
       // Mais vendidos (PDV 2.4.16+): no caixa, e entre quem revende (a API só manda este para conta de atacado ou revenda).
       maisVendido: posicao(item.maisVendido),
       maisVendidoRevenda: posicao(item.maisVendidoRevenda),
+      // Atacado/revenda: quanto o preço aplicado fica abaixo do varejo (a API só manda para essas contas).
+      economia: num(item.economia) > 0 ? num(item.economia) : null,
       imagemHash: clip(item.imagemHash, 64) ?? (item.temImagem === true ? 'v1' : null),
     };
   }

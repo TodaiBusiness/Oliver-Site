@@ -91,6 +91,7 @@ function ProductTile({ produto, inCart, onOpen, onQuickAdd }) {
             <strong>{brl(produto.preco)}</strong>
             <span className="p-muted"> / {produto.unidade}</span>
           </span>
+          {produto.economia ? <span className="p-save">{brl(produto.economia)} a menos que no varejo</span> : null}
           {step !== 1 ? <span className="p-tile__meta">De {qty(step)} em {qty(step)}</span> : null}
         </span>
       </button>
@@ -154,6 +155,13 @@ function ProductSheet({ produto, inCart, note, onClose, onSave, accepting }) {
           <p className="p-sheet__price">
             <strong>{brl(produto.preco)}</strong> <span className="p-muted">/ {produto.unidade}</span>
           </p>
+          {produto.economia ? (
+            <p className="p-save p-save--big">
+              {value > 1
+                ? `Você economiza ${brl(produto.economia * value)} nesta quantidade em relação ao varejo.`
+                : `Você paga ${brl(produto.economia)} a menos que no varejo.`}
+            </p>
+          ) : null}
           {step !== 1 || produto.caixaQtd ? (
             <p className="p-sheet__meta p-muted">
               {step !== 1 ? <span>Vendido de {qty(step)} em {qty(step)}</span> : null}
