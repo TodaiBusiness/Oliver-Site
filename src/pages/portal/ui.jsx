@@ -12,6 +12,7 @@ const PATHS = {
   search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-4.3-4.3',
   plus: 'M12 5v14M5 12h14',
   minus: 'M5 12h14',
+  x: 'M6 6l12 12M18 6L6 18',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   check: 'M5 12.5l4.5 4.5L19 7.5',
   clock: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2',

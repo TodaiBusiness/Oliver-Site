@@ -3,15 +3,52 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { usePortal } from './PortalContext.jsx';
 import { Stepper, ProductImage } from './PortalCatalog.jsx';
 import { EmptyState, Field, Notice, PIcon, PageTitle, Spinner, describedBy } from './ui.jsx';
+import { OBS_ITEM_MAX, OBS_PEDIDO_MAX, juntarObservacao } from './cartStorage.js';
 import { PAGAMENTOS, brl, faixasDaLoja, isoToday, qty, statusDaLoja } from './format.js';
 
 const newKey = () =>
   globalThis.crypto?.randomUUID?.().replace(/-/g, '') ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
 
+/** Observação de um item no carrinho: mostra o texto; tocar abre um campo para mudar. */
+function NotaDoItem({ nome, value, onChange }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(value ?? '');
+  useEffect(() => setText(value ?? ''), [value]);
+  const salvar = () => {
+    onChange(text);
+    setEditing(false);
+  };
+  if (editing) {
+    return (
+      <div className="p-note">
+        <input
+          className="p-input p-note__input"
+          value={text}
+          maxLength={OBS_ITEM_MAX}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={salvar}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.preventDefault(), salvar());
+            if (e.key === 'Escape') (setText(value ?? ''), setEditing(false));
+          }}
+          placeholder="Ex.: sem cebola, bem gelado"
+          aria-label={`Observação de ${nome}`}
+          autoFocus
+        />
+      </div>
+    );
+  }
+  return (
+    <button type="button" className="p-note__btn" onClick={() => setEditing(true)} aria-label={value ? `Mudar a observação de ${nome}` : `Escrever uma observação para ${nome}`}>
+      {value ? <span className="p-note__text">“{value}”</span> : <span>+ Observação</span>}
+    </button>
+  );
+}
+
 const pagamentoPadrao = (tipo) => (tipo === 'entrega' ? 'na_entrega' : 'na_retirada');
 
 export default function PortalCart() {
-  const { loja, session, catalog, loadCatalog, cart, setQty, removeItem, signedIn, api, clearCart, path } = usePortal();
+  const { loja, session, catalog, loadCatalog, cart, setQty, setNote, removeItem, signedIn, api, clearCart, path } = usePortal();
   const navigate = useNavigate();
   const location = useLocation();
   const d = loja.data;
@@ -57,6 +94,8 @@ export default function PortalCart() {
     const produto = catalog.data?.produtos.find((p) => p.id === item.id) ?? null;
     return { ...item, produto, ok: Boolean(produto?.disponivel) };
   });
+  const obsItens = juntarObservacao(lines.map((l) => ({ nome: l.produto?.nome, obs: l.obs })), '');
+  const obsMax = Math.max(0, OBS_PEDIDO_MAX - obsItens.length - (obsItens ? 2 : 0));
   const carregando = catalog.status === 'loading' && !catalog.data;
   const subtotal = lines.reduce((s, l) => s + (l.ok ? l.produto.preco * l.qty : 0), 0);
   const taxa = tipo === 'entrega' ? d.taxaEntrega : 0;
@@ -91,7 +130,7 @@ export default function PortalCart() {
           ...(tipo === 'entrega' ? { endereco } : {}),
         },
         pagamento,
-        observacao: observacao.trim(),
+        observacao: juntarObservacao(lines.map((l) => ({ nome: l.produto?.nome, obs: l.obs })), observacao),
         idempotencyKey: keyRef.current,
       });
       clearCart();
@@ -168,9 +207,12 @@ export default function PortalCart() {
               <div className="p-line__body">
                 <p className="p-line__name">{l.produto?.nome ?? 'Produto que saiu do catálogo'}</p>
                 {l.ok ? (
-                  <p className="p-muted p-small">
-                    {brl(l.produto.preco)} / {l.produto.unidade}
-                  </p>
+                  <>
+                    <p className="p-muted p-small">
+                      {brl(l.produto.preco)} / {l.produto.unidade}
+                    </p>
+                    <NotaDoItem nome={l.produto.nome} value={l.obs} onChange={(v) => setNote(l.id, v)} />
+                  </>
                 ) : (
                   <p className="p-line__warn">{carregando ? 'Conferindo…' : 'Indisponível agora. Remova para continuar.'}</p>
                 )}
@@ -275,8 +317,8 @@ export default function PortalCart() {
           ) : null}
         </fieldset>
 
-        <Field id="c-obs" label="Observação para a loja" optional hint={`${observacao.length} de 500 caracteres.`}>
-          <textarea id="c-obs" className="p-input p-textarea" rows={3} maxLength={500} value={observacao} onChange={(e) => setObservacao(e.target.value)} aria-describedby="c-obs-hint" />
+        <Field id="c-obs" label="Observação para a loja" optional hint={`${observacao.length} de ${obsMax} caracteres.${obsItens ? ' As observações dos itens vão junto.' : ''}`}>
+          <textarea id="c-obs" className="p-input p-textarea" rows={3} maxLength={obsMax} value={observacao} onChange={(e) => setObservacao(e.target.value)} aria-describedby="c-obs-hint" />
         </Field>
 
         <section className="p-summary" aria-label="Resumo do pedido">

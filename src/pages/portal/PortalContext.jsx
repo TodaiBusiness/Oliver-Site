@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { portalApi, PORTAL_SESSION_EXPIRED } from '../../api/portal.js';
-import { readCart, writeCart } from './cartStorage.js';
+import { OBS_ITEM_MAX, readCart, writeCart } from './cartStorage.js';
 import { snapQty } from './format.js';
 
 /* =========================================================================
@@ -100,19 +100,32 @@ export function PortalProvider({ slug, children }) {
 
   const setQty = useCallback((id, quantity, multiplo = 1) => {
     setCart((items) => {
+      const old = items.find((i) => i.id === id);
       const rest = items.filter((i) => i.id !== id);
       const snapped = snapQty(quantity, multiplo);
-      return snapped > 0 ? [...rest, { id, qty: Math.min(snapped, 99999) }].sort(byOrder(items)) : rest;
+      return snapped > 0 ? [...rest, { ...old, id, qty: Math.min(snapped, 99999) }].sort(byOrder(items)) : rest;
     });
   }, []);
 
   const addItem = useCallback((id, amount = 1, multiplo = 1) => {
     setCart((items) => {
-      const current = items.find((i) => i.id === id)?.qty ?? 0;
-      const next = snapQty(current + amount, multiplo);
+      const old = items.find((i) => i.id === id);
+      const next = snapQty((old?.qty ?? 0) + amount, multiplo);
       const rest = items.filter((i) => i.id !== id);
-      return next > 0 ? [...rest, { id, qty: Math.min(next, 99999) }].sort(byOrder(items)) : rest;
+      return next > 0 ? [...rest, { ...old, id, qty: Math.min(next, 99999) }].sort(byOrder(items)) : rest;
     });
+  }, []);
+
+  /** Observação de um item ("sem cebola"); vazio apaga. */
+  const setNote = useCallback((id, obs) => {
+    const text = (obs ?? '').slice(0, OBS_ITEM_MAX);
+    setCart((items) =>
+      items.map((i) => {
+        if (i.id !== id) return i;
+        const { obs: _old, ...rest } = i;
+        return text.trim() ? { ...rest, obs: text } : rest;
+      })
+    );
   }, []);
 
   const removeItem = useCallback((id) => setCart((items) => items.filter((i) => i.id !== id)), []);
@@ -154,6 +167,7 @@ export function PortalProvider({ slug, children }) {
       cartCount: cart.length,
       setQty,
       addItem,
+      setNote,
       removeItem,
       clearCart,
       replaceCart,
@@ -165,7 +179,7 @@ export function PortalProvider({ slug, children }) {
       clearFlash: () => setFlash(null),
       path: (sub = '') => `/l/${slug}${sub ? `/${sub}` : ''}`,
     }),
-    [slug, api, loja, session, catalog, loadCatalog, productOf, cart, setQty, addItem, removeItem, clearCart, replaceCart, signIn, signOut, refreshSession, loadLoja, flash]
+    [slug, api, loja, session, catalog, loadCatalog, productOf, cart, setQty, addItem, setNote, removeItem, clearCart, replaceCart, signIn, signOut, refreshSession, loadLoja, flash]
   );
 
   return <PortalContext.Provider value={value}>{children}</PortalContext.Provider>;
