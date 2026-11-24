@@ -100,7 +100,11 @@ export default function PortalCart() {
   const subtotal = lines.reduce((s, l) => s + (l.ok ? l.produto.preco * l.qty : 0), 0);
   const taxa = tipo === 'entrega' ? d.taxaEntrega : 0;
   const total = subtotal + taxa;
-  const falta = Math.max(0, d.pedidoMinimo - subtotal);
+  /* O mínimo da conta (atacado e revenda podem ter um próprio) vem com o catálogo; servidor antigo: o da vitrine. */
+  const minimo = Number.isFinite(catalog.data?.pedidoMinimo) ? catalog.data.pedidoMinimo : d.pedidoMinimo;
+  const falta = Math.max(0, minimo - subtotal);
+  /* Quanto o revendedor economiza em relação ao varejo (a API só manda a economia para atacado e revenda). */
+  const economia = lines.reduce((s, l) => s + (l.ok && l.produto.economia ? l.produto.economia * l.qty : 0), 0);
   const temProblema = lines.some((l) => !l.ok);
   const bloqueada = session.conta?.estado === 'bloqueada';
   const pendente = session.conta?.estado === 'pendente';
@@ -117,7 +121,7 @@ export default function PortalCart() {
     setFields({});
     if (!d.aceitaPedidos) return fail({ message: 'A loja não está recebendo pedidos agora.' });
     if (temProblema) return fail({ message: 'Remova os itens indisponíveis do carrinho para continuar.' });
-    if (falta > 0) return fail({ message: `Faltam ${brl(falta)} para o pedido mínimo de ${brl(d.pedidoMinimo)}.` });
+    if (falta > 0) return fail({ message: `Faltam ${brl(falta)} para o pedido mínimo de ${brl(minimo)}.` });
     keyRef.current ??= newKey();
     setSending(true);
     try {
@@ -338,9 +342,10 @@ export default function PortalCart() {
               <dd>{brl(total)}</dd>
             </div>
           </dl>
-          {d.pedidoMinimo > 0 ? (
+          {economia > 0.004 ? <p className="p-save p-save--big">Você economiza {brl(economia)} neste pedido em relação ao preço de varejo.</p> : null}
+          {minimo > 0 ? (
             <p className={falta > 0 ? 'p-summary__warn' : 'p-muted p-small'}>
-              {falta > 0 ? `Faltam ${brl(falta)} para o pedido mínimo de ${brl(d.pedidoMinimo)}.` : `Pedido mínimo de ${brl(d.pedidoMinimo)} atingido.`}
+              {falta > 0 ? `Faltam ${brl(falta)} para o pedido mínimo de ${brl(minimo)}.` : `Pedido mínimo de ${brl(minimo)} atingido.`}
             </p>
           ) : null}
           <p className="p-muted p-small">A loja confere preços e disponibilidade ao receber. O total final pode mudar.</p>

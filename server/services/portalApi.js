@@ -414,6 +414,8 @@ export function portalApiClient({
       return {
         versao: clip(String(body.versao ?? ''), 40),
         atualizadoEm: clip(body.atualizadoEm ?? body.catalogoAtualizadoEm, 40),
+        // O mínimo que vale para esta conta (atacado e revenda podem ter um próprio); servidor antigo não manda.
+        pedidoMinimo: num(body.pedidoMinimo) >= 0 ? num(body.pedidoMinimo) : null,
         produtos: lista.slice(0, 5000).map(pickProduto).filter((p) => p.id && p.nome),
       };
     },
