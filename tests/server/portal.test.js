@@ -526,7 +526,7 @@ test('catálogo traz um único preço (o da tabela da conta) e descarta qualquer
     assert.equal(cerveja.preco, 4.5, 'conta pendente vê varejo');
     assert.deepEqual(
       Object.keys(cerveja).sort(),
-      ['caixaQtd', 'categoria', 'descricao', 'disponivel', 'id', 'imagemUrl', 'multiplo', 'nome', 'preco', 'unidade'].sort()
+      ['caixaQtd', 'categoria', 'descricao', 'disponivel', 'id', 'imagemUrl', 'maisVendido', 'maisVendidoRevenda', 'multiplo', 'nome', 'preco', 'unidade'].sort()
     );
     const texto = JSON.stringify(antes.body);
     for (const proibido of ['precoVarejo', 'precoAtacado', 'precoRevenda', '3.8', '3.4']) {
