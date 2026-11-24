@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePortal } from './PortalContext.jsx';
 import { EmptyState, Notice, PIcon, PageTitle, Spinner } from './ui.jsx';
@@ -74,7 +74,8 @@ export function ProductPhoto({ produto, big = false }) {
   return <img className={cls} src={produto.imagemUrl} alt="" loading={big ? 'eager' : 'lazy'} decoding="async" onError={() => setFailed(true)} />;
 }
 
-function ProductTile({ produto, inCart, onOpen, onQuickAdd }) {
+/* memo: marcar a categoria na barra ou mexer em um item não redesenha os outros cartões (a rolagem fica leve). */
+const ProductTile = memo(function ProductTile({ produto, inCart, onOpen, onQuickAdd }) {
   const step = produto.multiplo || 1;
   const off = !produto.disponivel;
   return (
@@ -108,7 +109,7 @@ function ProductTile({ produto, inCart, onOpen, onQuickAdd }) {
       ) : null}
     </li>
   );
-}
+});
 
 /** Janela do produto: foto grande, descrição, quantidade grande e observação do item. */
 function ProductSheet({ produto, inCart, note, onClose, onSave, accepting }) {
@@ -312,17 +313,22 @@ export default function PortalCatalog() {
       .map(([name, list]) => [name, [...list].sort((a, b) => Number(b.disponivel) - Number(a.disponivel))]);
   }, [filtered]);
 
+  /* Enquanto a página rola sozinha até a categoria tocada, a marcação não acompanha as do meio do caminho. */
+  const rolandoAte = useRef(0);
+
   /* A categoria que está na tela fica marcada na barra de categorias. */
   useEffect(() => {
     if (groups.length < 2 || typeof IntersectionObserver === 'undefined') return undefined;
     const seen = new Map();
+    const barra = Math.round(document.querySelector('.p-shopbar')?.getBoundingClientRect().bottom ?? 180);
     const observer = new IntersectionObserver(
       (entries) => {
         for (const e of entries) seen.set(e.target.id, e.isIntersecting);
+        if (Date.now() < rolandoAte.current) return;
         const first = groups.map(([n]) => idDoGrupo(n)).find((id) => seen.get(id));
-        if (first) setActive(first);
+        if (first) setActive((atual) => (atual === first ? atual : first));
       },
-      { rootMargin: '-200px 0px -50% 0px' }
+      { rootMargin: `-${Math.max(barra, 60) + 4}px 0px -50% 0px` }
     );
     for (const [n] of groups) {
       const el = document.getElementById(idDoGrupo(n));
@@ -331,10 +337,16 @@ export default function PortalCatalog() {
     return () => observer.disconnect();
   }, [groups]);
 
-  /* Mantém o chip ativo visível na barra (rolagem horizontal). */
+  /* Mantém o chip ativo visível na barra. Rola SÓ a barra (para o lado): scrollIntoView rolaria a página também e cortava a rolagem
+     até a categoria tocada, que parava no meio do caminho. */
   useEffect(() => {
     if (!active) return;
-    document.querySelector(`.p-chips [data-group="${active}"]`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    const barra = document.querySelector('.p-chips');
+    const chip = barra?.querySelector(`[data-group="${active}"]`);
+    if (!barra || !chip) return;
+    const esquerda = chip.offsetLeft - barra.offsetLeft;
+    const fora = esquerda < barra.scrollLeft || esquerda + chip.offsetWidth > barra.scrollLeft + barra.clientWidth;
+    if (fora) barra.scrollTo({ left: Math.max(0, esquerda - 16), behavior: 'smooth' });
   }, [active]);
 
   const priceOf = (id) => produtos.find((p) => p.id === id)?.preco ?? 0;
@@ -352,6 +364,7 @@ export default function PortalCatalog() {
   /* Total do carrinho depois de mudar UM item (o estado novo ainda não chegou aqui). */
   const totalCom = (produto, value) => total - priceOf(produto.id) * (itemOf.get(produto.id)?.qty ?? 0) + produto.preco * value;
 
+  const quickAddAtual = useRef(null);
   const quickAdd = (produto) => {
     const step = produto.multiplo || 1;
     const next = snapQty((itemOf.get(produto.id)?.qty ?? 0) + step, step);
@@ -369,10 +382,22 @@ export default function PortalCatalog() {
     else avisar(had > 0 ? `${produto.nome} atualizado (${qty(value)})` : `${produto.nome} adicionado (${qty(value)})`, totalCom(produto, value));
   };
 
+  /* Mesmas funções entre um desenho e outro: os cartões memorizados não se redesenham à toa. */
+  quickAddAtual.current = quickAdd;
+  const onQuickAdd = useCallback((produto) => quickAddAtual.current(produto), []);
+  const onOpen = useCallback((produto) => setOpen(produto), []);
+
   const irPara = (name) => {
     const id = idDoGrupo(name);
+    const secao = document.getElementById(id);
+    if (!secao) return;
     setActive(id);
-    document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    const barra = document.querySelector('.p-shopbar')?.getBoundingClientRect().bottom ?? 0;
+    const alvo = Math.max(0, secao.getBoundingClientRect().top + window.scrollY - barra - 8);
+    const suave = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    rolandoAte.current = Date.now() + (suave ? 1200 : 100);
+    window.addEventListener('scrollend', () => (rolandoAte.current = 0), { once: true });
+    window.scrollTo({ top: alvo, behavior: suave ? 'smooth' : 'auto' });
   };
 
   const openItem = open ? itemOf.get(open.id) : null;
@@ -467,17 +492,17 @@ export default function PortalCatalog() {
 
       {!search.trim() ? (
         <>
-          <FaixaProdutos id="p-again" titulo="Pedir de novo" produtos={deNovo} itemOf={itemOf} onOpen={setOpen} onQuickAdd={quickAdd} />
+          <FaixaProdutos id="p-again" titulo="Pedir de novo" produtos={deNovo} itemOf={itemOf} onOpen={onOpen} onQuickAdd={onQuickAdd} />
           {revende ? (
-            <FaixaProdutos id="p-top-revenda" titulo="Mais pedidos por revendedores" produtos={maisRevenda} itemOf={itemOf} onOpen={setOpen} onQuickAdd={quickAdd} />
+            <FaixaProdutos id="p-top-revenda" titulo="Mais pedidos por revendedores" produtos={maisRevenda} itemOf={itemOf} onOpen={onOpen} onQuickAdd={onQuickAdd} />
           ) : null}
           <FaixaProdutos
             id="p-top"
             titulo={revende ? 'Mais procurados pelos clientes da loja' : 'Mais vendidos'}
             produtos={maisVarejo}
             itemOf={itemOf}
-            onOpen={setOpen}
-            onQuickAdd={quickAdd}
+            onOpen={onOpen}
+            onQuickAdd={onQuickAdd}
           />
         </>
       ) : null}
@@ -489,7 +514,7 @@ export default function PortalCatalog() {
           </h2>
           <ul className="p-grid">
             {list.map((p) => (
-              <ProductTile key={p.id} produto={p} inCart={itemOf.get(p.id)?.qty ?? 0} onOpen={setOpen} onQuickAdd={quickAdd} />
+              <ProductTile key={p.id} produto={p} inCart={itemOf.get(p.id)?.qty ?? 0} onOpen={onOpen} onQuickAdd={onQuickAdd} />
             ))}
           </ul>
         </section>
