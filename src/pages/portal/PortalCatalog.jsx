@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePortal } from './PortalContext.jsx';
 import { EmptyState, Notice, PIcon, PageTitle, Spinner } from './ui.jsx';
-import { brl, formatDateTime, produtosParaPedirDeNovo, qty, snapQty } from './format.js';
+import { brl, formatDateTime, produtosMaisVendidos, produtosParaPedirDeNovo, qty, snapQty } from './format.js';
 import { OBS_ITEM_MAX } from './cartStorage.js';
 
 const norm = (s) => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -209,13 +209,13 @@ function ProductSheet({ produto, inCart, note, onClose, onSave, accepting }) {
   );
 }
 
-/** Faixa "Pedir de novo": o que o cliente já pediu e ainda está à venda, um toque para pôr no carrinho. */
-function PedirDeNovo({ produtos, itemOf, onOpen, onQuickAdd }) {
+/** Faixa que rola para o lado ("Pedir de novo", "Mais vendidos"): um toque no + põe no carrinho. */
+function FaixaProdutos({ id, titulo, produtos, itemOf, onOpen, onQuickAdd }) {
   if (produtos.length === 0) return null;
   return (
-    <section className="p-again" aria-labelledby="p-again-t">
-      <h2 className="p-h2" id="p-again-t">
-        Pedir de novo
+    <section className="p-again" aria-labelledby={`${id}-t`}>
+      <h2 className="p-h2" id={`${id}-t`}>
+        {titulo}
       </h2>
       <ul className="p-again__list">
         {produtos.map((p) => {
@@ -280,6 +280,11 @@ export default function PortalCatalog() {
   const produtos = catalog.data?.produtos ?? [];
   const itemOf = useMemo(() => new Map(cart.map((i) => [i.id, i])), [cart]);
   const deNovo = useMemo(() => produtosParaPedirDeNovo(pedidos, produtos), [pedidos, produtos]);
+  /* Mais vendidos: o cliente comum vê o do caixa; quem compra para revender (a API só manda a posição de revenda para essas contas)
+     vê primeiro o que os revendedores mais pedem e depois o que os clientes da loja mais procuram. */
+  const maisVarejo = useMemo(() => produtosMaisVendidos(produtos, 'maisVendido'), [produtos]);
+  const maisRevenda = useMemo(() => produtosMaisVendidos(produtos, 'maisVendidoRevenda'), [produtos]);
+  const revende = maisRevenda.length > 0;
 
   const filtered = useMemo(() => {
     const term = norm(search.trim());
@@ -452,7 +457,22 @@ export default function PortalCatalog() {
         {catalog.data ? `${filtered.length} produtos` : ''}
       </p>
 
-      {!search.trim() ? <PedirDeNovo produtos={deNovo} itemOf={itemOf} onOpen={setOpen} onQuickAdd={quickAdd} /> : null}
+      {!search.trim() ? (
+        <>
+          <FaixaProdutos id="p-again" titulo="Pedir de novo" produtos={deNovo} itemOf={itemOf} onOpen={setOpen} onQuickAdd={quickAdd} />
+          {revende ? (
+            <FaixaProdutos id="p-top-revenda" titulo="Mais pedidos por revendedores" produtos={maisRevenda} itemOf={itemOf} onOpen={setOpen} onQuickAdd={quickAdd} />
+          ) : null}
+          <FaixaProdutos
+            id="p-top"
+            titulo={revende ? 'Mais procurados pelos clientes da loja' : 'Mais vendidos'}
+            produtos={maisVarejo}
+            itemOf={itemOf}
+            onOpen={setOpen}
+            onQuickAdd={quickAdd}
+          />
+        </>
+      ) : null}
 
       {groups.map(([name, list]) => (
         <section key={name} className="p-group" id={idDoGrupo(name)} aria-labelledby={`${idDoGrupo(name)}-t`}>

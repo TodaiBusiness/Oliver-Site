@@ -41,3 +41,16 @@ test('"Pedir de novo": mais recentes primeiro, sem repetir, só o que está à v
   assert.deepEqual(produtosParaPedirDeNovo(null, produtos), []);
   assert.deepEqual(produtosParaPedirDeNovo([{ itens: null }], produtos), []);
 });
+
+test('mais vendidos: só disponíveis com posição, na ordem da posição, pelo campo pedido', async () => {
+  const { produtosMaisVendidos } = await import('../src/pages/portal/format.js');
+  const produtos = [
+    { id: 'a', disponivel: true, maisVendido: 2, maisVendidoRevenda: null },
+    { id: 'b', disponivel: true, maisVendido: 1, maisVendidoRevenda: 3 },
+    { id: 'c', disponivel: false, maisVendido: 3, maisVendidoRevenda: 1 },
+    { id: 'd', disponivel: true, maisVendido: null, maisVendidoRevenda: 2 },
+  ];
+  assert.deepEqual(produtosMaisVendidos(produtos).map((p) => p.id), ['b', 'a']);
+  assert.deepEqual(produtosMaisVendidos(produtos, 'maisVendidoRevenda').map((p) => p.id), ['d', 'b']);
+  assert.deepEqual(produtosMaisVendidos(undefined), []);
+});

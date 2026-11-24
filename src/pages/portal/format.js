@@ -256,3 +256,11 @@ export function produtosParaPedirDeNovo(pedidos, produtos, max = 10) {
   }
   return lista;
 }
+
+/** Faixa de mais vendidos: os disponíveis com posição no campo pedido, na ordem da posição. */
+export function produtosMaisVendidos(produtos, campo = 'maisVendido') {
+  if (!Array.isArray(produtos)) return [];
+  return produtos
+    .filter((p) => p?.disponivel && Number.isInteger(p[campo]))
+    .sort((a, b) => a[campo] - b[campo]);
+}

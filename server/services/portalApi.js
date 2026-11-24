@@ -56,6 +56,8 @@ const BUSINESS_MESSAGES = {
 
 const clip = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : null);
 const num = (value) => (Number.isFinite(Number(value)) && value !== null && value !== '' ? Number(value) : null);
+/** Posição no ranking de mais vendidos: inteiro de 1 a 10; qualquer outra coisa vira null. */
+const posicao = (value) => (Number.isInteger(value) && value >= 1 && value <= 10 ? value : null);
 const bool = (value) => value === true;
 /* Próxima abertura da API: yyyy-MM-ddTHH:mm em hora de Brasília (sem fuso). */
 const ISO_LOCAL = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/;
@@ -205,6 +207,9 @@ export function portalApiClient({
       disponivel: item.disponivel !== false,
       multiplo: Math.max(num(item.multiplo) ?? 1, 0.001),
       caixaQtd: num(item.caixaQtd),
+      // Mais vendidos (PDV 2.4.16+): no caixa, e entre quem revende (a API só manda este para conta de atacado ou revenda).
+      maisVendido: posicao(item.maisVendido),
+      maisVendidoRevenda: posicao(item.maisVendidoRevenda),
       imagemHash: clip(item.imagemHash, 64) ?? (item.temImagem === true ? 'v1' : null),
     };
   }
