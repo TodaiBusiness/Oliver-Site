@@ -443,6 +443,7 @@ export function portalService(
     return {
       versao: result.versao,
       atualizadoEm: result.atualizadoEm,
+      pedidoMinimo: result.pedidoMinimo ?? null,
       produtos: result.produtos.map(({ imagemHash, ...p }) => ({
         ...p,
         imagemUrl: imagemHash
