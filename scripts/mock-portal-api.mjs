@@ -598,7 +598,9 @@ export function createMockBackend({ serviceKey = MOCK_SERVICE_KEY, leaky = false
   function criarPedido(slug, loja, body) {
     const c = contas.get(`${slug}|${body.contaId}`);
     if (!c) return problem(404, 'account_not_found');
-    if (c.estado === 'bloqueada') return problem(409, 'account_blocked', 'Conta bloqueada.');
+    /* Como a API real: conta bloqueada e fiado não liberado são 403 com código próprio. */
+    if (c.estado === 'bloqueada') return problem(403, 'account_blocked', 'Esta conta não pode fazer pedidos nesta loja.');
+    if (body.pagamento === 'fiado' && !loja.fiadoAtivo) return problem(403, 'fiado_not_authorized', 'Esta conta não tem fiado autorizado pela loja.');
     const previo = idem.get(`${slug}|${body.idempotencyKey}`);
     if (previo) return json(200, { pedidoId: previo.id, referencia: previo.referencia, estado: previo.estado, total: previo.total });
     if (!loja.aceitaPedidos) return problem(409, 'orders_disabled', 'A loja não aceita pedidos.');

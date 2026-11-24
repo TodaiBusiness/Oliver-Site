@@ -54,3 +54,12 @@ test('mais vendidos: só disponíveis com posição, na ordem da posição, pelo
   assert.deepEqual(produtosMaisVendidos(produtos, 'maisVendidoRevenda').map((p) => p.id), ['d', 'b']);
   assert.deepEqual(produtosMaisVendidos(undefined), []);
 });
+
+test('horários da loja no formato da API viram linhas por dia; dia sem faixa = fechado', async () => {
+  const { horariosEmLinhas } = await import('../src/pages/portal/format.js');
+  assert.deepEqual(horariosEmLinhas({ dom: [], seg: [{ abre: '08:00', fecha: '12:00' }, { abre: '14:00', fecha: '18:00' }] }), [
+    'Segunda: 08:00 às 12:00 e 14:00 às 18:00',
+    'Domingo: fechado',
+  ]);
+  assert.deepEqual(horariosEmLinhas({ seg: 'das 8 às 18' }), ['seg: das 8 às 18']);
+});
