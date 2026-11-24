@@ -234,3 +234,25 @@ export function podeAlterarAgendamento(ag, prazoMin, nowMs = Date.now()) {
   if (!Number.isFinite(inicio)) return false;
   return inicio - nowMs >= (prazoMin ?? 0) * 60000;
 }
+
+/**
+ * "Pedir de novo": produtos dos pedidos anteriores (os mais recentes primeiro, sem repetir),
+ * só os que ainda estão no catálogo e disponíveis.
+ */
+export function produtosParaPedirDeNovo(pedidos, produtos, max = 10) {
+  if (!Array.isArray(pedidos) || !Array.isArray(produtos)) return [];
+  const porId = new Map(produtos.map((p) => [p.id, p]));
+  const ordenados = [...pedidos].sort((a, b) => String(b.criadoEm ?? '').localeCompare(String(a.criadoEm ?? '')));
+  const vistos = new Set();
+  const lista = [];
+  for (const pedido of ordenados) {
+    for (const item of pedido?.itens ?? []) {
+      const produto = porId.get(item?.produtoId);
+      if (!produto || !produto.disponivel || vistos.has(produto.id)) continue;
+      vistos.add(produto.id);
+      lista.push(produto);
+      if (lista.length >= max) return lista;
+    }
+  }
+  return lista;
+}

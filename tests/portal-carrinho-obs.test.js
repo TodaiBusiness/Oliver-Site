@@ -23,3 +23,21 @@ test('nunca passa do limite da API', () => {
   const itens = Array.from({ length: 10 }, (_, i) => ({ nome: `Produto ${i}`, obs: 'x'.repeat(140) }));
   assert.equal(juntarObservacao(itens, 'geral').length, OBS_PEDIDO_MAX);
 });
+
+test('"Pedir de novo": mais recentes primeiro, sem repetir, só o que está à venda', async () => {
+  const { produtosParaPedirDeNovo } = await import('../src/pages/portal/format.js');
+  const produtos = [
+    { id: 'a', disponivel: true },
+    { id: 'b', disponivel: true },
+    { id: 'c', disponivel: false },
+    { id: 'd', disponivel: true },
+  ];
+  const pedidos = [
+    { criadoEm: '2026-11-01T10:00:00Z', itens: [{ produtoId: 'd' }, { produtoId: 'a' }] },
+    { criadoEm: '2026-11-20T10:00:00Z', itens: [{ produtoId: 'b' }, { produtoId: 'c' }, { produtoId: 'sumiu' }, { produtoId: 'a' }] },
+  ];
+  assert.deepEqual(produtosParaPedirDeNovo(pedidos, produtos).map((p) => p.id), ['b', 'a', 'd']);
+  assert.deepEqual(produtosParaPedirDeNovo(pedidos, produtos, 2).map((p) => p.id), ['b', 'a']);
+  assert.deepEqual(produtosParaPedirDeNovo(null, produtos), []);
+  assert.deepEqual(produtosParaPedirDeNovo([{ itens: null }], produtos), []);
+});

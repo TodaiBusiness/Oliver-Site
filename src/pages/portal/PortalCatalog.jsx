@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePortal } from './PortalContext.jsx';
 import { EmptyState, Notice, PIcon, PageTitle, Spinner } from './ui.jsx';
-import { brl, formatDateTime, qty, snapQty } from './format.js';
+import { brl, formatDateTime, produtosParaPedirDeNovo, qty, snapQty } from './format.js';
 import { OBS_ITEM_MAX } from './cartStorage.js';
 
 const norm = (s) => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -209,10 +209,48 @@ function ProductSheet({ produto, inCart, note, onClose, onSave, accepting }) {
   );
 }
 
+/** Faixa "Pedir de novo": o que o cliente já pediu e ainda está à venda, um toque para pôr no carrinho. */
+function PedirDeNovo({ produtos, itemOf, onOpen, onQuickAdd }) {
+  if (produtos.length === 0) return null;
+  return (
+    <section className="p-again" aria-labelledby="p-again-t">
+      <h2 className="p-h2" id="p-again-t">
+        Pedir de novo
+      </h2>
+      <ul className="p-again__list">
+        {produtos.map((p) => {
+          const inCart = itemOf.get(p.id)?.qty ?? 0;
+          return (
+            <li key={p.id} className={`p-again__item${inCart > 0 ? ' p-again__item--in' : ''}`}>
+              <button type="button" className="p-again__open" onClick={() => onOpen(p)} aria-label={`${p.nome}, ${brl(p.preco)} por ${p.unidade}. Ver detalhes`}>
+                <span className="p-again__media">
+                  <ProductPhoto produto={p} />
+                </span>
+                <span className="p-again__name">{p.nome}</span>
+                <strong className="p-again__price">{brl(p.preco)}</strong>
+              </button>
+              <button
+                type="button"
+                className={`p-tile__add p-again__add${inCart > 0 ? ' p-tile__add--count' : ''}`}
+                onClick={() => onQuickAdd(p)}
+                aria-label={inCart > 0 ? `Mais ${qty(p.multiplo || 1)} de ${p.nome} (tem ${qty(inCart)} no carrinho)` : `Adicionar ${p.nome} ao carrinho`}
+              >
+                {inCart > 0 ? <span className="p-tile__count">{qty(inCart)}</span> : null}
+                <PIcon name="plus" size={18} />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 const idDoGrupo = (name) => `g-${norm(name).replace(/\W+/g, '-')}`;
 
 export default function PortalCatalog() {
-  const { loja, session, catalog, loadCatalog, cart, setQty, setNote, path } = usePortal();
+  const { loja, session, catalog, loadCatalog, cart, setQty, setNote, path, api, signedIn } = usePortal();
+  const [pedidos, setPedidos] = useState([]);
   const [search, setSearch] = useState('');
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [open, setOpen] = useState(null);
@@ -226,8 +264,22 @@ export default function PortalCatalog() {
   }, []);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
 
+  /* Pedidos anteriores só para a faixa "Pedir de novo"; se falhar, a faixa simplesmente não aparece. */
+  useEffect(() => {
+    if (!signedIn) return undefined;
+    let vivo = true;
+    api
+      .pedidos()
+      .then((r) => vivo && setPedidos(Array.isArray(r?.pedidos) ? r.pedidos : []))
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [api, signedIn]);
+
   const produtos = catalog.data?.produtos ?? [];
   const itemOf = useMemo(() => new Map(cart.map((i) => [i.id, i])), [cart]);
+  const deNovo = useMemo(() => produtosParaPedirDeNovo(pedidos, produtos), [pedidos, produtos]);
 
   const filtered = useMemo(() => {
     const term = norm(search.trim());
@@ -399,6 +451,8 @@ export default function PortalCatalog() {
       <p className="sr-only" role="status" aria-live="polite">
         {catalog.data ? `${filtered.length} produtos` : ''}
       </p>
+
+      {!search.trim() ? <PedirDeNovo produtos={deNovo} itemOf={itemOf} onOpen={setOpen} onQuickAdd={quickAdd} /> : null}
 
       {groups.map(([name, list]) => (
         <section key={name} className="p-group" id={idDoGrupo(name)} aria-labelledby={`${idDoGrupo(name)}-t`}>
