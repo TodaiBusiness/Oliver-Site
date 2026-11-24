@@ -1034,6 +1034,23 @@ html.portal-on body::after {
 .p-tile--off .p-tile__price strong {
   color: var(--p-muted);
 }
+/* Economia do revendedor sobre o preço de varejo. */
+.p-save {
+  display: inline-block;
+  align-self: flex-start;
+  margin: 0.1rem 0 0;
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  background: #dcfce7;
+  color: #14532d;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.p-save--big {
+  font-size: 0.875rem;
+  padding: 0.35rem 0.6rem;
+}
 .p-tile__meta {
   font-size: 0.75rem;
   color: var(--p-muted);
