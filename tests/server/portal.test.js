@@ -732,6 +732,11 @@ test('pedido: validação no servidor e mensagens de recusa da loja em portuguê
     assert.equal((await envia({ idempotencyKey: 'x' })).status, 400);
     assert.equal((await envia({ observacao: 'a'.repeat(501) })).status, 400);
 
+    // Observação com uma linha por item chega à loja com as quebras de linha (não emendada numa linha só).
+    const comLinhas = await envia({ observacao: '• Arroz: tipo 1\n• Feijão: carioca\n\nTocar a campainha' });
+    assert.equal(comLinhas.status, 201, JSON.stringify(comLinhas.body));
+    assert.equal([...backend.state.pedidos.values()].at(-1).observacao, '• Arroz: tipo 1\n• Feijão: carioca\n\nTocar a campainha');
+
     const minimo = await envia({ itens: [{ produtoId: 'p-agua', quantidade: 2 }] });
     assert.equal(minimo.status, 409);
     assert.equal(minimo.body.message, 'O pedido não atinge o valor mínimo da loja.');
@@ -1055,6 +1060,18 @@ test('a faxina apaga sessões e links do portal vencidos', async () => {
     assert.equal(r.portalResets, 1);
     assert.equal((await db.queryOne('SELECT COUNT(*) AS n FROM portal_accounts')).n, 1);
     assert.ok(ctx);
+  } finally {
+    close();
+  }
+});
+
+test('recusa 403 de regra (fiado não liberado) chega ao cliente com o motivo, e não como "portal indisponível"', async () => {
+  const { app, close } = await portalApp();
+  try {
+    const a = await entrar(app, 'so-retirada');
+    const resposta = await portal(app, 'POST', 'so-retirada', '/pedidos', { token: a.token, body: pedidoBase({ pagamento: 'fiado' }) });
+    assert.equal(resposta.status, 400, JSON.stringify(resposta.body));
+    assert.match(resposta.body.message, /fiado não está liberado/);
   } finally {
     close();
   }

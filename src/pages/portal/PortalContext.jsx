@@ -26,6 +26,8 @@ export function PortalProvider({ slug, children }) {
   const [cart, setCart] = useState(() => readCart(slug));
   const [flash, setFlash] = useState(null);
   const catalogRequest = useRef(null);
+  /* Sobe a cada saída da conta: catálogo que chega depois de sair (de outra conta, outra tabela de preço) é descartado. */
+  const geracao = useRef(0);
 
   /* Vitrine (pública). 404 = loja inexistente ou inativa: mesma tela. */
   const loadLoja = useCallback(async () => {
@@ -58,6 +60,8 @@ export function PortalProvider({ slug, children }) {
   useEffect(() => {
     const onExpired = (event) => {
       if (event.detail?.slug !== slug) return;
+      geracao.current += 1;
+      catalogRequest.current = null;
       setSession({ status: 'out', account: null, conta: null });
       setCatalog({ status: 'idle', data: null, error: null });
       setFlash('Sua sessão terminou. Entre de novo para continuar.');
@@ -72,18 +76,21 @@ export function PortalProvider({ slug, children }) {
       if (catalogRequest.current) return catalogRequest.current;
       if (!force && catalog.status === 'ready') return catalog.data;
       setCatalog((c) => ({ ...c, status: c.data ? 'ready' : 'loading', error: null }));
+      const minha = geracao.current;
       const request = api
         .catalogo()
         .then((data) => {
+          if (minha !== geracao.current) return null;
           setCatalog({ status: 'ready', data, error: null });
           return data;
         })
         .catch((error) => {
+          if (minha !== geracao.current) return null;
           setCatalog((c) => ({ status: 'error', data: c.data, error }));
           return null;
         })
         .finally(() => {
-          catalogRequest.current = null;
+          if (catalogRequest.current === request) catalogRequest.current = null;
         });
       catalogRequest.current = request;
       return request;
@@ -148,6 +155,8 @@ export function PortalProvider({ slug, children }) {
     } catch {
       /* mesmo sem rede, esta tela esquece a sessão */
     }
+    geracao.current += 1;
+    catalogRequest.current = null;
     setSession({ status: 'out', account: null, conta: null });
     setCatalog({ status: 'idle', data: null, error: null });
     setCart([]);

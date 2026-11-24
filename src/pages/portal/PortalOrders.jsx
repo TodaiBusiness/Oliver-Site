@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { usePortal } from './PortalContext.jsx';
 import { EmptyState, Notice, PIcon, PageTitle, Spinner, StatusBadge, usePolling, useLoad } from './ui.jsx';
-import { ESTADOS_FINAIS, ETAPAS, PAGAMENTOS, brl, estadoInfo, formatDate, formatDateTime, podeCancelarPedido, qty } from './format.js';
+import { ESTADOS_FINAIS, ETAPAS, PAGAMENTOS, brl, estadoInfo, formatDate, formatDateTime, podeCancelarPedido, qty, snapQty } from './format.js';
 
 const POLL_MS = 20_000;
 
@@ -22,7 +22,9 @@ function useRepeat() {
     const skipped = [];
     for (const item of pedido.itens) {
       const produto = catalogo.produtos.find((p) => p.id === item.produtoId);
-      if (produto?.disponivel) items.push({ id: produto.id, qty: item.quantidade });
+      /* A loja pode ter mudado o múltiplo de venda desde o pedido: a quantidade segue o passo de agora. */
+      const qtd = produto?.disponivel ? snapQty(Number(item.quantidade) || 0, produto.multiplo || 1) : 0;
+      if (qtd > 0) items.push({ id: produto.id, qty: qtd });
       else skipped.push(item.nome);
     }
     if (!items.length) return setError('Nenhum item deste pedido está disponível agora.');

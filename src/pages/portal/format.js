@@ -57,12 +57,32 @@ export function horariosEmLinhas(horarios) {
       .filter(Boolean);
   }
   if (typeof horarios === 'object') {
+    /* Formato que a API manda: { dom: [{ abre, fecha }], seg: [...] }; dia com lista vazia = fechado. */
+    const porDia = DIAS_API.filter(([k]) => Array.isArray(horarios[k]));
+    if (porDia.length) {
+      return porDia.map(([k, nome]) => {
+        const faixas = horarios[k]
+          .filter((f) => f && typeof f.abre === 'string' && typeof f.fecha === 'string')
+          .map((f) => `${f.abre} às ${f.fecha}`);
+        return `${nome}: ${faixas.length ? faixas.join(' e ') : 'fechado'}`;
+      });
+    }
     return Object.entries(horarios)
       .filter(([k, v]) => k !== 'faixas' && typeof v === 'string')
       .map(([dia, texto]) => `${dia}: ${texto}`);
   }
   return [];
 }
+
+const DIAS_API = [
+  ['seg', 'Segunda'],
+  ['ter', 'Terça'],
+  ['qua', 'Quarta'],
+  ['qui', 'Quinta'],
+  ['sex', 'Sexta'],
+  ['sab', 'Sábado'],
+  ['dom', 'Domingo'],
+];
 
 const DIAS_SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 
@@ -264,3 +284,14 @@ export function produtosMaisVendidos(produtos, campo = 'maisVendido') {
     .filter((p) => p?.disponivel && Number.isInteger(p[campo]))
     .sort((a, b) => a[campo] - b[campo]);
 }
+
+/**
+ * Quantidade digitada: com vírgula é o jeito brasileiro ("1.234,5"); sem vírgula, o ponto é decimal quando o produto vende fração
+ * (teclado do celular que só tem "." : "1.5" kg é 1,5 e não 15) e separador de milhar quando vende inteiro ("1.200" un).
+ */
+export function parseQtd(text, step = 1) {
+  const t = String(text ?? '').trim();
+  if (t.includes(',')) return Number(t.replace(/\./g, '').replace(',', '.'));
+  return Number(step < 1 ? t : t.replace(/\./g, ''));
+}
+

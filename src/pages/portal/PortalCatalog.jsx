@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePortal } from './PortalContext.jsx';
 import { EmptyState, Notice, PIcon, PageTitle, Spinner } from './ui.jsx';
-import { brl, formatDateTime, produtosMaisVendidos, produtosParaPedirDeNovo, qty, snapQty } from './format.js';
+import { brl, formatDateTime, parseQtd, produtosMaisVendidos, produtosParaPedirDeNovo, qty, snapQty } from './format.js';
 import { OBS_ITEM_MAX } from './cartStorage.js';
 
 const norm = (s) => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -26,7 +26,7 @@ export function Stepper({ produto, value, onChange, compact = false, big = false
   const [text, setText] = useState(qty(value));
   useEffect(() => setText(qty(value)), [value]);
   const commit = () => {
-    const parsed = Number(String(text).replace(/\./g, '').replace(',', '.'));
+    const parsed = parseQtd(text, step);
     if (!Number.isFinite(parsed)) return setText(qty(value));
     onChange(Math.max(0, snapQty(parsed, step)));
   };

@@ -68,6 +68,8 @@ export default function PortalCart() {
     bairro: end0.bairro ?? '',
     cidade: end0.cidade ?? '',
     uf: end0.uf ?? '',
+    /* Sem campo na tela: o CEP do cadastro segue junto com o endereço (o PDV e o entregador usam). */
+    cep: end0.cep ?? '',
   });
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
@@ -97,6 +99,8 @@ export default function PortalCart() {
   const obsItens = juntarObservacao(lines.map((l) => ({ nome: l.produto?.nome, obs: l.obs })), '');
   const obsMax = Math.max(0, OBS_PEDIDO_MAX - obsItens.length - (obsItens ? 2 : 0));
   const carregando = catalog.status === 'loading' && !catalog.data;
+  /* Catálogo que não carregou (sem internet, loja fora do ar) não é "item indisponível": a tela avisa e oferece tentar de novo. */
+  const semCatalogo = catalog.status === 'error' && !catalog.data;
   const subtotal = lines.reduce((s, l) => s + (l.ok ? l.produto.preco * l.qty : 0), 0);
   const taxa = tipo === 'entrega' ? d.taxaEntrega : 0;
   const total = subtotal + taxa;
@@ -120,7 +124,11 @@ export default function PortalCart() {
     setError(null);
     setFields({});
     if (!d.aceitaPedidos) return fail({ message: 'A loja não está recebendo pedidos agora.' });
+    if (semCatalogo) return fail({ message: 'Não foi possível conferir os produtos agora. Toque em "Tentar de novo".' });
     if (temProblema) return fail({ message: 'Remova os itens indisponíveis do carrinho para continuar.' });
+    if (observacao.trim().length > obsMax) {
+      return fail({ message: `A observação ficou com ${observacao.trim().length} caracteres; com as observações dos itens, o limite é ${obsMax}.` });
+    }
     if (falta > 0) return fail({ message: `Faltam ${brl(falta)} para o pedido mínimo de ${brl(minimo)}.` });
     keyRef.current ??= newKey();
     setSending(true);
@@ -203,6 +211,14 @@ export default function PortalCart() {
         ) : null}
 
         {carregando ? <Spinner label="Conferindo os preços" /> : null}
+        {semCatalogo ? (
+          <Notice tone="warn" title="Não foi possível conferir os produtos">
+            <p>Seu carrinho continua salvo. Confira a internet e tente de novo.</p>
+            <button type="button" className="p-btn p-btn--ghost p-btn--sm" onClick={() => loadCatalog({ force: true })}>
+              Tentar de novo
+            </button>
+          </Notice>
+        ) : null}
 
         <ul className="p-lines" aria-label="Itens do carrinho">
           {lines.map((l) => (
@@ -218,7 +234,7 @@ export default function PortalCart() {
                     <NotaDoItem nome={l.produto.nome} value={l.obs} onChange={(v) => setNote(l.id, v)} />
                   </>
                 ) : (
-                  <p className="p-line__warn">{carregando ? 'Conferindo…' : 'Indisponível agora. Remova para continuar.'}</p>
+                  <p className="p-line__warn">{carregando || semCatalogo ? 'Conferindo…' : 'Indisponível agora. Remova para continuar.'}</p>
                 )}
               </div>
               <div className="p-line__act">
@@ -228,7 +244,7 @@ export default function PortalCart() {
                     <strong className="p-line__total">{brl(l.produto.preco * l.qty)}</strong>
                   </>
                 ) : null}
-                {!l.ok && !carregando ? (
+                {!l.ok && !carregando && !semCatalogo ? (
                   <button type="button" className="p-btn p-btn--ghost p-btn--sm" onClick={() => removeItem(l.id)}>
                     <PIcon name="trash" size={16} /> Remover
                   </button>

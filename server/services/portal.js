@@ -29,7 +29,8 @@ const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
 
 const REQUEST_ID = /^[A-Za-z0-9_-]{8,64}$/;
-const PRODUCT_ID = /^[A-Za-z0-9_.:-]{1,64}$/;
+/* O que a API aceita (PortalRules.ProductIdPattern: letras, números, . _ ~ -) e ":" de ids antigos. */
+const PRODUCT_ID = /^[A-Za-z0-9_.:~-]{1,64}$/;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{8,64}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 /* Início do atendimento como a API informou nos horários (com ou sem fuso). */
@@ -51,6 +52,16 @@ const GENERIC_LOGIN_ERROR = 'E-mail ou senha incorretos.';
 /** Texto de endereço: uma linha, sem controle, com teto. */
 const line = (value, max) =>
   typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, max) : '';
+/** Texto de várias linhas (observação do pedido): mantém as quebras de linha (uma por item), tira os outros caracteres de controle. */
+const multiline = (value, max) =>
+  typeof value === 'string'
+    ? value
+        .replace(/\r\n?/g, '\n')
+        .replace(/[\u0000-\u0009\u000b-\u001f\u007f]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+        .slice(0, max)
+    : '';
 
 export function portalService(
   ctx,
@@ -145,7 +156,8 @@ export function portalService(
   function addressLine(a) {
     const street = [a.rua, a.numero].filter(Boolean).join(', ');
     const city = [a.cidade, a.uf].filter(Boolean).join('/');
-    return [street, a.complemento, a.bairro, city, a.cep ? `CEP ${a.cep}` : ''].filter(Boolean).join(' - ');
+    /* A API aceita até 400 caracteres: com todos os campos no máximo, passaria disso. */
+    return [street, a.complemento, a.bairro, city, a.cep ? `CEP ${a.cep}` : ''].filter(Boolean).join(' - ').slice(0, 400);
   }
 
   /** Só navegador do próprio site escreve: cabeçalho próprio (cross-origin exigiria CORS, que não existe). */
@@ -496,7 +508,7 @@ export function portalService(
     else if (delivery.tipo === 'retirada' && payment === 'na_entrega') v.fail('pagamento', 'Na retirada, pague na retirada ou no fiado.');
     else if (delivery.tipo === 'entrega' && payment === 'na_retirada') v.fail('pagamento', 'Na entrega, pague na entrega ou no fiado.');
 
-    const note = typeof input.observacao === 'string' ? line(input.observacao, PORTAL.NOTE_MAX) : '';
+    const note = typeof input.observacao === 'string' ? multiline(input.observacao, PORTAL.NOTE_MAX) : '';
     if (typeof input.observacao === 'string' && input.observacao.length > PORTAL.NOTE_MAX) {
       v.fail('observacao', `A observação pode ter no máximo ${PORTAL.NOTE_MAX} caracteres.`);
     }

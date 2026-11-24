@@ -30,6 +30,13 @@ const BUSINESS_MESSAGES = {
   min_order: 'O pedido não atinge o valor mínimo da loja.',
   below_minimum: 'O pedido não atinge o valor mínimo da loja.',
   item_unavailable: 'Algum item do carrinho não está mais disponível. Confira o carrinho.',
+  /* Códigos que a API da TODAI manda de verdade (PortalOrderBuilder / PortalSiteService). */
+  store_not_accepting: 'A loja não está aceitando pedidos agora.',
+  delivery_type_unavailable: 'A loja não oferece essa forma de receber agora. Escolha a outra.',
+  quantity_not_multiple: 'Algum item não respeita a quantidade múltipla de venda. Ajuste o carrinho.',
+  invalid_transition: 'Este pedido não pode mais ser cancelado.',
+  fiado_not_authorized: 'O fiado não está liberado para a sua conta. Escolha pagar na entrega ou na retirada.',
+  too_many_pending: 'Você já tem muitos pedidos em aberto nesta loja. Aguarde a loja atender os anteriores.',
   product_unavailable: 'Algum item do carrinho não está mais disponível. Confira o carrinho.',
   invalid_multiple: 'Algum item não respeita a quantidade múltipla de venda. Ajuste o carrinho.',
   outside_hours: 'A loja não atende no dia ou na faixa escolhidos. Escolha outro horário.',
@@ -149,7 +156,9 @@ export function portalApiClient({
       return new AppError(404, 'AGENDA_INATIVA', 'Esta loja não está recebendo agendamentos agora.');
     }
     if (response.status === 404) return new AppError(404, 'NAO_ENCONTRADO', 'Não encontrado.');
-    if (business && [400, 409, 422].includes(response.status)) {
+    /* 403 de regra (conta bloqueada, fiado não liberado) é recusa do pedido, não loja fora do ar. */
+    const recusa403 = response.status === 403 && ['account_blocked', 'account_pending', 'fiado_not_authorized'].includes(code);
+    if (business && ([400, 409, 422].includes(response.status) || recusa403)) {
       const message =
         (code && BUSINESS_MESSAGES[code]) ?? businessMessage(body) ?? 'Não foi possível concluir. Confira os dados e tente de novo.';
       return new AppError(response.status === 409 ? 409 : 400, code ? code.toUpperCase() : 'PEDIDO_INVALIDO', message);
