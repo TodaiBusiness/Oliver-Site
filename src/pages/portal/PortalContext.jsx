@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { portalApi, PORTAL_SESSION_EXPIRED } from '../../api/portal.js';
 import { OBS_ITEM_MAX, readCart, writeCart } from './cartStorage.js';
-import { snapQty } from './format.js';
+import { definirNomesEstados, snapQty } from './format.js';
 
 /* =========================================================================
    Estado do portal de UMA loja: vitrine, sessão, catálogo e carrinho.
@@ -33,6 +33,7 @@ export function PortalProvider({ slug, children }) {
   const loadLoja = useCallback(async () => {
     try {
       const data = await api.vitrine();
+      definirNomesEstados(data?.nomesEstados);
       setLoja({ status: 'ready', data });
     } catch (error) {
       setLoja({ status: error.status === 404 ? 'inactive' : 'error', data: null });

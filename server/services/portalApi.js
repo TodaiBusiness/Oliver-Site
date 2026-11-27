@@ -180,6 +180,18 @@ export function portalApiClient({
 
   /* -------------------------------------------------- listas brancas */
 
+  /* Nomes dos estados que a loja escolheu (Configuração de Operação do PDV): só estados conhecidos, texto curto. */
+  const ESTADOS_PEDIDO = ['recebido', 'aceito', 'em_preparo', 'pronto', 'entregue', 'recusado', 'cancelado'];
+  function pickNomesEstados(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const out = {};
+    for (const estado of ESTADOS_PEDIDO) {
+      const nome = clip(value[estado], 30);
+      if (nome) out[estado] = nome;
+    }
+    return Object.keys(out).length ? out : null;
+  }
+
   function pickVitrine(body) {
     const cores = body.cores && typeof body.cores === 'object' ? body.cores : {};
     const color = (value) => (typeof value === 'string' && HEX.test(value) ? value.toLowerCase() : null);
@@ -201,6 +213,7 @@ export function portalApiClient({
       fiadoAtivo: bool(body.fiadoAtivo),
       temAgenda: bool(body.temAgenda),
       emailContato: clip(body.emailContato ?? body.email, 190),
+      nomesEstados: pickNomesEstados(body.nomesEstados),
     };
   }
 
@@ -231,6 +244,7 @@ export function portalApiClient({
       id: clip(String(p.id ?? p.pedidoId ?? ''), 64),
       referencia: clip(p.referencia, 40),
       estado: clip(p.estado, 20),
+      estadoNome: clip(p.estadoNome, 30),
       criadoEm: clip(p.criadoEm, 40),
       atualizadoEm: clip(p.atualizadoEm, 40),
       total: num(p.total),
