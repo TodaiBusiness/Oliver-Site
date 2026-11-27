@@ -52,7 +52,7 @@ export function PortalOrders() {
     const changes = [];
     for (const p of state.data) {
       const before = known.current.get(p.id);
-      if (before && before !== p.estado) changes.push(`Pedido ${p.referencia}: ${estadoInfo(p.estado).label}.`);
+      if (before && before !== p.estado) changes.push(`Pedido ${p.referencia}: ${estadoInfo(p.estado, p.estadoNome).label}.`);
       known.current.set(p.id, p.estado);
     }
     if (changes.length) setAnnounce(changes.join(' '));
@@ -108,7 +108,7 @@ export function PortalOrders() {
             <Link className="p-order" to={path(`pedidos/${p.id}`)}>
               <span className="p-order__top">
                 <strong>{p.referencia}</strong>
-                <StatusBadge estado={p.estado} />
+                <StatusBadge estado={p.estado} nome={p.estadoNome} />
               </span>
               <span className="p-muted p-small">{formatDateTime(p.criadoEm)}</span>
               <span className="p-order__bottom">
@@ -161,7 +161,7 @@ export function PortalOrder() {
 
   useEffect(() => {
     if (!pedido) return;
-    if (before.current && before.current !== pedido.estado) setAnnounce(`O pedido agora está: ${estadoInfo(pedido.estado).label}.`);
+    if (before.current && before.current !== pedido.estado) setAnnounce(`O pedido agora está: ${estadoInfo(pedido.estado, pedido.estadoNome).label}.`);
     before.current = pedido.estado;
   }, [pedido]);
 
@@ -200,7 +200,7 @@ export function PortalOrder() {
     );
   }
 
-  const info = estadoInfo(pedido.estado);
+  const info = estadoInfo(pedido.estado, pedido.estadoNome);
   return (
     <div>
       <p className="p-back">
@@ -220,7 +220,7 @@ export function PortalOrder() {
       ) : null}
 
       <div className="p-statusline">
-        <StatusBadge estado={pedido.estado} />
+        <StatusBadge estado={pedido.estado} nome={pedido.estadoNome} />
         <span className="p-muted">{info.hint}</span>
       </div>
       {pedido.estado === 'recusado' && pedido.motivoRecusa ? (

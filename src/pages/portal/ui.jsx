@@ -92,8 +92,8 @@ export function StoreStatus({ status, className = '' }) {
   );
 }
 
-export function StatusBadge({ estado }) {
-  const info = estadoInfo(estado);
+export function StatusBadge({ estado, nome = null }) {
+  const info = estadoInfo(estado, nome);
   return <span className={`p-badge p-badge--${info.tone}`}>{info.label}</span>;
 }
 

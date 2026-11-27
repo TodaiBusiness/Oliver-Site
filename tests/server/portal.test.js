@@ -133,6 +133,25 @@ test('vitrine repassa abertoAgora e proximaAbertura (lista branca) e descarta o 
   assert.equal(v.extra, undefined);
 });
 
+test('nomes dos estados da loja passam pela lista branca (vitrine e pedido) e o rótulo usa o da loja', async () => {
+  const resposta = (corpo) => async () => new Response(JSON.stringify(corpo), { status: 200, headers: { 'content-type': 'application/json' } });
+  const cliente = (corpo) => portalApiClient({ fetchImpl: resposta(corpo), licensing: { baseUrl: 'https://api.exemplo', serviceKey: MOCK_SERVICE_KEY, timeoutMs: 5000 }, cacheMs: 0 });
+  const v = await cliente({ nomePublico: 'X', nomesEstados: { em_preparo: 'No forno', marte: 'x', pronto: 'y'.repeat(40) } }).vitrine('loja-x');
+  assert.equal(v.nomesEstados.em_preparo, 'No forno');
+  assert.equal(v.nomesEstados.marte, undefined);
+  assert.equal(v.nomesEstados.pronto.length, 30);
+  assert.equal((await cliente({ nomePublico: 'X' }).vitrine('loja-x')).nomesEstados, null);
+
+  const { estadoInfo, definirNomesEstados } = await import('../../src/pages/portal/format.js');
+  definirNomesEstados({ em_preparo: 'No forno' });
+  assert.equal(estadoInfo('em_preparo').label, 'No forno');
+  assert.equal(estadoInfo('em_preparo').tone, 'ok');
+  assert.equal(estadoInfo('pronto', 'Saiu do forno').label, 'Saiu do forno');
+  assert.equal(estadoInfo('pronto').label, 'Pronto');
+  definirNomesEstados(null);
+  assert.equal(estadoInfo('em_preparo').label, 'Em preparo');
+});
+
 test('vitrine é pública, não traz preço nem catálogo e aponta o logo para o próprio site', async () => {
   const { app, close } = await portalApp({ leaky: true });
   try {

@@ -35,7 +35,20 @@ export const ESTADOS = {
 export const ESTADOS_FINAIS = new Set(['entregue', 'recusado', 'cancelado']);
 export const ETAPAS = ['recebido', 'aceito', 'em_preparo', 'pronto', 'entregue'];
 
-export const estadoInfo = (estado) => ESTADOS[estado] ?? { label: estado || 'Em andamento', tone: 'info', hint: '' };
+/*
+  Nomes que a loja deu aos estados (Configuração de Operação do PDV, ex.: "No forno"), vindos da vitrine. Só troca o rótulo: o tom e a dica
+  continuam os de fábrica. Sem nomes (loja ou servidor antigo), vale o de fábrica.
+*/
+let nomesDaLoja = null;
+export function definirNomesEstados(nomes) {
+  nomesDaLoja = nomes && typeof nomes === 'object' ? nomes : null;
+}
+
+export const estadoInfo = (estado, nomeDoPedido = null) => {
+  const base = ESTADOS[estado] ?? { label: estado || 'Em andamento', tone: 'info', hint: '' };
+  const nome = nomeDoPedido || nomesDaLoja?.[estado];
+  return nome ? { ...base, label: nome } : base;
+};
 
 export const PAGAMENTOS = {
   na_entrega: 'Pagar na entrega',
